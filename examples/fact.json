@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1, "id": "fact_lin_injury_right_hand", "projectId": "proj_wordhub",
+  "statement": { "subject": "character.lin", "predicate": "injury.hand", "object": "right" },
+  "status": "accepted", "confidence": 1, "assertedBy": { "type": "user", "id": "user" },
+  "sourceRefs": [{ "sourceId": "bible_characters", "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "exact": "林默的右手在第三章受伤。", "chapter": 3, "paragraph": 2 }],
+  "validFrom": { "sourceId": "chapter_3", "sourceHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "chapter": 3 },
+  "revealedAt": { "sourceId": "chapter_3", "sourceHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "chapter": 3, "paragraph": 2 },
+  "canon": true, "createdAt": "2026-10-03T01:00:00Z"
+}

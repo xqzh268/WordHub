@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wordhub.local/schema/agent-config.schema.json",
+  "title": "WordHub AGENT.md frontmatter",
+  "type": "object", "additionalProperties": false,
+  "$version": "2",
+  "required": ["name", "displayName", "description", "model", "tools", "write", "memoryScopes", "maxTurns"],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }, "displayName": { "type": "string", "minLength": 1, "maxLength": 80 }, "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "avatar": { "type": "object", "additionalProperties": false, "properties": { "glyph": { "type": "string", "minLength": 1, "maxLength": 2 }, "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" } } },
+    "model": { "$ref": "model-config.schema.json#/$defs/modelRef" }, "fallback": { "$ref": "model-config.schema.json#/$defs/modelRef" },
+    "tools": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]+$" }, "uniqueItems": true }, "write": { "enum": ["none", "propose", "write"] }, "writeScopes": { "type": "array", "items": { "type": "string" } }, "confirmBeforeWrite": { "type": "boolean" },
+    "memoryScopes": { "type": "object", "additionalProperties": false, "required": ["read", "write"], "properties": { "read": { "type": "array", "items": { "type": "string" } }, "write": { "type": "array", "items": { "type": "string" } } } },
+    "canChallenge": { "type": "array", "items": { "type": "string" } }, "maxTurns": { "type": "integer", "minimum": 1, "maximum": 100 }, "skills": { "type": "array", "items": { "type": "string" } }
+  }
+}

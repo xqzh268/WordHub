@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wordhub.local/schema/model-config.schema.json",
+  "title": "WordHub model and provider configuration",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "defaults", "providers"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "defaults": { "$ref": "#/$defs/modelRef" }, "providers": { "type": "array", "items": { "$ref": "#/$defs/provider" } }
+  },
+  "$defs": {
+    "reasoning": { "enum": ["off", "minimal", "low", "medium", "high", "xhigh", "max"] },
+    "modelRef": { "type": "object", "additionalProperties": false, "required": ["provider", "id", "reasoning"], "properties": { "provider": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }, "id": { "type": "string", "minLength": 1, "maxLength": 160 }, "reasoning": { "$ref": "#/$defs/reasoning" } } },
+    "model": { "type": "object", "additionalProperties": false, "required": ["id", "label", "contextWindow", "supportsReasoning", "pricing"], "properties": { "id": { "type": "string" }, "label": { "type": "string" }, "contextWindow": { "type": "integer", "minimum": 1 }, "maxOutputTokens": { "type": "integer", "minimum": 1 }, "supportsReasoning": { "type": "boolean" }, "supportedReasoning": { "type": "array", "items": { "$ref": "#/$defs/reasoning" } }, "pricing": { "type": "object", "required": ["inputUsdPerMillion", "outputUsdPerMillion", "cacheReadUsdPerMillion"], "properties": { "inputUsdPerMillion": { "type": "number", "minimum": 0 }, "outputUsdPerMillion": { "type": "number", "minimum": 0 }, "cacheReadUsdPerMillion": { "type": "number", "minimum": 0 } } } } },
+    "provider": { "type": "object", "additionalProperties": false, "required": ["id", "label", "kind", "enabled", "models"], "properties": { "id": { "type": "string" }, "label": { "type": "string" }, "kind": { "enum": ["builtin", "openai-compatible", "custom"] }, "enabled": { "type": "boolean" }, "baseUrl": { "type": "string", "format": "uri" }, "credentialRef": { "type": "string" }, "models": { "type": "array", "items": { "$ref": "#/$defs/model" } } } }
+  }
+}

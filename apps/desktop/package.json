@@ -1,0 +1,11 @@
+{
+  "name": "@wordhub/desktop",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@wordhub/contracts": "0.1.0-alpha.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

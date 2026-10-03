@@ -1,0 +1,56 @@
+{
+  "name": "wordhub",
+  "private": true,
+  "version": "0.1.0-alpha.0",
+  "description": "文枢（WordHub）多Agent写作平台",
+  "license": "AGPL-3.0-only",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "validate:schema": "node scripts/validate-contracts.mjs",
+    "spike:pi": "node scripts/spike-pi-worker.mjs",
+    "spike:pi:utility": "node scripts/spike-pi-utility.mjs",
+    "spike:superdoc": "node scripts/spike-superdoc.mjs",
+    "spike:foliate": "node scripts/spike-foliate.mjs",
+    "spike:superdoc:node": "node scripts/spike-superdoc-node.mjs",
+    "build:contracts": "tsc -p packages/contracts/tsconfig.json",
+    "typecheck": "tsc -b --pretty false",
+    "build:desktop": "npm run build:contracts && electron-vite build --config apps/desktop/electron.vite.config.ts",
+    "dev:desktop": "electron-vite dev --config apps/desktop/electron.vite.config.ts",
+    "test:desktop": "node scripts/desktop-smoke.mjs",
+    "spike:all": "npm run validate:schema && npm run spike:pi && npm run spike:pi:utility && npm run spike:superdoc && npm run spike:superdoc:node && npm run spike:foliate"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "1.0.0",
+    "@earendil-works/pi-ai": "1.0.0",
+    "@hocuspocus/provider": "^2.15.2",
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "docx": "9.8.1",
+    "foliate-js": "1.0.1",
+    "jsdom": "26.1.0",
+    "superdoc": "2.20.0",
+    "yaml": "2.8.1",
+    "yauzl": "3.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "5.0.4",
+    "electron": "44.5.1",
+    "electron-vite": "5.0.0",
+    "esbuild": "0.25.12",
+    "playwright": "1.63.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3",
+    "vite": "7.1.7"
+  }
+}

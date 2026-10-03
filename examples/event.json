@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1, "id": "evt_p0_0001", "projectId": "proj_wordhub", "sessionId": "sess_p0", "runId": "run_p0", "taskId": "task_outline", "seq": 1,
+  "type": "task.created", "actor": { "type": "system", "id": "coordinator" }, "occurredAt": "2026-10-03T01:00:00Z", "visibility": "audit", "idempotencyKey": "task-created-outline-1",
+  "payload": { "kind": "outline", "status": "pending" }, "refs": []
+}

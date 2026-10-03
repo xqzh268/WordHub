@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1, "id": "graph_p0", "projectId": "proj_wordhub", "canon": true, "createdAt": "2026-10-03T01:00:00Z",
+  "nodes": [{ "id": "character_lin", "type": "character", "label": "林默", "aliases": [], "props": {}, "status": "accepted", "sourceRefs": [], "confidence": 1, "assertedBy": { "type": "user", "id": "user" }, "canon": true }],
+  "edges": []
+}

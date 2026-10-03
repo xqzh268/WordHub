@@ -1,0 +1,17 @@
+{
+  "name": "@wordhub/contracts",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema/*": "./src/schema/*"
+  },
+  "files": ["dist", "src/schema"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

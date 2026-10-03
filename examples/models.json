@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "defaults": { "provider": "deepseek", "id": "deepseek-v4-pro", "reasoning": "high" },
+  "providers": [{
+    "id": "deepseek", "label": "DeepSeek", "kind": "builtin", "enabled": true,
+    "credentialRef": "safe:deepseek:default",
+    "models": [
+      { "id": "deepseek-v4-pro", "label": "DeepSeek V4 Pro", "contextWindow": 1000000, "maxOutputTokens": 384000, "supportsReasoning": true, "supportedReasoning": ["high", "max"], "pricing": { "inputUsdPerMillion": 1.32, "outputUsdPerMillion": 3.96, "cacheReadUsdPerMillion": 0.044 } },
+      { "id": "deepseek-flash", "label": "DeepSeek V4.1 Flash", "contextWindow": 1000000, "maxOutputTokens": 384000, "supportsReasoning": true, "supportedReasoning": ["low", "high", "max"], "pricing": { "inputUsdPerMillion": 0.30, "outputUsdPerMillion": 1.20, "cacheReadUsdPerMillion": 0.006 } }
+    ]
+  }]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wordhub.local/schema/event.json",
+  "title": "WordHub Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "projectId", "sessionId", "runId", "seq", "type", "actor", "occurredAt", "payload"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "id": { "$ref": "common.schema.json#/$defs/id" },
+    "projectId": { "$ref": "common.schema.json#/$defs/id" }, "sessionId": { "$ref": "common.schema.json#/$defs/id" },
+    "runId": { "$ref": "common.schema.json#/$defs/id" }, "taskId": { "$ref": "common.schema.json#/$defs/id" },
+    "seq": { "type": "integer", "minimum": 1 }, "type": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]+$" },
+    "actor": { "$ref": "common.schema.json#/$defs/actor" }, "occurredAt": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "causationId": { "$ref": "common.schema.json#/$defs/id" }, "correlationId": { "$ref": "common.schema.json#/$defs/id" },
+    "idempotencyKey": { "type": "string", "minLength": 8, "maxLength": 200 },
+    "visibility": { "enum": ["room", "thread", "internal", "audit"] },
+    "refs": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+    "payload": { "type": "object" }
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+*.tgz
+artifacts/
+out/
+packages/*/dist/
+.wordhub/
+spikes/.cache/
+*.tsbuildinfo

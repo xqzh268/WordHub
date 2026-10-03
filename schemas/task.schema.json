@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wordhub.local/schema/task.json",
+  "title": "WordHub Task",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "projectId", "sessionId", "runId", "kind", "status", "dependencies", "contextSnapshotId", "createdAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "id": { "$ref": "common.schema.json#/$defs/id" },
+    "projectId": { "$ref": "common.schema.json#/$defs/id" }, "sessionId": { "$ref": "common.schema.json#/$defs/id" }, "runId": { "$ref": "common.schema.json#/$defs/id" },
+    "kind": { "type": "string" }, "status": { "enum": ["pending", "ready", "running", "waiting_approval", "blocked", "succeeded", "failed", "cancelled"] },
+    "assignedAgent": { "type": "string" }, "dependencies": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/id" }, "uniqueItems": true },
+    "inputRefs": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } }, "outputRefs": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ref" } },
+    "contextSnapshotId": { "$ref": "common.schema.json#/$defs/id" }, "attempt": { "type": "integer", "minimum": 0 }, "maxAttempts": { "type": "integer", "minimum": 1 },
+    "budget": { "type": "object", "additionalProperties": false, "properties": { "inputTokens": { "type": "integer", "minimum": 0 }, "outputTokens": { "type": "integer", "minimum": 0 }, "usd": { "type": "number", "minimum": 0 }, "deadlineMs": { "type": "integer", "minimum": 0 } } },
+    "checkpoint": { "type": "object", "additionalProperties": false, "properties": { "eventId": { "$ref": "common.schema.json#/$defs/id" }, "cursor": { "type": "string" }, "stateHash": { "$ref": "common.schema.json#/$defs/hash" } } },
+    "createdAt": { "$ref": "common.schema.json#/$defs/isoDateTime" }, "updatedAt": { "$ref": "common.schema.json#/$defs/isoDateTime" }
+  }
+}

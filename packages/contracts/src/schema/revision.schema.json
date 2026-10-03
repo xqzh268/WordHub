@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wordhub.local/schema/revision.json",
+  "title": "WordHub immutable Artifact Revision",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "artifactId", "projectId", "revisionNo", "status", "contentHash", "author", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "id": { "$ref": "common.schema.json#/$defs/id" }, "artifactId": { "$ref": "common.schema.json#/$defs/id" }, "projectId": { "$ref": "common.schema.json#/$defs/id" },
+    "revisionNo": { "type": "integer", "minimum": 1 }, "parentRevisionId": { "$ref": "common.schema.json#/$defs/id" },
+    "status": { "enum": ["candidate", "current", "rejected", "reverted", "superseded"] }, "contentHash": { "$ref": "common.schema.json#/$defs/hash" },
+    "contentType": { "enum": ["text/plain", "text/markdown", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/json", "application/graph+json", "application/pdf"] },
+    "storagePath": { "type": "string" }, "patch": { "type": "object" }, "author": { "$ref": "common.schema.json#/$defs/actor" },
+    "sourceTaskId": { "$ref": "common.schema.json#/$defs/id" }, "sourceEventId": { "$ref": "common.schema.json#/$defs/id" }, "approvedByEventId": { "$ref": "common.schema.json#/$defs/id" },
+    "createdAt": { "$ref": "common.schema.json#/$defs/isoDateTime" }
+  }
+}

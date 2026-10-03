@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wordhub.local/schema/graph.json",
+  "title": "WordHub sourced graph",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "projectId", "nodes", "edges", "canon", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "id": { "$ref": "common.schema.json#/$defs/id" }, "projectId": { "$ref": "common.schema.json#/$defs/id" },
+    "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } }, "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+    "canon": { "type": "boolean" }, "branchId": { "type": "string" }, "createdAt": { "$ref": "common.schema.json#/$defs/isoDateTime" }
+  },
+  "$defs": {
+    "node": { "type": "object", "additionalProperties": false, "required": ["id", "type", "label", "status", "sourceRefs", "canon"], "properties": {
+      "id": { "$ref": "common.schema.json#/$defs/id" }, "type": { "type": "string" }, "label": { "type": "string" }, "aliases": { "type": "array", "items": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "revealedAt": { "$ref": "common.schema.json#/$defs/anchor" } } } }, "props": { "type": "object" }, "status": { "$ref": "common.schema.json#/$defs/status" }, "sourceRefs": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/anchor" } }, "confidence": { "type": "number", "minimum": 0, "maximum": 1 }, "assertedBy": { "$ref": "common.schema.json#/$defs/actor" }, "canon": { "type": "boolean" }, "branchId": { "type": "string" }
+    } },
+    "edge": { "type": "object", "additionalProperties": false, "required": ["id", "src", "dst", "rel", "status", "sourceRefs", "canon"], "properties": {
+      "id": { "$ref": "common.schema.json#/$defs/id" }, "src": { "$ref": "common.schema.json#/$defs/id" }, "dst": { "$ref": "common.schema.json#/$defs/id" }, "rel": { "type": "string" }, "factId": { "$ref": "common.schema.json#/$defs/id" }, "status": { "$ref": "common.schema.json#/$defs/status" }, "sourceRefs": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/anchor" } }, "confidence": { "type": "number", "minimum": 0, "maximum": 1 }, "assertedBy": { "$ref": "common.schema.json#/$defs/actor" }, "validFrom": { "$ref": "common.schema.json#/$defs/anchor" }, "validTo": { "$ref": "common.schema.json#/$defs/anchor" }, "revealedAt": { "$ref": "common.schema.json#/$defs/anchor" }, "canon": { "type": "boolean" }, "branchId": { "type": "string" }
+    } }
+  }
+}

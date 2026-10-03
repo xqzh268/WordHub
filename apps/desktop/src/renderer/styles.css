@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+SC:wght@400;500;600&display=swap');
+
+:root { color-scheme: light; font-family: Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; color: #2d2a26; background: #e7dfd2; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1080px; min-height: 720px; background: radial-gradient(circle at 72% 10%, #f1ebe2 0, #e7dfd2 48%, #ded3c3 100%); }
+button, textarea { font: inherit; }
+button { cursor: pointer; }
+.shell { display: grid; grid-template-columns: 250px minmax(520px, 1fr) 350px; min-height: 100vh; }
+.sidebar { display: flex; flex-direction: column; gap: 10px; padding: 28px 18px 20px; border-right: 1px solid #d1c5b6; background: rgba(244,239,231,.78); }
+.brand { display: flex; gap: 12px; align-items: center; margin: 0 10px 22px; letter-spacing: .04em; }
+.brand-mark { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid #8c7c6a; color: #fbf8f1; background: #574c43; font-family: "Noto Serif SC", serif; font-size: 20px; }
+.brand strong { display: block; font-family: "Noto Serif SC", serif; font-size: 21px; font-weight: 600; }
+.brand small { color: #998b7b; font-size: 9px; letter-spacing: .23em; }
+.new-project { padding: 12px 14px; border: 1px solid #c1b2a2; border-radius: 5px; color: #54483e; background: #eee8dd; text-align: left; }
+.new-project:hover { background: #e7dfd2; }
+.section-label { margin: 18px 10px 2px; color: #a39789; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+.project-card, .session-row { border-radius: 5px; }
+.project-card { display: grid; grid-template-columns: 12px 1fr; column-gap: 8px; padding: 10px; color: #493f37; font-size: 13px; }
+.project-card small { grid-column: 2; overflow: hidden; color: #a39789; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.project-card.active, .session-row.active { background: #e2d8ca; box-shadow: inset 3px 0 #8e6250; }
+.project-dot { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: #b67656; }
+.session-row { display: flex; gap: 9px; padding: 9px 12px; color: #76695b; font-size: 12px; }
+.session-row span { color: #b09f8e; }
+.sidebar-footer { display: flex; gap: 7px; align-items: center; margin-top: auto; padding: 10px; color: #988b7c; font-size: 11px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #9a8d7d; }.status-dot.ready { background: #648b63; }.status-dot.busy { background: #b67656; }.status-dot.crashed { background: #b64f45; }
+.conversation { display: flex; min-width: 0; flex-direction: column; }
+.topbar { display: flex; justify-content: space-between; align-items: flex-start; padding: 30px 42px 22px; border-bottom: 1px solid rgba(193,178,162,.65); }
+.topbar small { color: #aa9b8a; font-size: 10px; letter-spacing: .14em; }.topbar h1 { margin: 6px 0 0; font-family: "Noto Serif SC", serif; font-size: 23px; font-weight: 500; }.top-actions { display: flex; gap: 6px; }.top-actions button { width: 32px; height: 30px; border: 0; border-radius: 4px; color: #958777; background: transparent; }.top-actions button:hover { background: #ded3c3; }
+.timeline { flex: 1; overflow: auto; padding: 42px; }.welcome-card, .stream-card { display: flex; gap: 14px; max-width: 650px; margin-bottom: 22px; padding: 18px 20px; border: 1px solid #d1c3b4; border-radius: 5px; background: rgba(248,244,237,.72); box-shadow: 0 8px 22px rgba(89,71,53,.06); }.welcome-card strong, .stream-card strong { font-size: 12px; font-weight: 600; }.welcome-card p, .stream-card p { margin: 7px 0 0; color: #75695c; font-family: "Noto Serif SC", serif; font-size: 14px; line-height: 1.8; }.stamp { display: grid; flex: 0 0 26px; width: 26px; height: 26px; place-items: center; border: 1px solid #a99581; border-radius: 50%; color: #8a7664; font-size: 13px; }.stamp.ink { border-radius: 2px; color: #f6f1e8; background: #87604f; }.event-strip { display: flex; flex-wrap: wrap; gap: 6px; max-width: 680px; }.event-strip span { padding: 4px 7px; border: 1px solid #d4c9bb; border-radius: 3px; color: #978a7c; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px; }
+.composer { margin: 0 42px 34px; padding: 14px 16px 10px; border: 1px solid #c8b9a8; border-radius: 6px; background: rgba(249,246,240,.75); box-shadow: 0 12px 26px rgba(85,66,47,.08); }.composer textarea { width: 100%; resize: none; border: 0; outline: 0; color: #3a332c; background: transparent; font-family: "Noto Serif SC", serif; font-size: 14px; line-height: 1.7; }.composer textarea::placeholder { color: #b0a294; }.composer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 9px; color: #b0a294; font-size: 10px; }.composer-actions div { display: flex; gap: 7px; }.ghost, .send { padding: 7px 13px; border-radius: 4px; font-size: 11px; }.ghost { border: 1px solid #d0c1b0; color: #927f6b; background: transparent; }.send { border: 1px solid #695449; color: #fffaf1; background: #695449; }.send:hover { background: #55443a; }.ghost:disabled { cursor: default; opacity: .5; }
+.paper-column { padding: 0 24px 30px; border-left: 1px solid #d1c5b6; background: rgba(235,226,215,.35); }.paper-tabs { display: flex; gap: 22px; padding: 31px 11px 17px; border-bottom: 1px solid #d0c2b2; color: #a09282; font-size: 11px; }.paper-tabs span { padding-bottom: 7px; }.paper-tabs .selected { border-bottom: 1px solid #705c4d; color: #5b4c40; }.paper { min-height: 570px; margin-top: 25px; padding: 42px 30px; background: #faf7ef; box-shadow: 0 16px 30px rgba(78,57,37,.10); font-family: "Noto Serif SC", serif; }.paper-kicker { color: #b6a695; font-family: Inter, sans-serif; font-size: 9px; letter-spacing: .2em; }.paper h2 { margin: 22px 0 8px; font-size: 30px; font-weight: 500; letter-spacing: .08em; }.paper-subtitle { margin: 0; color: #9e8c7a; font-size: 12px; }.paper hr { margin: 30px 0; border: 0; border-top: 1px solid #d9cfc0; }.paper h3 { margin: 0 0 10px; font-size: 16px; font-weight: 500; }.paper p { color: #75695c; font-size: 13px; line-height: 2; }.paper-note { margin-top: 85px; padding-top: 12px; border-top: 1px solid #e1d8cc; color: #b4a696; font-family: Inter, sans-serif; font-size: 10px; }
