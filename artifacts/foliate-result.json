@@ -1,0 +1,18 @@
+{
+  "spike": "foliate-js-ebook",
+  "package": "foliate-js@1.0.1",
+  "epub": {
+    "ok": true,
+    "sections": 1,
+    "title": "文枢电子书样本",
+    "text": "文枢电子书样本这是用于foliate-js读取验证的中文章节。"
+  },
+  "mobi": {
+    "ok": true,
+    "sections": 85,
+    "title": "Pride and Prejudice",
+    "text": "The Project Gutenberg eBook of Pride and PrejudiceThis eBook is for the use of anyone anywhere in the United States and most other parts of the world at no cost and with almost no restrictions whatsoe"
+  },
+  "errors": [],
+  "ok": true
+}

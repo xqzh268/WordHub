@@ -1,0 +1,15 @@
+{
+  "spike": "pi-deepseek-worker",
+  "node": "v24.11.1",
+  "worker": "child_process",
+  "model": "deepseek-flash",
+  "mode": "worker-only-mock",
+  "events": [
+    "agent_start",
+    "message_update",
+    "agent_end"
+  ],
+  "ok": true,
+  "exitCode": 0,
+  "text": "Pi独立工作进程已运行（mock transport，仅验证worker IPC）。"
+}

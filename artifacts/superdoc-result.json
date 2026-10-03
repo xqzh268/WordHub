@@ -1,0 +1,327 @@
+{
+  "spike": "superdoc-chinese-docx",
+  "package": "superdoc@2.20.0",
+  "input": "artifacts\\superdoc-chinese-input.docx",
+  "output": "artifacts\\superdoc-chinese-output.docx",
+  "opened": true,
+  "chineseTextFound": true,
+  "inspection": {
+    "html": [],
+    "rootText": "文枢中文DOCX技术验证\n这是包含中文、标点和Agent版本锚点的测试段落。\n字段\n值\n状态\n候选版本\n文枢中文DOCX技术验证\n这是包含中文、标点和Agent版本锚点的测试段落。\n字段\n值\n状态\n候选版本",
+    "bodyText": "文枢中文DOCX技术验证\n这是包含中文、标点和Agent版本锚点的测试段落。\n字段\n值\n状态\n候选版本\n文枢中文DOCX技术验证\n这是包含中文、标点和Agent版本锚点的测试段落。\n字段\n值\n状态\n候选版本",
+    "keys": [
+      "_events",
+      "_eventsCount",
+      "version",
+      "users",
+      "whiteboard",
+      "colors",
+      "readyEditors",
+      "config",
+      "editorVersion",
+      "userColorMap",
+      "colorIndex",
+      "superdocId",
+      "user",
+      "socket",
+      "isDev",
+      "activeEditor",
+      "comments",
+      "isLocked",
+      "lockedBy",
+      "toolbarElement",
+      "toolbar",
+      "app",
+      "pinia",
+      "superdocStore",
+      "commentsStore",
+      "highContrastModeStore"
+    ],
+    "proto": [
+      "constructor",
+      "uiConfig",
+      "interactionConfig",
+      "surfacesConfig",
+      "requiredNumberOfEditors",
+      "ui",
+      "diagnostics",
+      "emit",
+      "on",
+      "addListener",
+      "once",
+      "removeListener",
+      "off",
+      "removeAllListeners",
+      "state",
+      "getDocumentRuntimeForDocument",
+      "getComment",
+      "element",
+      "getCollaborationConnectionState",
+      "upgradeToCollaboration",
+      "addSharedUser",
+      "removeSharedUser",
+      "onContentError",
+      "broadcastPdfDocumentReady",
+      "broadcastReady",
+      "broadcastEditorBeforeCreate",
+      "broadcastEditorCreate",
+      "broadcastSourceComplete",
+      "broadcastSourceSignalsComplete",
+      "broadcastEditorDestroy",
+      "broadcastSidebarToggle",
+      "fonts",
+      "setActiveEditor",
+      "getV2FeatureMatrix",
+      "v2",
+      "registerEditorRuntime",
+      "unregisterEditorRuntime",
+      "getActiveRuntime",
+      "setActiveRuntime",
+      "resolveRuntimeFromEventTarget",
+      "activateRuntimeFromEventTarget",
+      "toggleRuler",
+      "canPerformPermission",
+      "addCommentsList",
+      "removeCommentsList",
+      "scrollToComment",
+      "navigateTo",
+      "scrollToElement",
+      "setDisableContextMenu",
+      "setShowBookmarks",
+      "setShowFormattingMarks",
+      "toggleFormattingMarks",
+      "setDocumentMode",
+      "setTrackedChangesPreferences",
+      "setViewingOptions",
+      "search",
+      "goToSearchResult",
+      "getZoom",
+      "setZoom",
+      "setZoomMode",
+      "getZoomState",
+      "getViewportMetrics",
+      "getMeasurementUnit",
+      "setMeasurementUnit",
+      "setLocked",
+      "getHTML",
+      "lockSuperdoc",
+      "export",
+      "replaceFile",
+      "replaceDocument",
+      "exportEditorsToDOCX",
+      "save",
+      "openSurface",
+      "closeSurface",
+      "removeDocument",
+      "destroy",
+      "focus",
+      "setHighContrastMode"
+    ],
+    "version": "2.20.0",
+    "active": true,
+    "activeKeys": [
+      "editorVersion",
+      "documentId",
+      "host",
+      "mount",
+      "options",
+      "capabilities",
+      "save",
+      "exportDocx",
+      "replaceFile",
+      "upgradeToCollaboration",
+      "doc",
+      "documentMutationReadiness",
+      "documentApiUnavailableReason",
+      "focus",
+      "authoring",
+      "editCommands",
+      "v2Comments",
+      "v2TrackedChanges",
+      "contextMenu",
+      "pageMetrics",
+      "pageLayout",
+      "pageFurniture",
+      "presence",
+      "lock",
+      "connection",
+      "provider",
+      "reviewWindow",
+      "extensions",
+      "fonts",
+      "commands",
+      "state",
+      "view"
+    ],
+    "authoringKeys": [
+      "focusEditable",
+      "readBlocks",
+      "setSelectionTarget",
+      "setSelectionByText",
+      "replaceTextByText",
+      "replaceSelection",
+      "serializeSelectionToClipboard",
+      "pasteClipboardPayload",
+      "pastePlainText"
+    ],
+    "editCommandsKeys": [
+      "file",
+      "history",
+      "text",
+      "comments",
+      "formatting",
+      "direction",
+      "lists",
+      "trackedChanges",
+      "getSnapshot",
+      "subscribe",
+      "getMatrix",
+      "getTrackedAuthoringMode",
+      "setTrackedAuthoringMode",
+      "getHost",
+      "dispose",
+      "search"
+    ],
+    "commandsKeys": [],
+    "configDocs": [
+      {
+        "id": "10e4fdee-0e31-4532-bf66-729b72e35296",
+        "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "url": "/artifacts/superdoc-chinese-input.docx",
+        "name": "document.docx"
+      }
+    ],
+    "storeDocs": [
+      {
+        "id": "10e4fdee-0e31-4532-bf66-729b72e35296",
+        "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "ready": true
+      }
+    ],
+    "exception": null
+  },
+  "editAttempt": {
+    "ok": true,
+    "receipt": {
+      "success": true,
+      "affectedStories": [
+        {
+          "kind": "story",
+          "storyType": "body"
+        }
+      ],
+      "textRangeShifts": [
+        {
+          "story": {
+            "kind": "story",
+            "storyType": "body"
+          },
+          "atChar": 0,
+          "blockId": "00000001",
+          "atCharInBlock": 0,
+          "delta": -1
+        }
+      ],
+      "txId": "tx-f38d836c-945f-4eac-b742-f2b6b28286dc",
+      "resolution": {
+        "target": {
+          "kind": "text",
+          "blockId": "00000001",
+          "range": {
+            "start": 0,
+            "end": 12
+          },
+          "story": {
+            "kind": "story",
+            "storyType": "body"
+          }
+        },
+        "range": {
+          "from": 2360,
+          "to": 2489
+        },
+        "text": "文枢中文DOCX技术验证",
+        "selectionTarget": {
+          "kind": "selection",
+          "start": {
+            "kind": "text",
+            "blockId": "00000001",
+            "offset": 0,
+            "story": {
+              "kind": "story",
+              "storyType": "body"
+            }
+          },
+          "end": {
+            "kind": "text",
+            "blockId": "00000001",
+            "offset": 12,
+            "story": {
+              "kind": "story",
+              "storyType": "body"
+            }
+          },
+          "story": {
+            "kind": "story",
+            "storyType": "body"
+          }
+        }
+      },
+      "effects": {
+        "insertedText": [
+          {
+            "kind": "insertedText",
+            "target": {
+              "kind": "text",
+              "blockId": "00000001",
+              "range": {
+                "start": 0,
+                "end": 11
+              },
+              "story": {
+                "kind": "story",
+                "storyType": "body"
+              }
+            },
+            "selectionTarget": {
+              "kind": "selection",
+              "start": {
+                "kind": "text",
+                "blockId": "00000001",
+                "offset": 0,
+                "story": {
+                  "kind": "story",
+                  "storyType": "body"
+                }
+              },
+              "end": {
+                "kind": "text",
+                "blockId": "00000001",
+                "offset": 11,
+                "story": {
+                  "kind": "story",
+                  "storyType": "body"
+                }
+              },
+              "story": {
+                "kind": "story",
+                "storyType": "body"
+              }
+            },
+            "text": "文枢中文DOCX已写回"
+          }
+        ]
+      }
+    },
+    "text": "文枢中文DOCX已写回",
+    "replacedText": "文枢中文DOCX技术验证",
+    "occurrence": 0
+  },
+  "outputContainsEdit": true,
+  "exportShape": {
+    "kind": "blob"
+  },
+  "exportedBytes": 8245,
+  "ok": true,
+  "errors": []
+}

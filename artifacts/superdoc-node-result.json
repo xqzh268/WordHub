@@ -1,0 +1,10 @@
+{
+  "spike": "superdoc-node-jsdom",
+  "package": "superdoc@2.20.0",
+  "ok": false,
+  "status": "unsupported",
+  "errors": [
+    "jsdom SuperDoc ready timeout"
+  ],
+  "conclusion": "本次Node/jsdom尝试未能完成编辑；SuperDoc依赖浏览器布局/Worker运行时，不能作为P1后台写入方案。"
+}

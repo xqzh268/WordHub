@@ -1,6 +1,8 @@
 node_modules/
 *.tgz
-artifacts/
+artifacts/*
+!artifacts/
+!artifacts/*-result.json
 out/
 packages/*/dist/
 .wordhub/
