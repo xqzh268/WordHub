@@ -9,7 +9,14 @@ export type ToolStep = {
   durationMs?: number;
 };
 
-export type AgentStatus = "thinking" | "streaming" | "done" | "aborted" | "interrupted" | "waiting_approval" | "error";
+export type AgentStatus =
+  | "thinking"
+  | "streaming"
+  | "done"
+  | "aborted"
+  | "interrupted"
+  | "waiting_approval"
+  | "error";
 
 export type ChatItem =
   | { kind: "user"; id: string; at: number; text: string }
@@ -29,6 +36,12 @@ export type ChatItem =
       model?: string;
       reasoningLevel?: string;
       usage?: { input: number; output: number; total: number; cost?: number };
+      context?: {
+        id: string;
+        kind: string;
+        sourcePath?: string;
+        estimatedTokens: number;
+      }[];
       /** 编辑类改动的摘要，显示「查看差异 / 撤销」 */
       edit?: { label: string };
     }
@@ -44,7 +57,17 @@ export type ChatItem =
       claim: string;
       replies: { agentId: string; text: string }[];
     }
-  | { kind: "approval"; id: string; at: number; title: string; body: string; options: string[]; runId?: string; resolved?: string }
+  | {
+      kind: "approval";
+      id: string;
+      at: number;
+      title: string;
+      body: string;
+      options: string[];
+      runId?: string;
+      resolved?: string;
+      preview?: string;
+    }
   | { kind: "notice"; id: string; at: number; text: string; tone?: "warn" };
 
 export type Session = { id: string; title: string; items: ChatItem[] };
@@ -60,4 +83,10 @@ export type PaperParagraph = {
 
 export type View = "workspace" | "references" | "graph" | "settings";
 export type PaperTab = "paper" | "outline" | "facts";
-export type WorkerState = "offline" | "starting" | "ready" | "busy" | "stopped" | "crashed";
+export type WorkerState =
+  | "offline"
+  | "starting"
+  | "ready"
+  | "busy"
+  | "stopped"
+  | "crashed";

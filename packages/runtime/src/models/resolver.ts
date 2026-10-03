@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { validateConfig } from "../schema.js";
 import type { Api, Model, Models, Usage } from "@earendil-works/pi-ai";
 import {
   calculateCost,
@@ -52,6 +53,13 @@ export function parseModelConfig(
     )
       throw new Error(`${source}.providers包含无效Provider`);
   }
+  try {
+    validateConfig("model-config", value);
+  } catch (error) {
+    throw new Error(
+      `${source}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
   return value as ModelConfig;
 }
 
@@ -59,9 +67,17 @@ export async function loadModelConfig(
   filePath: string,
   fallback: ModelConfig,
 ): Promise<ModelConfig> {
-  const text = await readFile(filePath, "utf8").catch(() => undefined);
+  const text = await readFile(filePath, "utf8").catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    },
+  );
   if (!text) return fallback;
-  return parseModelConfig(JSON.parse(text) as unknown, filePath);
+  return mergeModelConfig(
+    fallback,
+    parseModelConfig(JSON.parse(text) as unknown, filePath),
+  );
 }
 
 export function mergeModelConfig(

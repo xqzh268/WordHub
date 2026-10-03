@@ -2,8 +2,8 @@ import {
   Agent,
   type AgentEvent,
   type AgentMessage,
+  type AgentOptions,
   type AgentTool,
-  type StreamFn,
 } from "@earendil-works/pi-agent-core";
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { ReasoningLevel, RuntimeStreamEvent } from "../types.js";
@@ -14,72 +14,135 @@ export type PiAgentHostOptions = {
   reasoning: ReasoningLevel;
   systemPrompt: string;
   tools?: AgentTool[];
-  transformContext?: (messages: AgentMessage[]) => Promise<AgentMessage[]>;
-  emit: (event: RuntimeStreamEvent) => void;
+  getApiKey?: AgentOptions["getApiKey"];
+  beforeToolCall?: AgentOptions["beforeToolCall"];
+  maxTurns?: number;
+  transformContext?: AgentOptions["transformContext"];
+  emit: (event: RuntimeStreamEvent) => void | Promise<void>;
 };
 
-/** Pi唯一的适配边界：运行时向上只暴露流事件，思考流不进入持久事件日志。 */
+export class PiRunError extends Error {
+  constructor(
+    message: string,
+    readonly aborted = false,
+  ) {
+    super(message);
+    this.name = "PiRunError";
+  }
+}
+
+/** provider使用安全别名；权限和产品事件只使用AGENT.md里的逻辑名。 */
 export class PiAgentHost {
   private readonly agent: Agent;
+  private readonly logicalNames = new Map<string, string>();
+  private aborted = false;
 
   constructor(options: PiAgentHostOptions) {
-    const streamFn = options.models.streamSimple.bind(
-      options.models,
-    ) as StreamFn;
+    const tools = (options.tools ?? []).map((tool) => {
+      const alias = tool.name.replaceAll(".", "_");
+      if (!/^[a-zA-Z0-9_-]{1,64}$/u.test(alias))
+        throw new Error(`工具别名无效：${tool.name}`);
+      if (this.logicalNames.has(alias))
+        throw new Error(
+          `工具别名冲突：${tool.name} / ${this.logicalNames.get(alias)}`,
+        );
+      this.logicalNames.set(alias, tool.name);
+      return { ...tool, name: alias };
+    });
+    let turns = 0;
     this.agent = new Agent({
       initialState: {
         model: options.model,
         thinkingLevel: options.reasoning,
         systemPrompt: options.systemPrompt,
-        tools: options.tools ?? [],
+        tools,
       },
-      streamFn,
+      streamFn: options.models.streamSimple.bind(options.models),
+      getApiKey: options.getApiKey,
       transformContext: options.transformContext,
       toolExecution: "sequential",
+      beforeToolCall: async (context, signal) =>
+        options.beforeToolCall?.(
+          {
+            ...context,
+            toolCall: {
+              ...context.toolCall,
+              name: this.logical(context.toolCall.name),
+            },
+          },
+          signal,
+        ),
+      finishTurn: (turn) => {
+        if (
+          ++turns >= (options.maxTurns ?? 20) &&
+          turn.message.content.some((block) => block.type === "toolCall")
+        )
+          throw new PiRunError("已达到Agent的最大工具轮数，请缩小任务后重试");
+      },
     });
     this.agent.subscribe((event) => this.forward(event, options.emit));
   }
 
-  prompt(prompt: string): Promise<void> {
-    return this.agent.prompt(prompt);
+  async prompt(prompt: string | AgentMessage[]): Promise<void> {
+    if (typeof prompt === "string") await this.agent.prompt(prompt);
+    else await this.agent.prompt(prompt);
+    this.checkTerminal();
+  }
+  async continue(): Promise<void> {
+    await this.agent.continue();
+    this.checkTerminal();
   }
   abort(): void {
+    this.aborted = true;
     this.agent.abort();
   }
   waitForIdle(): Promise<void> {
     return this.agent.waitForIdle();
   }
 
-  private forward(
+  private checkTerminal(): void {
+    const last = [...this.agent.state.messages]
+      .reverse()
+      .find((message) => message.role === "assistant");
+    if (this.aborted || last?.stopReason === "aborted")
+      throw new PiRunError("运行已取消", true);
+    if (last?.stopReason === "error" || this.agent.state.errorMessage)
+      throw new PiRunError(
+        last?.errorMessage || this.agent.state.errorMessage || "模型请求失败",
+      );
+    if (!last || (!last.content.length && !last.usage.totalTokens))
+      throw new PiRunError("模型返回空响应且用量为零");
+  }
+
+  private logical(name: string): string {
+    return this.logicalNames.get(name) ?? name;
+  }
+  private async forward(
     event: AgentEvent,
-    emit: (event: RuntimeStreamEvent) => void,
-  ): void {
-    emit({ type: "agent_event", event });
+    emit: PiAgentHostOptions["emit"],
+  ): Promise<void> {
     if (event.type === "message_update") {
       const update = event.assistantMessageEvent;
-      if (update?.type === "text_delta")
-        emit({ type: "text_delta", delta: update.delta });
-      if (update?.type === "thinking_delta")
-        emit({ type: "reasoning_delta", delta: update.delta });
+      if (update.type === "text_delta")
+        await emit({ type: "text_delta", delta: update.delta });
+      if (update.type === "thinking_delta")
+        await emit({ type: "reasoning_delta", delta: update.delta });
     }
     if (event.type === "tool_execution_start")
-      emit({
+      await emit({
         type: "tool_started",
-        toolName: event.toolName,
+        toolName: this.logical(event.toolName),
         toolCallId: event.toolCallId,
+        args: event.args,
       });
     if (event.type === "tool_execution_end")
-      emit({
+      await emit({
         type: "tool_finished",
-        toolName: event.toolName,
+        toolName: this.logical(event.toolName),
         toolCallId: event.toolCallId,
         ok: !event.isError,
       });
-    if (
-      event.type === "message_end" &&
-      event.message.role === "assistant" &&
-      event.message.usage
-    )
-      emit({ type: "usage", usage: event.message.usage });
+    if (event.type === "message_end" && event.message.role === "assistant")
+      await emit({ type: "usage", usage: event.message.usage });
   }
 }

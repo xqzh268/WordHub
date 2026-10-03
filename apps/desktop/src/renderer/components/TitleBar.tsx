@@ -6,7 +6,9 @@ export function TitleBar() {
   const theme = useWorkbench((s) => s.theme);
   const setTheme = useWorkbench((s) => s.setTheme);
   const projectName = useWorkbench((s) => s.project.name);
-  const sessionTitle = useWorkbench((s) => s.sessions.find((x) => x.id === s.activeSessionId)?.title ?? "");
+  const sessionTitle = useWorkbench(
+    (s) => s.sessions.find((x) => x.id === s.activeSessionId)?.title ?? "",
+  );
   const resolved = resolveTheme(theme);
 
   return (
@@ -27,7 +29,11 @@ export function TitleBar() {
           aria-label="切换明暗主题"
           onClick={() => setTheme(resolved === "dark" ? "light" : "dark")}
         >
-          {resolved === "dark" ? <Sun size={17} strokeWidth={1.5} /> : <Moon size={17} strokeWidth={1.5} />}
+          {resolved === "dark" ? (
+            <Sun size={17} strokeWidth={1.5} />
+          ) : (
+            <Moon size={17} strokeWidth={1.5} />
+          )}
         </button>
       </div>
     </header>

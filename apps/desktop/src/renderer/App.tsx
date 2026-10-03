@@ -20,7 +20,10 @@ function useThemeSync() {
     const apply = () => {
       const resolved = resolveTheme(theme);
       document.documentElement.dataset.theme = resolved;
-      void window.wordhub?.invoke("app.setTheme", { preference: theme, resolved });
+      void window.wordhub?.invoke("app.setTheme", {
+        preference: theme,
+        resolved,
+      });
     };
     apply();
     media.addEventListener("change", apply);
@@ -38,7 +41,21 @@ function useBackend() {
     if (!api) return;
     const handle = useWorkbench.getState().handleEvent;
     const unsubscribe = api.subscribe(handle);
-    void api.invoke("workspace.getSnapshot", undefined).then((snapshot) => handle({ type: "workspace.snapshot", payload: snapshot } satisfies AppEvent)).then(() => api.invoke("workspace.getSnapshot", undefined)).then((snapshot) => handle({ type: "worker.state", payload: { state: snapshot.worker } } satisfies AppEvent));
+    void api
+      .invoke("workspace.getSnapshot", undefined)
+      .then((snapshot) =>
+        handle({
+          type: "workspace.snapshot",
+          payload: snapshot,
+        } satisfies AppEvent),
+      )
+      .then(() => api.invoke("workspace.getSnapshot", undefined))
+      .then((snapshot) =>
+        handle({
+          type: "worker.state",
+          payload: { state: snapshot.worker },
+        } satisfies AppEvent),
+      );
     return unsubscribe;
   }, []);
 }
@@ -46,11 +63,23 @@ function useBackend() {
 function Workspace() {
   return (
     <Group orientation="horizontal" className="workspace">
-      <Panel defaultSize={232} minSize={200} maxSize={300} groupResizeBehavior="preserve-pixel-size" className="panel-sessions">
+      <Panel
+        defaultSize={232}
+        minSize={200}
+        maxSize={300}
+        groupResizeBehavior="preserve-pixel-size"
+        className="panel-sessions"
+      >
         <SessionPanel />
       </Panel>
       <Separator className="sep" />
-      <Panel defaultSize={470} minSize={360} maxSize={640} groupResizeBehavior="preserve-pixel-size" className="panel-chat">
+      <Panel
+        defaultSize={470}
+        minSize={360}
+        maxSize={640}
+        groupResizeBehavior="preserve-pixel-size"
+        className="panel-chat"
+      >
         <ChatPane />
       </Panel>
       <Separator className="sep" />
@@ -74,7 +103,14 @@ export function App() {
           <Rail />
           <main className="stage">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={view} className="stage-view" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}>
+              <motion.div
+                key={view}
+                className="stage-view"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              >
                 {view === "workspace" && <Workspace />}
                 {view === "references" && <ReferencesView />}
                 {view === "graph" && <GraphView />}

@@ -12,7 +12,15 @@ function refreshDeepSeekKey() {
   if (process.env.DEEPSEEK_API_KEY) return true;
   for (const scope of ["User", "Machine"]) {
     try {
-      const value = execFileSync("powershell.exe", ["-NoProfile", "-Command", `[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','${scope}')`], { encoding: "utf8", windowsHide: true }).trim();
+      const value = execFileSync(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-Command",
+          `[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','${scope}')`,
+        ],
+        { encoding: "utf8", windowsHide: true },
+      ).trim();
       if (value) {
         process.env.DEEPSEEK_API_KEY = value;
         return true;
@@ -23,19 +31,40 @@ function refreshDeepSeekKey() {
 }
 
 const hasKey = refreshDeepSeekKey();
-const build = process.platform === "win32"
-  ? spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", "npm run build:desktop"], { cwd: root, stdio: "inherit", env: process.env })
-  : spawnSync("npm", ["run", "build:desktop"], { cwd: root, stdio: "inherit", env: process.env });
+const build =
+  process.platform === "win32"
+    ? spawnSync(
+        process.env.ComSpec ?? "cmd.exe",
+        ["/d", "/s", "/c", "npm run build:desktop"],
+        { cwd: root, stdio: "inherit", env: process.env },
+      )
+    : spawnSync("npm", ["run", "build:desktop"], {
+        cwd: root,
+        stdio: "inherit",
+        env: process.env,
+      });
 if (build.error) throw build.error;
 if (build.status !== 0) process.exit(build.status ?? 1);
 
 const { ELECTRON_RUN_AS_NODE: _ignored, ...baseEnv } = process.env;
 const env = { ...baseEnv, WORDHUB_WORKSPACE_ROOT: root };
-const child = spawnSync(electronBinary, [path.join(root, "out", "main", "index.js"), "--wordhub-pi-spike"], { cwd: root, env, encoding: "utf8", windowsHide: true });
+const child = spawnSync(
+  electronBinary,
+  [path.join(root, "out", "main", "index.js"), "--wordhub-pi-spike"],
+  { cwd: root, env, encoding: "utf8", windowsHide: true },
+);
 const artifactPath = path.join(root, "artifacts", "pi-utility-result.json");
 let result = null;
-if (fs.existsSync(artifactPath)) result = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
-if (!result) result = { spike: "pi-electron-utility-process", ok: false, error: "Electron未生成验证报告", stdout: child.stdout, stderr: child.stderr };
+if (fs.existsSync(artifactPath))
+  result = JSON.parse(fs.readFileSync(artifactPath, "utf8"));
+if (!result)
+  result = {
+    spike: "pi-electron-utility-process",
+    ok: false,
+    error: "Electron未生成验证报告",
+    stdout: child.stdout,
+    stderr: child.stderr,
+  };
 result.liveKeyDetected = hasKey;
 result.electronExitCode = child.status;
 fs.writeFileSync(artifactPath, JSON.stringify(result, null, 2));

@@ -44,9 +44,10 @@ export class PermissionGuard {
       throw new PermissionDeniedError(toolName, "Agent的写权限为none");
     if (toolName.endsWith(".write") && level !== "write")
       throw new PermissionDeniedError(toolName, "当前只允许提出修改方案");
+    if (!agent.writeScopes?.length)
+      throw new PermissionDeniedError(toolName, "未声明写入范围，禁止写入");
     if (
-      relativePath &&
-      agent.writeScopes?.length &&
+      !relativePath ||
       !agent.writeScopes.some((scope) => this.matches(scope, relativePath))
     )
       throw new PermissionDeniedError(toolName, "路径不在Agent的写入范围内");
@@ -64,6 +65,13 @@ export class PermissionGuard {
     const normalizedPath = path.posix.normalize(
       relativePath.replaceAll("\\", "/"),
     );
+    if (
+      normalizedPath.startsWith("../") ||
+      normalizedPath === ".." ||
+      path.posix.isAbsolute(normalizedPath) ||
+      /^[a-z]:/iu.test(normalizedPath)
+    )
+      return false;
     if (normalizedScope.endsWith("/**"))
       return normalizedPath.startsWith(normalizedScope.slice(0, -2));
     return normalizedScope === normalizedPath;

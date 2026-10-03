@@ -12,6 +12,9 @@ export type WorkspaceCommand =
   | "run.restartWorker"
   | "settings.credentialStatus"
   | "settings.setCredential"
+  | "settings.models"
+  | "settings.setAgentModel"
+  | "settings.testConnection"
   | "app.setTheme";
 
 export interface WorkspaceSnapshot {
@@ -39,6 +42,9 @@ export interface CommandPayloads {
   "run.restartWorker": undefined;
   "settings.credentialStatus": undefined;
   "settings.setCredential": { provider: string; secret: string };
+  "settings.models": undefined;
+  "settings.setAgentModel": { projectId?: string; agentId: string; model: { provider: string; id: string; reasoning: string } };
+  "settings.testConnection": { provider: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
 
@@ -56,6 +62,9 @@ export interface CommandResults {
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
   "settings.credentialStatus": { provider: string; configured: boolean; encryptionAvailable: boolean };
   "settings.setCredential": { saved: boolean };
+  "settings.models": { agents: Array<{ id: string; displayName: string; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }> };
+  "settings.setAgentModel": { saved: boolean };
+  "settings.testConnection": { ok: boolean; message: string };
   "app.setTheme": { applied: boolean };
 }
 

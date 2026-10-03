@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { validateConfig } from "../schema.js";
 import type {
   AgentDefinition,
   AgentFrontmatter,
@@ -79,6 +80,14 @@ function validateFrontmatter(
     Number(data.maxTurns) > 100
   )
     throw new AgentConfigError("maxTurns必须在1到100之间", sourcePath);
+  try {
+    validateConfig("agent-config", data);
+  } catch (error) {
+    throw new AgentConfigError(
+      error instanceof Error ? error.message : String(error),
+      sourcePath,
+    );
+  }
   return data as unknown as AgentFrontmatter;
 }
 
@@ -133,6 +142,7 @@ async function findAgentFiles(root: string): Promise<string[]> {
 export class AgentRegistry {
   private readonly definitions = new Map<string, AgentDefinition>();
   private readonly errors = new Map<string, string>();
+  private readonly warnings = new Map<string, string>();
 
   constructor(private readonly builtinRoot?: string) {}
 
@@ -141,6 +151,7 @@ export class AgentRegistry {
   ): Promise<ReadonlyMap<string, AgentDefinition>> {
     this.definitions.clear();
     this.errors.clear();
+    this.warnings.clear();
     const sources: Array<{ root?: string; source: AgentSource }> = [
       { root: this.builtinRoot, source: "builtin" },
       {
@@ -160,6 +171,8 @@ export class AgentRegistry {
             source,
           );
           this.definitions.set(definition.name, definition);
+          if (definition.write !== "none" && !definition.writeScopes?.length)
+            this.warnings.set(file, "未声明writeScopes，禁止一切写入");
         } catch (error) {
           this.errors.set(
             file,
@@ -168,7 +181,7 @@ export class AgentRegistry {
         }
       }
     }
-    return this.definitions;
+    return new Map(this.definitions);
   }
 
   get(name: string): AgentDefinition | undefined {
@@ -179,5 +192,8 @@ export class AgentRegistry {
   }
   getErrors(): ReadonlyMap<string, string> {
     return this.errors;
+  }
+  getWarnings(): ReadonlyMap<string, string> {
+    return this.warnings;
   }
 }

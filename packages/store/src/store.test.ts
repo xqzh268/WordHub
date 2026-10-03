@@ -144,6 +144,85 @@ describe("WordHub M1 store", () => {
     ).toBe(true);
   });
 
+  it("重开存储时让遗留waiting_approval审批过期并中断运行", async () => {
+    const { store, project, session, storageDir } = await makeProject();
+    store.startRun({
+      projectId: project.id,
+      sessionId: session.id,
+      runId: "approval_crashed",
+      prompt: "等待批准",
+    });
+    store.finishRun("approval_crashed", "waiting_approval");
+    store.close();
+    openStores.splice(openStores.indexOf(store), 1);
+    const reopened = new WordHubStore(storageDir);
+    openStores.push(reopened);
+    const recovered = reopened.recoverInterruptedRuns();
+    expect(recovered.map((event) => event.type)).toEqual([
+      "approval.expired",
+      "run.interrupted",
+    ]);
+    expect(reopened.getRun("approval_crashed")?.status).toBe("interrupted");
+    expect(
+      reopened.listEvents(project.id, session.id).map((event) => event.type),
+    ).toContain("run.interrupted");
+  });
+
+  it("将审批过期和运行中断投影为可见恢复消息", () => {
+    const events = [
+      {
+        id: "a",
+        seq: 1,
+        schemaVersion: 1 as const,
+        projectId: "p",
+        sessionId: "s",
+        runId: "r",
+        type: "approval.requested",
+        actor: { type: "agent" as const, id: "writer" },
+        occurredAt: new Date().toISOString(),
+        visibility: "room" as const,
+        payload: { tool: "doc.write", contentPreview: "正文" },
+      },
+      {
+        id: "b",
+        seq: 2,
+        schemaVersion: 1 as const,
+        projectId: "p",
+        sessionId: "s",
+        runId: "r",
+        type: "approval.expired",
+        actor: { type: "system" as const, id: "store" },
+        occurredAt: new Date().toISOString(),
+        visibility: "room" as const,
+        payload: {},
+      },
+      {
+        id: "c",
+        seq: 3,
+        schemaVersion: 1 as const,
+        projectId: "p",
+        sessionId: "s",
+        runId: "r",
+        type: "run.interrupted",
+        actor: { type: "system" as const, id: "store" },
+        occurredAt: new Date().toISOString(),
+        visibility: "audit" as const,
+        payload: {},
+      },
+    ];
+    const items = projectChat(events);
+    expect(
+      items.some(
+        (item) => item.kind === "approval" && item.resolved?.includes("过期"),
+      ),
+    ).toBe(true);
+    expect(
+      items.some(
+        (item) => item.kind === "agent" && item.status === "interrupted",
+      ),
+    ).toBe(true);
+  });
+
   it("按项目递增seq并按幂等键去重", async () => {
     const { store, project, session } = await makeProject();
     const base = {

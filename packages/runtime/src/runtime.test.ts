@@ -105,6 +105,17 @@ describe("WordHub runtime", () => {
     expect(guard.requiresApproval(agent, "doc.propose")).toBe(true);
   });
 
+  it("项目Agent未声明写入范围时默认拒绝写入", () => {
+    const unrestricted = { ...agent, writeScopes: [] };
+    expect(() =>
+      new PermissionGuard().assert(
+        unrestricted,
+        "doc.write",
+        "chapters/第一章.md",
+      ),
+    ).toThrow("未声明写入范围");
+  });
+
   it("首批文档工具只通过运行时适配器读写", async () => {
     const tools = createBuiltinTools({
       readDocument: async (path) => ({
@@ -129,7 +140,9 @@ describe("WordHub runtime", () => {
       "doc.write",
       "doc.propose",
       "bible.read",
+      "bible.propose",
       "history.search",
+      "history.get",
     ]);
     const writeTool = tools.find((tool) => tool.name === "doc.write");
     expect(writeTool).toBeDefined();

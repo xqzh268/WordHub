@@ -155,7 +155,9 @@ export class WordHubStore {
   /** 将进程被强杀时仍处于 running 的运行标记为中断，并补一条事实事件。 */
   recoverInterruptedRuns(): Event[] {
     const rows = this.db
-      .prepare("SELECT * FROM runs WHERE status='running' ORDER BY started_at")
+      .prepare(
+        "SELECT * FROM runs WHERE status IN ('running','waiting_approval') ORDER BY started_at",
+      )
       .all() as SqlRow[];
     const events: Event[] = [];
     for (const row of rows) {
@@ -183,6 +185,22 @@ export class WordHubStore {
         if (!status) throw new Error(`未知运行终态：${terminal.type}`);
         this.finishRun(runId, status);
         continue;
+      }
+      if (asString(row.status) === "waiting_approval") {
+        events.push(
+          this.appendEvent({
+            schemaVersion: 1,
+            idempotencyKey: `run:${runId}:approval-expired`,
+            projectId: asString(row.project_id),
+            sessionId: asString(row.session_id),
+            runId,
+            type: "approval.expired",
+            actor: { type: "system", id: "store-recovery" },
+            occurredAt: now(),
+            visibility: "room",
+            payload: { reason: "worker_exit" },
+          }),
+        );
       }
       events.push(
         this.appendEvent({
@@ -481,7 +499,7 @@ export class WordHubStore {
   recordUsage(usage: UsageRecord): void {
     this.db
       .prepare(
-        "INSERT INTO usage(run_id,model,input_tokens,output_tokens,cost_usd,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET model=excluded.model,input_tokens=excluded.input_tokens,output_tokens=excluded.output_tokens,cost_usd=excluded.cost_usd",
+        "INSERT INTO usage(run_id,model,input_tokens,output_tokens,cost_usd,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET model=excluded.model,input_tokens=COALESCE(usage.input_tokens,0)+COALESCE(excluded.input_tokens,0),output_tokens=COALESCE(usage.output_tokens,0)+COALESCE(excluded.output_tokens,0),cost_usd=COALESCE(usage.cost_usd,0)+COALESCE(excluded.cost_usd,0)",
       )
       .run(
         usage.runId,

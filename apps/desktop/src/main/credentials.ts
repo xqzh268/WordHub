@@ -7,9 +7,12 @@ type StoredSecrets = Record<string, string>;
 
 /** 只在主进程使用；渲染器与持久事件永远拿不到明文密钥。 */
 export class ElectronCredentialStore {
-  private readonly filePath = (): string => path.join(app.getPath("userData"), "credentials.json");
+  private readonly filePath = (): string =>
+    path.join(app.getPath("userData"), "credentials.json");
 
-  encryptionAvailable(): boolean { return safeStorage.isEncryptionAvailable(); }
+  encryptionAvailable(): boolean {
+    return safeStorage.isEncryptionAvailable();
+  }
 
   private async read(): Promise<StoredSecrets> {
     return readFile(this.filePath(), "utf8")
@@ -25,7 +28,8 @@ export class ElectronCredentialStore {
   }
 
   async set(provider: string, secret: string): Promise<void> {
-    if (!this.encryptionAvailable()) throw new Error("当前系统的安全存储不可用，未保存密钥");
+    if (!this.encryptionAvailable())
+      throw new Error("当前系统的安全存储不可用，未保存密钥");
     const values = await this.read();
     values[provider] = safeStorage.encryptString(secret).toString("base64");
     const filePath = this.filePath();
@@ -45,5 +49,7 @@ export class ElectronCredentialStore {
     await rename(temporary, filePath);
   }
 
-  async configured(provider: string): Promise<boolean> { return Boolean(await this.get(provider)); }
+  async configured(provider: string): Promise<boolean> {
+    return Boolean(await this.get(provider));
+  }
 }

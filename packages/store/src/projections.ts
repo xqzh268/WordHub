@@ -5,6 +5,12 @@ export type ProjectedTool = {
   name: string;
   status: "running" | "done" | "error";
 };
+export type ProjectedContext = {
+  id: string;
+  kind: string;
+  sourcePath?: string;
+  estimatedTokens: number;
+};
 export type ProjectedChatItem =
   | { kind: "user"; id: string; at: number; text: string; eventId: string }
   | {
@@ -23,6 +29,10 @@ export type ProjectedChatItem =
       text: string;
       tools: ProjectedTool[];
       runId: string;
+      model?: string;
+      reasoning?: string;
+      usage?: { input: number; output: number; total: number; cost?: number };
+      context?: ProjectedContext[];
       error?: string;
       eventId: string;
     }
@@ -35,6 +45,7 @@ export type ProjectedChatItem =
       options: string[];
       runId?: string;
       resolved?: string;
+      preview?: string;
       eventId: string;
     };
 
@@ -87,13 +98,21 @@ export function applyChatEvent(
       at: timestamp(event.occurredAt),
       title: "Agent请求写入",
       body: `${tool}需要你的确认后才能继续。`,
+      preview:
+        typeof payload.contentPreview === "string"
+          ? payload.contentPreview
+          : undefined,
       options: ["批准", "拒绝"],
       runId: event.runId,
       eventId: event.id,
     });
     return state;
   }
-  if (event.type === "approval.granted" || event.type === "approval.rejected") {
+  if (
+    event.type === "approval.granted" ||
+    event.type === "approval.rejected" ||
+    event.type === "approval.expired"
+  ) {
     const approval = [...state.items]
       .reverse()
       .find(
@@ -101,7 +120,12 @@ export function applyChatEvent(
           item.kind === "approval" && item.runId === event.runId,
       );
     if (approval)
-      approval.resolved = event.type === "approval.granted" ? "批准" : "拒绝";
+      approval.resolved =
+        event.type === "approval.granted"
+          ? "批准"
+          : event.type === "approval.rejected"
+            ? "拒绝"
+            : "已过期，可重新发起";
     return state;
   }
   if (!event.runId) return state;
@@ -145,6 +169,43 @@ export function applyChatEvent(
   } else if (event.type === "run.finished") {
     run.status = "done";
     if (typeof payload.text === "string" && !run.text) run.text = payload.text;
+    if (typeof payload.model === "string") run.model = payload.model;
+    if (typeof payload.reasoning === "string")
+      run.reasoning = payload.reasoning;
+  } else if (event.type === "run.started") {
+    if (typeof payload.model === "string") run.model = payload.model;
+    if (typeof payload.reasoning === "string")
+      run.reasoning = payload.reasoning;
+  } else if (event.type === "run.usage") {
+    const usage =
+      payload.usage && typeof payload.usage === "object"
+        ? (payload.usage as Record<string, unknown>)
+        : payload;
+    const input = Number(usage.input ?? usage.inputTokens ?? 0);
+    const output = Number(usage.output ?? usage.outputTokens ?? 0);
+    const total = Number(usage.totalTokens ?? input + output);
+    const cost =
+      typeof usage.cost === "object" && usage.cost
+        ? Number((usage.cost as Record<string, unknown>).total ?? 0)
+        : Number(usage.costUsd ?? 0);
+    run.usage = { input, output, total, cost };
+  } else if (event.type === "context.injected") {
+    const manifest = Array.isArray(payload.manifest) ? payload.manifest : [];
+    run.context = manifest.flatMap((item) => {
+      if (!item || typeof item !== "object") return [];
+      const value = item as Record<string, unknown>;
+      if (typeof value.id !== "string" || typeof value.kind !== "string")
+        return [];
+      return [
+        {
+          id: value.id,
+          kind: value.kind,
+          sourcePath:
+            typeof value.sourcePath === "string" ? value.sourcePath : undefined,
+          estimatedTokens: Number(value.estimatedTokens ?? 0),
+        },
+      ];
+    });
   } else if (event.type === "run.aborted") run.status = "aborted";
   else if (event.type === "run.interrupted") run.status = "interrupted";
   else if (event.type === "run.waiting_approval")

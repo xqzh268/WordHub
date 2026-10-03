@@ -21,6 +21,11 @@
 .reasoning-toggle { display: flex; align-items: center; gap: 7px; border: 0; padding: 0; color: inherit; background: transparent; font-size: 11px; cursor: pointer; }
 .reasoning-toggle .reasoning-model { margin-left: auto; font-size: 10px; opacity: .7; }
 .reasoning-text { margin: 6px 0 0; white-space: pre-wrap; font-size: 12px; line-height: 1.7; opacity: .86; }
+.context-panel { margin: 8px 0 10px; border-left: 2px solid var(--line-strong); padding-left: 10px; color: var(--ink-4); }
+.context-list { list-style: none; margin: 6px 0 0; padding: 0; font-size: 11px; line-height: 1.7; }
+.context-list li { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; }
+.context-list li .mono { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); }
+.context-list li small { margin-left: auto; color: var(--ink-4); white-space: nowrap; }
 .ink-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--accent); vertical-align: 0.08em; animation: breathe 1.2s ease-in-out infinite; }
 
 /* ── 工具调用 ───────────────────────────────────────── */

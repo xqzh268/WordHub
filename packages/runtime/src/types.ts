@@ -104,7 +104,12 @@ export type BuiltContext = {
 export type RuntimeStreamEvent =
   | { type: "text_delta"; delta: string }
   | { type: "reasoning_delta"; delta: string }
-  | { type: "tool_started"; toolName: string; toolCallId: string }
+  | {
+      type: "tool_started";
+      toolName: string;
+      toolCallId: string;
+      args?: unknown;
+    }
   | { type: "tool_finished"; toolName: string; toolCallId: string; ok: boolean }
   | { type: "usage"; usage: Usage }
   | { type: "agent_event"; event: AgentEvent };

@@ -29,6 +29,7 @@
     "test": "npm run build:store && vitest run",
     "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",
     "test:m1:store": "npm run build:store && node scripts/m1-store-smoke.mjs",
+    "test:m2:faux": "npm run build:runtime && vitest run packages/runtime/src/integration.test.ts packages/runtime/src/host/pi-agent-host.test.ts",
     "lint": "biome check",
     "spike:all": "npm run validate:schema && npm run spike:pi && npm run spike:pi:utility && npm run spike:superdoc && npm run spike:superdoc:node && npm run spike:foliate"
   },

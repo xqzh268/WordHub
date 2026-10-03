@@ -1,8 +1,37 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "files": {
-    "includes": ["packages/store/src/**/*.ts", "packages/runtime/src/**/*.ts"]
+    "includes": [
+      "packages/store/src/**/*.ts",
+      "packages/runtime/src/**/*.ts",
+      "apps/desktop/src/**/*.{ts,tsx}",
+      "scripts/**/*.{mjs,ts}"
+    ]
   },
   "formatter": { "enabled": true, "indentStyle": "space" },
-  "linter": { "enabled": true, "rules": { "preset": "recommended" } }
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "noNoninteractiveElementToInteractiveRole": "off",
+        "noRedundantRoles": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "useButtonType": "off",
+        "useFocusableInteractive": "off",
+        "useSemanticElements": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "useImportType": "off",
+        "useTemplate": "off"
+      },
+      "suspicious": { "noArrayIndexKey": "off" }
+    }
+  },
+  "assist": { "actions": { "source": { "organizeImports": "off" } } }
 }

@@ -1,6 +1,11 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type Static, Type } from "typebox";
 
+export type WriteToolInput = {
+  path: string;
+  content: string;
+  expectedHash?: string | null;
+};
 export type BuiltinToolRuntime = {
   readDocument(
     path: string,
@@ -18,9 +23,17 @@ export type BuiltinToolRuntime = {
     content: string;
     expectedHash?: string | null;
   }): Promise<{ revisionId: string; contentHash: string }>;
+  proposeBible?(input: {
+    path: string;
+    content: string;
+    expectedHash?: string | null;
+  }): Promise<{ revisionId: string; contentHash: string }>;
   searchHistory(
     query: string,
   ): Promise<Array<{ type: string; seq: number; text?: string }>>;
+  getHistory?(
+    seq: number,
+  ): Promise<{ type: string; seq: number; text?: string } | undefined>;
 };
 
 const pathParameters = Type.Object({
@@ -108,5 +121,44 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
       });
     },
   };
-  return [docRead, docWrite, docPropose, bibleRead, historySearch];
+  const biblePropose: AgentTool<typeof writeParameters> = {
+    name: "bible.propose",
+    label: "提出设定修改",
+    description: "保存.wordhub/bible中的设定候选，不直接替换当前文件。",
+    parameters: writeParameters,
+    execute: async (_id: string, params: Static<typeof writeParameters>) => {
+      if (!runtime.proposeBible)
+        return textResult("当前运行时未提供设定候选写入能力", {
+          isError: true,
+        });
+      const result = await runtime.proposeBible(params);
+      return textResult(
+        `已提出设定${params.path}的修订${result.revisionId}`,
+        result,
+      );
+    },
+  };
+  const historyGet: AgentTool<typeof pathParameters> = {
+    name: "history.get",
+    label: "读取历史事件",
+    description: "读取指定序号的历史事件摘要。",
+    parameters: Type.Object({ path: Type.String({ pattern: "^[0-9]+$" }) }),
+    execute: async (_id: string, params: Static<typeof pathParameters>) => {
+      const result = runtime.getHistory
+        ? await runtime.getHistory(Number(params.path))
+        : undefined;
+      return textResult(result ? JSON.stringify(result) : "未找到该历史事件", {
+        seq: Number(params.path),
+      });
+    },
+  };
+  return [
+    docRead,
+    docWrite,
+    docPropose,
+    bibleRead,
+    biblePropose,
+    historySearch,
+    historyGet,
+  ];
 }
