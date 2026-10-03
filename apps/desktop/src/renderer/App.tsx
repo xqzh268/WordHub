@@ -37,8 +37,9 @@ function useBackend() {
     const api = window.wordhub;
     if (!api) return;
     const handle = useWorkbench.getState().handleEvent;
-    void api.invoke("workspace.getSnapshot", undefined).then((snapshot) => handle({ type: "worker.state", payload: { state: snapshot.worker } } satisfies AppEvent));
-    return api.subscribe(handle);
+    const unsubscribe = api.subscribe(handle);
+    void api.invoke("workspace.getSnapshot", undefined).then((snapshot) => handle({ type: "workspace.snapshot", payload: snapshot } satisfies AppEvent)).then(() => api.invoke("workspace.getSnapshot", undefined)).then((snapshot) => handle({ type: "worker.state", payload: { state: snapshot.worker } } satisfies AppEvent));
+    return unsubscribe;
   }, []);
 }
 

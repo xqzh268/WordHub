@@ -16,5 +16,8 @@ jobs:
       - run: npm ci
       - run: npm run validate:schema
       - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:m1:store
       - run: npm run build:desktop
       - run: npm run test:desktop

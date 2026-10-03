@@ -10,6 +10,8 @@ console.error(`[wordhub-main] loaded ${process.argv.join(" ")}`);
 let mainWindow: BrowserWindow | null = null;
 let linkedFolder: string | null = null;
 let projectName = "未命名项目";
+let projectId: string | undefined;
+let activeSessionId: string | undefined;
 const worker = new PiWorkerHost((event) => mainWindow?.webContents.send("wordhub:event", event));
 
 // 自绘标题栏：窗口控制按钮由系统叠加绘制，颜色需与渲染进程的主题 token 保持一致。
@@ -28,7 +30,7 @@ function applyTheme(preference: ThemePreference, resolved: ResolvedTheme): void 
 }
 
 function snapshot(): WorkspaceSnapshot {
-  return { projectName, linkedFolder, worker: worker.status };
+  return { projectId, projectName, linkedFolder, activeSessionId, worker: worker.status };
 }
 
 function registerIpc(): void {
@@ -38,14 +40,47 @@ function registerIpc(): void {
     if (command === "workspace.chooseFolder") {
       const result = await dialog.showOpenDialog({ properties: ["openDirectory", "createDirectory"] });
       linkedFolder = result.canceled ? null : result.filePaths[0] ?? null;
-      if (linkedFolder) projectName = path.basename(linkedFolder);
-      return { path: linkedFolder } as CommandResults["workspace.chooseFolder"];
+      if (linkedFolder) {
+        projectName = path.basename(linkedFolder);
+        const created = await worker.request<{ id: string; name: string; folderPath: string; sessionId: string }>({ type: "project.create", name: projectName, folderPath: linkedFolder });
+        projectId = created.id;
+        activeSessionId = created.sessionId;
+      }
+      return { path: linkedFolder, projectId, sessionId: activeSessionId } as CommandResults["workspace.chooseFolder"];
+    }
+    if (command === "project.listRecent") return await worker.request<CommandResults["project.listRecent"]>({ type: "project.listRecent" });
+    if (command === "session.list") {
+      const payload = request.payload as CommandPayloads["session.list"];
+      return await worker.request<CommandResults["session.list"]>({ type: "session.list", projectId: payload.projectId });
+    }
+    if (command === "session.create") {
+      const payload = request.payload as CommandPayloads["session.create"];
+      const result = await worker.request<CommandResults["session.create"]>({ type: "session.create", projectId: payload.projectId, title: payload.title, sessionId: payload.sessionId });
+      activeSessionId = result.session.id;
+      return result;
+    }
+    if (command === "session.rename") {
+      const payload = request.payload as CommandPayloads["session.rename"];
+      return await worker.request<CommandResults["session.rename"]>({ type: "session.rename", projectId: payload.projectId, sessionId: payload.sessionId, title: payload.title });
+    }
+    if (command === "chat.list") {
+      const payload = request.payload as CommandPayloads["chat.list"];
+      return await worker.request<CommandResults["chat.list"]>({ type: "chat.list", projectId: payload.projectId, sessionId: payload.sessionId });
     }
     if (command === "run.start") {
       const payload = request.payload as CommandPayloads["run.start"];
       const runId = payload.runId ?? `run_${Date.now().toString(36)}`;
-      worker.run({ runId, prompt: payload.prompt, mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live", projectPath: payload.projectPath ?? linkedFolder ?? undefined });
-      return { runId } as CommandResults["run.start"];
+      if (!projectId && (payload.projectPath ?? linkedFolder)) {
+        const folder = payload.projectPath ?? linkedFolder!;
+        const created = await worker.request<{ id: string; sessionId: string; name: string; folderPath: string }>({ type: "project.create", name: path.basename(folder), folderPath: folder });
+        projectId = created.id;
+        linkedFolder = created.folderPath;
+        projectName = created.name;
+        activeSessionId = created.sessionId;
+      }
+      const sessionId = payload.sessionId ?? activeSessionId;
+      worker.run({ runId, prompt: payload.prompt, mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live", projectPath: payload.projectPath ?? linkedFolder ?? undefined, projectId: payload.projectId ?? projectId, sessionId });
+      return { runId, projectId, sessionId } as CommandResults["run.start"];
     }
     if (command === "run.abort") {
       const payload = request.payload as CommandPayloads["run.abort"];
@@ -136,7 +171,26 @@ async function createWindow(): Promise<void> {
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) await mainWindow.loadURL(query ? `${rendererUrl}?demo=1` : rendererUrl);
   else await mainWindow.loadFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "../renderer/index.html"), { query });
+  worker.setStorageRoot(app.getPath("userData"));
   worker.start();
+  void restoreRecentProject();
+}
+
+async function restoreRecentProject(): Promise<void> {
+  try {
+    await waitFor(() => worker.status === "ready", 5000);
+    const recent = await worker.request<CommandResults["project.listRecent"]>({ type: "project.listRecent" });
+    const project = recent.projects[0];
+    if (!project) return;
+    projectId = project.id;
+    projectName = project.name;
+    linkedFolder = project.folderPath;
+    const sessions = await worker.request<CommandResults["session.list"]>({ type: "session.list", projectId: project.id });
+    activeSessionId = sessions.sessions[0]?.id;
+    mainWindow?.webContents.send("wordhub:event", { type: "workspace.snapshot", payload: snapshot() } satisfies AppEvent);
+  } catch (error) {
+    console.error("[wordhub-main] restore recent project failed", error);
+  }
 }
 
 function delay(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }

@@ -1,0 +1,12 @@
+{
+  "smoke": "m1-store",
+  "ok": true,
+  "chinesePath": "C:\\Users\\Hsiang\\AppData\\Local\\Temp\\wordhub-m1-smoke-oS9oBq\\中文路径\\长安夜",
+  "searchHits": [
+    "evt_784d9ea9317b4fa0aa43f80866f7b390"
+  ],
+  "afterUndo": "第一版",
+  "revisionCount": 3,
+  "traversalRejected": true,
+  "externalChanges": 2
+}

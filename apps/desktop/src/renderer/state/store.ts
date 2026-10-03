@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AppEvent, ResolvedTheme, ThemePreference } from "@wordhub/contracts";
+import type { AppEvent, ResolvedTheme, ThemePreference, WorkspaceSnapshot } from "@wordhub/contracts";
 import { routeMessage, toolLabel } from "../lib/agents";
 import { DEMO_CHAPTER, DEMO_PROJECT, demoSessions } from "../lib/demo";
 import type { ChatItem, PaperParagraph, PaperTab, Session, View, WorkerState } from "./types";
@@ -29,7 +29,7 @@ type State = Prefs & {
   demo: boolean;
   view: View;
   paperTab: PaperTab;
-  project: { name: string; folder: string | null };
+  project: { id?: string; name: string; folder: string | null };
   worker: WorkerState;
   sessions: Session[];
   activeSessionId: string;
@@ -43,7 +43,7 @@ type State = Prefs & {
   setPaperTab(tab: PaperTab): void;
   setComposer(text: string): void;
   mention(agentName: string): void;
-  newSession(): void;
+  newSession(): Promise<void>;
   selectSession(id: string): void;
   linkFolder(): Promise<void>;
   restartWorker(): Promise<void>;
@@ -54,6 +54,23 @@ type State = Prefs & {
 };
 
 const initialSessions = isDemo ? demoSessions() : [emptySession("新会话")];
+
+function restoreItems(raw: unknown): ChatItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const value = item as Record<string, unknown>;
+    if (value.kind === "user" && typeof value.text === "string") return [{ kind: "user", id: String(value.id), at: Number(value.at), text: value.text } satisfies ChatItem];
+    if (value.kind !== "agent") return [];
+    const tools = Array.isArray(value.tools) ? value.tools.flatMap((tool) => {
+      if (!tool || typeof tool !== "object") return [];
+      const current = tool as Record<string, unknown>;
+      return [{ id: String(current.id), name: String(current.name), label: String(current.name), status: (current.status === "error" ? "error" : current.status === "running" ? "running" : "done") as "running" | "done" | "error" }];
+    }) : [];
+    const status = value.status === "streaming" || value.status === "done" || value.status === "aborted" || value.status === "error" ? value.status : "thinking";
+    return [{ kind: "agent", id: String(value.id), at: Number(value.at), agentId: String(value.agentId), status, text: String(value.text ?? ""), tools, runId: String(value.runId) } as ChatItem];
+  });
+}
 
 export const useWorkbench = create<State>((set, get) => {
   const patchItems = (sessionId: string, update: (items: ChatItem[]) => ChatItem[]) =>
@@ -97,9 +114,14 @@ export const useWorkbench = create<State>((set, get) => {
       set({ composer: `@${agentName} ${text}`, view: "workspace" });
     },
 
-    newSession() {
+    async newSession() {
       const count = get().sessions.length + 1;
       const session = emptySession(`新会话 ${count}`);
+      const projectId = get().project.id;
+      if (projectId) {
+        const created = await window.wordhub?.invoke("session.create", { projectId, title: session.title });
+        if (created?.session) session.id = created.session.id;
+      }
       set((state) => ({ sessions: [...state.sessions, session], activeSessionId: session.id, view: "workspace" }));
     },
     selectSession: (id) => set({ activeSessionId: id, view: "workspace" }),
@@ -107,7 +129,11 @@ export const useWorkbench = create<State>((set, get) => {
     async linkFolder() {
       const result = await window.wordhub?.invoke("workspace.chooseFolder", undefined);
       const folder = result?.path;
-      if (folder) set({ project: { name: folder.split(/[\\/]/).pop() || folder, folder } });
+      if (folder && result.projectId && result.sessionId) {
+        const sessions = await window.wordhub?.invoke("session.list", { projectId: result.projectId });
+        const chat = await window.wordhub?.invoke("chat.list", { projectId: result.projectId, sessionId: result.sessionId });
+        set({ project: { id: result.projectId, name: folder.split(/[\\/]/).pop() || folder, folder }, sessions: (sessions?.sessions ?? []).map((session) => ({ id: session.id, title: session.title, items: session.id === result.sessionId ? restoreItems(chat?.items) : [] })), activeSessionId: result.sessionId });
+      } else if (folder) set({ project: { name: folder.split(/[\\/]/).pop() || folder, folder } });
     },
 
     async restartWorker() {
@@ -129,7 +155,7 @@ export const useWorkbench = create<State>((set, get) => {
       set({ composer: "", activeRunId: runId });
       if (!window.wordhub) return;
       try {
-        await window.wordhub.invoke("run.start", { runId, prompt: body || trimmed, projectPath: state.project.folder ?? undefined });
+        await window.wordhub.invoke("run.start", { runId, prompt: body || trimmed, projectPath: state.project.folder ?? undefined, projectId: state.project.id, sessionId: state.activeSessionId });
       } catch (error) {
         patchRun(runId, (item) => ({ ...item, status: "error", error: error instanceof Error ? error.message : String(error) }));
         set({ activeRunId: null });
@@ -146,6 +172,14 @@ export const useWorkbench = create<State>((set, get) => {
     },
 
     handleEvent(event) {
+      if (event.type === "workspace.snapshot") {
+        const snapshot = event.payload as WorkspaceSnapshot;
+        set((state) => ({ project: { id: snapshot.projectId, name: snapshot.projectName, folder: snapshot.linkedFolder }, activeSessionId: snapshot.activeSessionId ?? state.activeSessionId }));
+        if (snapshot.projectId && snapshot.activeSessionId && window.wordhub) {
+          void Promise.all([window.wordhub.invoke("session.list", { projectId: snapshot.projectId }), window.wordhub.invoke("chat.list", { projectId: snapshot.projectId, sessionId: snapshot.activeSessionId })]).then(([sessions, chat]) => set({ sessions: sessions.sessions.map((session) => ({ id: session.id, title: session.title, items: session.id === snapshot.activeSessionId ? restoreItems(chat.items) : [] })) }));
+        }
+        return;
+      }
       if (event.type === "worker.state") {
         const next = (event.payload as { state?: string }).state;
         if (next === "offline" || next === "starting" || next === "ready" || next === "busy" || next === "stopped" || next === "crashed") {
