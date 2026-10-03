@@ -17,6 +17,8 @@
 
 因此原报告中缺陷1、2、3、6、7、8、9、10、11、12已修复。仍保留两个边界：当前外部修改检测在受控写入前和显式watcher库中触发，尚未把watcher作为常驻产品服务；密钥扫描已覆盖safeStorage和mock路径，live密钥场景仍需在CI之外验证。M1.1以“有条件通过”进入M2，避免把这两个未覆盖边界写成已验收。
 
+> 验收方独立复核（2026-10-04）：上述自评经实测基本属实，逐条结果见 [m2-acceptance.md §一](m2-acceptance.md)。
+
 ## 我做了什么
 
 1. 干净 `npm ci` 后重跑：`validate:schema`、`typecheck`、`lint`、`test`、`test:m1:store`、`build:desktop`、`test:desktop`，全部通过。
