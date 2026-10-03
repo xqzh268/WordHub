@@ -98,6 +98,7 @@ function AgentMessage({ item }: { item: AgentItem }) {
   const agent = agentById(item.agentId);
   const streaming = item.status === "streaming";
   const thinking = item.status === "thinking";
+  const [reasoningOpen, setReasoningOpen] = useState(true);
   const [undone, setUndone] = useState(false);
 
   return (
@@ -108,6 +109,8 @@ function AgentMessage({ item }: { item: AgentItem }) {
           <strong style={{ color: agent.color }}>{agent.name}</strong>
           <time>{fmtTime(item.at)}</time>
           {item.status === "aborted" && <span className="tag">已停止</span>}
+          {item.status === "interrupted" && <span className="tag">已中断</span>}
+          {item.status === "waiting_approval" && <span className="tag">等待确认</span>}
         </header>
 
         {item.tools.length > 0 && (
@@ -117,6 +120,18 @@ function AgentMessage({ item }: { item: AgentItem }) {
         )}
 
         {thinking && item.tools.every((tool) => tool.status !== "running") && <p className="thinking">正在构思<span className="thinking-sheen">…</span></p>}
+
+        {item.reasoning && (
+          <div className="reasoning-panel">
+            <button className="reasoning-toggle" onClick={() => setReasoningOpen((value) => !value)} aria-expanded={reasoningOpen}>
+              <span>思考内容（临时）</span>
+              {item.reasoningLevel && <span className="tag">{item.reasoningLevel}</span>}
+              {item.model && <span className="mono reasoning-model">{item.model}</span>}
+              <ChevronRight size={13} strokeWidth={1.5} className={`tool-chev ${reasoningOpen ? "open" : ""}`} />
+            </button>
+            {reasoningOpen && <p className="reasoning-text">{item.reasoning}</p>}
+          </div>
+        )}
 
         {(item.text || streaming) && (
           <p className="msg-text agent-text">

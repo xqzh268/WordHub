@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/contracts" },
     { "path": "packages/store" },
+    { "path": "packages/runtime" },
     { "path": "apps/desktop" }
   ]
 }

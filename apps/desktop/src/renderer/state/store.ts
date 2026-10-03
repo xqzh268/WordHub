@@ -61,13 +61,14 @@ function restoreItems(raw: unknown): ChatItem[] {
     if (!item || typeof item !== "object") return [];
     const value = item as Record<string, unknown>;
     if (value.kind === "user" && typeof value.text === "string") return [{ kind: "user", id: String(value.id), at: Number(value.at), text: value.text } satisfies ChatItem];
+    if (value.kind === "approval" && typeof value.title === "string") return [{ kind: "approval", id: String(value.id), at: Number(value.at), title: value.title, body: String(value.body ?? ""), options: Array.isArray(value.options) ? value.options.map(String) : ["批准", "拒绝"], runId: typeof value.runId === "string" ? value.runId : undefined, resolved: typeof value.resolved === "string" ? value.resolved : undefined } satisfies ChatItem];
     if (value.kind !== "agent") return [];
     const tools = Array.isArray(value.tools) ? value.tools.flatMap((tool) => {
       if (!tool || typeof tool !== "object") return [];
       const current = tool as Record<string, unknown>;
       return [{ id: String(current.id), name: String(current.name), label: String(current.name), status: (current.status === "error" ? "error" : current.status === "running" ? "running" : "done") as "running" | "done" | "error" }];
     }) : [];
-    const status = value.status === "streaming" || value.status === "done" || value.status === "aborted" || value.status === "error" ? value.status : "thinking";
+    const status = value.status === "streaming" || value.status === "done" || value.status === "aborted" || value.status === "interrupted" || value.status === "waiting_approval" || value.status === "error" ? value.status : "thinking";
     return [{ kind: "agent", id: String(value.id), at: Number(value.at), agentId: String(value.agentId), status, text: String(value.text ?? ""), tools, runId: String(value.runId) } as ChatItem];
   });
 }
@@ -155,7 +156,7 @@ export const useWorkbench = create<State>((set, get) => {
       set({ composer: "", activeRunId: runId });
       if (!window.wordhub) return;
       try {
-        await window.wordhub.invoke("run.start", { runId, prompt: body || trimmed, projectPath: state.project.folder ?? undefined, projectId: state.project.id, sessionId: state.activeSessionId });
+        await window.wordhub.invoke("run.start", { runId, prompt: body || trimmed, rawPrompt: trimmed, agentId: agent.id, mentions: trimmed.startsWith("@") ? [agent.id] : [], projectPath: state.project.folder ?? undefined, projectId: state.project.id, sessionId: state.activeSessionId });
       } catch (error) {
         patchRun(runId, (item) => ({ ...item, status: "error", error: error instanceof Error ? error.message : String(error) }));
         set({ activeRunId: null });
@@ -169,6 +170,8 @@ export const useWorkbench = create<State>((set, get) => {
 
     resolveApproval(itemId, choice) {
       patchItems(get().activeSessionId, (items) => items.map((item) => (item.kind === "approval" && item.id === itemId ? { ...item, resolved: choice } : item)));
+      const item = get().sessions.flatMap((session) => session.items).find((candidate) => candidate.kind === "approval" && candidate.id === itemId);
+      if (item?.kind === "approval" && item.runId) void window.wordhub?.invoke("run.approve", { runId: item.runId, approved: choice === "批准" });
     },
 
     handleEvent(event) {
@@ -193,9 +196,19 @@ export const useWorkbench = create<State>((set, get) => {
         return;
       }
       if (event.type !== "run.event") return;
-      const message = event.payload as { type?: string; runId?: string; delta?: string; tool?: string; error?: string; text?: string };
+      const message = event.payload as { type?: string; runId?: string; delta?: string; tool?: string; error?: string; text?: string; model?: string; reasoning?: string; usage?: { input: number; output: number; totalTokens: number; cost?: { total?: number } } };
       const runId = message.runId;
       switch (message.type) {
+        case "approval.requested":
+          if (runId) patchItems(get().activeSessionId, (items) => [...items, { kind: "approval", id: `approval_${runId}`, at: Date.now(), title: "Agent请求写入", body: `${message.tool ?? "写入工具"}需要你的确认后才能继续。`, options: ["批准", "拒绝"], runId }]);
+          break;
+        case "approval.granted":
+        case "approval.rejected":
+          if (runId) patchItems(get().activeSessionId, (items) => items.map((item) => item.kind === "approval" && item.runId === runId ? { ...item, resolved: message.type === "approval.granted" ? "批准" : "拒绝" } : item));
+          break;
+        case "run.started":
+          if (runId) patchRun(runId, (item) => ({ ...item, model: message.model, reasoningLevel: message.reasoning }));
+          break;
         case "run.text":
           if (runId && message.delta) patchRun(runId, (item) => ({ ...item, status: "streaming", text: item.text + message.delta }));
           break;
@@ -206,6 +219,12 @@ export const useWorkbench = create<State>((set, get) => {
               tools: [...item.tools, { id: uid("t"), name: message.tool ?? "tool", label: toolLabel(message.tool ?? "tool"), status: "running" }]
             }));
           }
+          break;
+        case "run.reasoning_delta":
+          if (runId && message.delta) patchRun(runId, (item) => ({ ...item, reasoning: `${item.reasoning ?? ""}${message.delta}`, reasoningOpen: true }));
+          break;
+        case "run.usage":
+          if (runId && message.usage) patchRun(runId, (item) => ({ ...item, usage: { input: message.usage!.input, output: message.usage!.output, total: message.usage!.totalTokens, cost: message.usage!.cost?.total } }));
           break;
         case "run.tool_execution_end":
           if (runId) {
@@ -225,6 +244,18 @@ export const useWorkbench = create<State>((set, get) => {
         case "run.aborted":
           if (runId) {
             patchRun(runId, (item) => ({ ...item, status: "aborted" }));
+            if (get().activeRunId === runId) set({ activeRunId: null });
+          }
+          break;
+        case "run.interrupted":
+          if (runId) {
+            patchRun(runId, (item) => ({ ...item, status: "interrupted" }));
+            if (get().activeRunId === runId) set({ activeRunId: null });
+          }
+          break;
+        case "run.waiting_approval":
+          if (runId) {
+            patchRun(runId, (item) => ({ ...item, status: "waiting_approval" }));
             if (get().activeRunId === runId) set({ activeRunId: null });
           }
           break;

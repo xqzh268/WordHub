@@ -9,7 +9,7 @@ export type ToolStep = {
   durationMs?: number;
 };
 
-export type AgentStatus = "thinking" | "streaming" | "done" | "aborted" | "error";
+export type AgentStatus = "thinking" | "streaming" | "done" | "aborted" | "interrupted" | "waiting_approval" | "error";
 
 export type ChatItem =
   | { kind: "user"; id: string; at: number; text: string }
@@ -23,6 +23,12 @@ export type ChatItem =
       tools: ToolStep[];
       runId?: string;
       error?: string;
+      /** 仅在本次运行中显示，不从事件日志恢复。 */
+      reasoning?: string;
+      reasoningOpen?: boolean;
+      model?: string;
+      reasoningLevel?: string;
+      usage?: { input: number; output: number; total: number; cost?: number };
       /** 编辑类改动的摘要，显示「查看差异 / 撤销」 */
       edit?: { label: string };
     }
@@ -38,7 +44,7 @@ export type ChatItem =
       claim: string;
       replies: { agentId: string; text: string }[];
     }
-  | { kind: "approval"; id: string; at: number; title: string; body: string; options: string[]; resolved?: string }
+  | { kind: "approval"; id: string; at: number; title: string; body: string; options: string[]; runId?: string; resolved?: string }
   | { kind: "notice"; id: string; at: number; text: string; tone?: "warn" };
 
 export type Session = { id: string; title: string; items: ChatItem[] };

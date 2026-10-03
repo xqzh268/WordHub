@@ -12,7 +12,9 @@ import type { Event } from "@wordhub/contracts";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  applyChatEvent,
   ControlledFileWriter,
+  createChatProjectionState,
   ExternalFileWatcher,
   projectChat,
   WordHubStore,
@@ -70,6 +72,78 @@ function event(
 }
 
 describe("WordHub M1 store", () => {
+  it("写盘三个故障点恢复后只保留旧版或新版", async () => {
+    for (const phase of [
+      "before_replace",
+      "after_replace",
+      "before_commit",
+    ] as const) {
+      const { store, project, session, folder } = await makeProject();
+      const stable = new ControlledFileWriter(store, project.id, folder);
+      await stable.writeText({
+        relativePath: "章节.md",
+        content: "旧版",
+        sessionId: session.id,
+      });
+      const faulting = new ControlledFileWriter(store, project.id, folder, {
+        fault: (current) => {
+          if (current === phase) throw new Error(`fault:${phase}`);
+        },
+      });
+      await expect(
+        faulting.writeText({
+          relativePath: "章节.md",
+          content: "新版",
+          sessionId: session.id,
+        }),
+      ).rejects.toThrow(`fault:${phase}`);
+      const beforeRecovery = await readFile(
+        path.join(folder, "章节.md"),
+        "utf8",
+      );
+      expect(beforeRecovery === "旧版" || beforeRecovery === "新版").toBe(true);
+      await faulting.recover();
+      const afterRecovery = await readFile(
+        path.join(folder, "章节.md"),
+        "utf8",
+      );
+      expect(afterRecovery).toBe(phase === "before_replace" ? "旧版" : "新版");
+      const revisions = store.listRevisions(project.id, "file:章节.md");
+      expect(
+        revisions.some(
+          (revision) =>
+            revision.status === "current" &&
+            revision.contentHash ===
+              (phase === "before_replace"
+                ? revisions[0]?.contentHash
+                : revisions.at(-1)?.contentHash),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("重开存储时清扫遗留running并追加中断事件", async () => {
+    const { store, project, session, storageDir } = await makeProject();
+    store.startRun({
+      projectId: project.id,
+      sessionId: session.id,
+      runId: "crashed_run",
+      prompt: "中途被杀",
+    });
+    store.close();
+    openStores.splice(openStores.indexOf(store), 1);
+    const reopened = new WordHubStore(storageDir);
+    openStores.push(reopened);
+    const recovered = reopened.recoverInterruptedRuns();
+    expect(recovered).toHaveLength(1);
+    expect(reopened.getRun("crashed_run")?.status).toBe("interrupted");
+    expect(
+      reopened
+        .listEvents(project.id, session.id)
+        .some((item) => item.type === "run.interrupted"),
+    ).toBe(true);
+  });
+
   it("按项目递增seq并按幂等键去重", async () => {
     const { store, project, session } = await makeProject();
     const base = {
@@ -137,21 +211,35 @@ describe("WordHub M1 store", () => {
     ).toEqual(["e1"]);
   });
 
-  it("重放投影和在线顺序一致", async () => {
+  it("增量投影、全量重放与乱序落库一致", async () => {
     const { project, session } = await makeProject();
-    const deltas = fc.sample(
-      fc.string({ unit: "grapheme", minLength: 1, maxLength: 8 }),
-      12,
-    );
-    const events = [
-      event(project.id, session.id, 1, "chat.user_message", { text: "开始" }),
-      ...deltas.map((delta, index) =>
-        event(project.id, session.id, index + 2, "run.text_delta", { delta }),
+    fc.assert(
+      fc.property(
+        fc.array(fc.string({ unit: "grapheme", minLength: 1, maxLength: 8 }), {
+          minLength: 1,
+          maxLength: 30,
+        }),
+        (deltas) => {
+          const events = [
+            event(project.id, session.id, 1, "chat.user_message", {
+              text: "开始",
+            }),
+            ...deltas.map((delta, index) =>
+              event(project.id, session.id, index + 2, "run.text_delta", {
+                delta,
+              }),
+            ),
+            event(project.id, session.id, deltas.length + 2, "run.finished", {
+              text: deltas.join(""),
+            }),
+          ];
+          const incremental = createChatProjectionState();
+          for (const current of events) applyChatEvent(incremental, current);
+          expect(projectChat([...events].reverse())).toEqual(incremental.items);
+        },
       ),
-    ];
-    const online = projectChat(events);
-    const replayed = projectChat([...events].reverse());
-    expect(replayed).toEqual(online);
+      { numRuns: 1000 },
+    );
   });
 
   it("受控写盘使用原子替换，撤销会产生新的修订", async () => {
@@ -210,8 +298,7 @@ describe("WordHub M1 store", () => {
     expect(changes).toContain("章节.md");
   });
 
-  // ── 已知缺陷（见 docs/m1-acceptance.md）。修复后把 it.fails 改回 it。 ──
-  it.fails("外部修改后，受控写入不得静默覆盖用户的改动", async () => {
+  it("外部修改后，受控写入不得静默覆盖用户的改动", async () => {
     const { store, project, session, folder } = await makeProject();
     const writer = new ControlledFileWriter(store, project.id, folder);
     await writer.writeText({
@@ -237,9 +324,14 @@ describe("WordHub M1 store", () => {
     );
     // 期望：要么拒绝写入，要么先把用户的版本保留下来，二者必居其一。
     expect(outcome === "rejected" || kept.includes("用户手改")).toBe(true);
+    expect(
+      store
+        .listEvents(project.id, session.id)
+        .some((item) => item.type === "file.changed_externally"),
+    ).toBe(true);
   });
 
-  it.fails("运行中途被终止后，重开时不应一直显示为streaming", async () => {
+  it("运行中途被终止后，重开时不应一直显示为streaming", async () => {
     const { project, session } = await makeProject();
     const interrupted = [
       event(project.id, session.id, 1, "chat.user_message", {
@@ -248,6 +340,9 @@ describe("WordHub M1 store", () => {
       event(project.id, session.id, 2, "run.started", {}),
       event(project.id, session.id, 3, "run.text_delta", {
         delta: "暮鼓三百声，",
+      }),
+      event(project.id, session.id, 4, "run.interrupted", {
+        reason: "worker_exit",
       }),
     ];
     const agent = projectChat(interrupted).find(

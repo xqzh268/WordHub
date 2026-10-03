@@ -8,7 +8,10 @@ export type WorkspaceCommand =
   | "chat.list"
   | "run.start"
   | "run.abort"
+  | "run.approve"
   | "run.restartWorker"
+  | "settings.credentialStatus"
+  | "settings.setCredential"
   | "app.setTheme";
 
 export interface WorkspaceSnapshot {
@@ -30,9 +33,12 @@ export interface CommandPayloads {
   "session.create": { projectId: string; title: string; sessionId?: string };
   "session.rename": { projectId?: string; sessionId: string; title: string };
   "chat.list": { projectId: string; sessionId: string };
-  "run.start": { prompt: string; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
+  "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
   "run.abort": { runId: string };
+  "run.approve": { runId: string; approved: boolean };
   "run.restartWorker": undefined;
+  "settings.credentialStatus": undefined;
+  "settings.setCredential": { provider: string; secret: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
 
@@ -46,7 +52,10 @@ export interface CommandResults {
   "chat.list": { events: unknown[]; items: unknown[] };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
   "run.abort": { runId: string; aborted: boolean };
+  "run.approve": { runId: string; approved: boolean };
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
+  "settings.credentialStatus": { provider: string; configured: boolean; encryptionAvailable: boolean };
+  "settings.setCredential": { saved: boolean };
   "app.setTheme": { applied: boolean };
 }
 

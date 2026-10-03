@@ -33,4 +33,20 @@ else {
   if (!validate(data)) errors.push(`agent-methods-reviewer.AGENT.md: ${validate.errors?.map(e => `${e.instancePath} ${e.message}`).join('; ')}`);
   else console.log('PASS agent-methods-reviewer.AGENT.md -> agent-config.schema.json');
 }
+const novelAgentsRoot = path.join(root, 'packages', 'novel', 'agents');
+for (const role of await fs.readdir(novelAgentsRoot, { withFileTypes: true }).catch(() => [])) {
+  if (!role.isDirectory()) continue;
+  const file = path.join(novelAgentsRoot, role.name, 'AGENT.md');
+  try {
+    const text = await fs.readFile(file, 'utf8');
+    const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!match) errors.push(`${path.relative(root, file)}: missing frontmatter`);
+    else {
+      const data = YAML.parse(match[1]);
+      const validate = ajv.getSchema(schemas.get('agent-config.schema.json').$id);
+      if (!validate(data)) errors.push(`${path.relative(root, file)}: ${validate.errors?.map(e => `${e.instancePath} ${e.message}`).join('; ')}`);
+      else console.log(`PASS ${path.relative(root, file)} -> agent-config.schema.json`);
+    }
+  } catch (error) { errors.push(`${path.relative(root, file)}: ${error.message}`); }
+}
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }

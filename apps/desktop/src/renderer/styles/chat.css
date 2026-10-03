@@ -17,6 +17,10 @@
 .mention { display: inline-block; padding: 0 6px; margin-right: 2px; border-radius: 4px; font-family: var(--font-ui); font-size: 0.9em; font-weight: 600; line-height: 1.55; color: var(--mention); background: color-mix(in srgb, var(--mention) 13%, transparent); }
 
 .thinking { font-size: 13px; line-height: 1.8; background: linear-gradient(90deg, var(--ink-4) 0%, var(--ink-1) 50%, var(--ink-4) 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 2.4s linear infinite; }
+.reasoning-panel { margin: 8px 0 10px; border-left: 2px solid var(--ink-5); padding-left: 10px; color: var(--ink-4); }
+.reasoning-toggle { display: flex; align-items: center; gap: 7px; border: 0; padding: 0; color: inherit; background: transparent; font-size: 11px; cursor: pointer; }
+.reasoning-toggle .reasoning-model { margin-left: auto; font-size: 10px; opacity: .7; }
+.reasoning-text { margin: 6px 0 0; white-space: pre-wrap; font-size: 12px; line-height: 1.7; opacity: .86; }
 .ink-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--accent); vertical-align: 0.08em; animation: breathe 1.2s ease-in-out infinite; }
 
 /* ── 工具调用 ───────────────────────────────────────── */

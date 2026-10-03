@@ -18,7 +18,13 @@ export type RunRecord = {
   id: string;
   projectId: string;
   sessionId: string;
-  status: "running" | "succeeded" | "failed" | "cancelled" | "interrupted";
+  status:
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "cancelled"
+    | "interrupted"
+    | "waiting_approval";
   prompt: string;
   model?: string;
   startedAt: string;
@@ -27,7 +33,6 @@ export type RunRecord = {
 };
 export type NewEvent = Omit<Event, "seq" | "id"> & {
   id?: string;
-  seq?: number;
 };
 export type UsageRecord = {
   runId: string;
@@ -48,3 +53,4 @@ export type FileWriteResult = {
   bytes: number;
 };
 export type WriteAuthor = Actor;
+export type ConflictPolicy = "reject" | "keep-both";

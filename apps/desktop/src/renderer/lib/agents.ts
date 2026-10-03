@@ -11,9 +11,9 @@ export type AgentMeta = {
 /** 内置五角色的展示元数据。模型分配遵循 docs/research/multi-agent-orchestration.md §7.2。 */
 export const AGENTS: AgentMeta[] = [
   { id: "planner", name: "纲领", glyph: "纲", color: "var(--agent-planner)", role: "问询需求，规划大纲与人物", model: "deepseek-v4-pro", reasoning: "high" },
-  { id: "writer", name: "写手", glyph: "写", color: "var(--agent-writer)", role: "按章撰写正文", model: "deepseek-v4-pro", reasoning: "high" },
+  { id: "writer", name: "写手", glyph: "写", color: "var(--agent-writer)", role: "按章撰写正文", model: "deepseek-flash", reasoning: "low" },
   { id: "editor", name: "编辑", glyph: "编", color: "var(--agent-editor)", role: "语言、格式与字数校验", model: "deepseek-flash", reasoning: "low" },
-  { id: "reviewer", name: "评审", glyph: "审", color: "var(--agent-reviewer)", role: "核验设定，纠正偏离大纲", model: "deepseek-v4-pro", reasoning: "max" },
+  { id: "reviewer", name: "评审", glyph: "审", color: "var(--agent-reviewer)", role: "核验设定，纠正偏离大纲", model: "deepseek-v4-pro", reasoning: "high" },
   { id: "observer", name: "观察者", glyph: "观", color: "var(--agent-observer)", role: "抽取人物、事实与关系", model: "deepseek-flash", reasoning: "low" }
 ];
 

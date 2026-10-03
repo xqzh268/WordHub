@@ -4,8 +4,10 @@ import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { AppEvent, CommandPayloads, CommandResults, ResolvedTheme, ThemePreference, WorkspaceCommand, WorkspaceSnapshot } from "@wordhub/contracts";
 import { PiWorkerHost } from "./pi-worker-host.js";
+import { ElectronCredentialStore } from "./credentials.js";
 
 const root = path.resolve(process.env.WORDHUB_WORKSPACE_ROOT ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "../../../../"));
+app.setName("WordHub");
 console.error(`[wordhub-main] loaded ${process.argv.join(" ")}`);
 let mainWindow: BrowserWindow | null = null;
 let linkedFolder: string | null = null;
@@ -13,6 +15,7 @@ let projectName = "未命名项目";
 let projectId: string | undefined;
 let activeSessionId: string | undefined;
 const worker = new PiWorkerHost((event) => mainWindow?.webContents.send("wordhub:event", event));
+const credentials = new ElectronCredentialStore();
 
 // 自绘标题栏：窗口控制按钮由系统叠加绘制，颜色需与渲染进程的主题 token 保持一致。
 const TITLEBAR_HEIGHT = 44;
@@ -79,13 +82,26 @@ function registerIpc(): void {
         activeSessionId = created.sessionId;
       }
       const sessionId = payload.sessionId ?? activeSessionId;
-      worker.run({ runId, prompt: payload.prompt, mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live", projectPath: payload.projectPath ?? linkedFolder ?? undefined, projectId: payload.projectId ?? projectId, sessionId });
+      worker.run({ runId, prompt: payload.prompt, rawPrompt: payload.rawPrompt, agentId: payload.agentId, mentions: payload.mentions, apiKey: await credentials.get("deepseek"), mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live", projectPath: payload.projectPath ?? linkedFolder ?? undefined, projectId: payload.projectId ?? projectId, sessionId });
       return { runId, projectId, sessionId } as CommandResults["run.start"];
     }
     if (command === "run.abort") {
       const payload = request.payload as CommandPayloads["run.abort"];
       worker.abort(payload.runId);
       return { runId: payload.runId, aborted: true } as CommandResults["run.abort"];
+    }
+    if (command === "run.approve") {
+      const payload = request.payload as CommandPayloads["run.approve"];
+      return await worker.request<CommandResults["run.approve"]>({ type: "run.approve", runId: payload.runId, approved: payload.approved });
+    }
+    if (command === "settings.credentialStatus") {
+      return { provider: "deepseek", configured: await credentials.configured("deepseek"), encryptionAvailable: credentials.encryptionAvailable() } as CommandResults["settings.credentialStatus"];
+    }
+    if (command === "settings.setCredential") {
+      const payload = request.payload as CommandPayloads["settings.setCredential"];
+      if (!payload.secret.trim()) throw new Error("密钥不能为空");
+      await credentials.set(payload.provider, payload.secret.trim());
+      return { saved: true } as CommandResults["settings.setCredential"];
     }
     if (command === "app.setTheme") {
       const payload = request.payload as CommandPayloads["app.setTheme"];

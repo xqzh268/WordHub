@@ -1,33 +1,31 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
-import {
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  writeFile,
-} from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { Actor, Event, Hash, Revision } from "@wordhub/contracts";
 import { normalizeSearchText, searchPhrase } from "./fts.js";
 import type {
-  FileWriteResult,
   NewEvent,
   ProjectRecord,
   RevisionRecord,
   RunRecord,
   SessionRecord,
   UsageRecord,
-  WriteAuthor,
 } from "./types.js";
 
 type SqlRow = Record<string, unknown>;
 const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}_${randomUUID().replaceAll("-", "")}`;
 const asString = (value: unknown): string => String(value ?? "");
+const searchableText = (event: Event): string =>
+  [
+    "chat.user_message",
+    "run.finished",
+    "revision.committed",
+    "file.changed_externally",
+  ].includes(event.type) && typeof event.payload.text === "string"
+    ? event.payload.text
+    : "";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS projects (
@@ -95,6 +93,7 @@ function eventRow(row: SqlRow): Event {
     actor: {
       type: asString(row.actor_type) as Actor["type"],
       id: asString(row.actor_id),
+      agentVersion: row.actor_version ? asString(row.actor_version) : undefined,
     },
     occurredAt: asString(row.occurred_at),
     causationId: row.causation_id ? asString(row.causation_id) : undefined,
@@ -127,14 +126,81 @@ export class WordHubStore {
       (this.db.prepare("PRAGMA user_version").get() as SqlRow).user_version ??
         0,
     );
-    if (version < 1) {
-      this.db.exec(SCHEMA);
-      this.db.exec("PRAGMA user_version = 1;");
-    } else this.db.exec(SCHEMA);
+    const migrations = [
+      SCHEMA,
+      "ALTER TABLE events ADD COLUMN actor_version TEXT;",
+    ];
+    if (version > migrations.length)
+      throw new Error("数据库版本高于当前应用，拒绝降级打开");
+    for (let index = version; index < migrations.length; index++) {
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        const migration = migrations[index];
+        if (!migration) throw new Error(`缺少数据库迁移${index + 1}`);
+        this.db.exec(migration);
+        this.db.exec(`PRAGMA user_version = ${index + 1};`);
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+    if (version < 2) this.rebuildSearchIndex();
   }
 
   close(): void {
     this.db.close();
+  }
+
+  /** 将进程被强杀时仍处于 running 的运行标记为中断，并补一条事实事件。 */
+  recoverInterruptedRuns(): Event[] {
+    const rows = this.db
+      .prepare("SELECT * FROM runs WHERE status='running' ORDER BY started_at")
+      .all() as SqlRow[];
+    const events: Event[] = [];
+    for (const row of rows) {
+      const runId = asString(row.id);
+      const terminal = this.listEvents(asString(row.project_id))
+        .reverse()
+        .find(
+          (event) =>
+            event.runId === runId &&
+            [
+              "run.finished",
+              "run.error",
+              "run.aborted",
+              "run.interrupted",
+            ].includes(event.type),
+        );
+      if (terminal) {
+        const statuses: Record<string, RunRecord["status"]> = {
+          "run.finished": "succeeded",
+          "run.error": "failed",
+          "run.aborted": "cancelled",
+          "run.interrupted": "interrupted",
+        };
+        const status = statuses[terminal.type];
+        if (!status) throw new Error(`未知运行终态：${terminal.type}`);
+        this.finishRun(runId, status);
+        continue;
+      }
+      events.push(
+        this.appendEvent({
+          schemaVersion: 1,
+          idempotencyKey: `run:${runId}:interrupted`,
+          projectId: asString(row.project_id),
+          sessionId: asString(row.session_id),
+          runId,
+          type: "run.interrupted",
+          actor: { type: "system", id: "store-recovery" },
+          occurredAt: now(),
+          visibility: "audit",
+          payload: { reason: "worker_exit", recoveredAt: now() },
+        }),
+      );
+      this.finishRun(runId, "interrupted", "后台进程在运行中退出");
+    }
+    return events;
   }
 
   createProject(input: {
@@ -257,6 +323,13 @@ export class WordHubStore {
       .prepare("UPDATE runs SET status=?,ended_at=?,error=? WHERE id=?")
       .run(status, now(), error ?? null, runId);
   }
+  resumeRun(runId: string): void {
+    this.db
+      .prepare(
+        "UPDATE runs SET status='running',ended_at=NULL,error=NULL WHERE id=?",
+      )
+      .run(runId);
+  }
 
   appendEvent(input: NewEvent): Event {
     if (input.idempotencyKey) {
@@ -281,11 +354,11 @@ export class WordHubStore {
       const event: Event = {
         ...input,
         id: input.id ?? id("evt"),
-        seq: input.seq ?? nextSeq,
+        seq: nextSeq,
       };
       this.db
         .prepare(
-          "INSERT INTO events(id,project_id,session_id,run_id,task_id,seq,type,actor_type,actor_id,occurred_at,causation_id,correlation_id,idempotency_key,visibility,refs_json,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO events(id,project_id,session_id,run_id,task_id,seq,type,actor_type,actor_id,occurred_at,causation_id,correlation_id,idempotency_key,visibility,refs_json,payload_json,actor_version) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           event.id,
@@ -304,6 +377,7 @@ export class WordHubStore {
           event.visibility ?? null,
           event.refs ? JSON.stringify(event.refs) : null,
           JSON.stringify(event.payload),
+          event.actor.agentVersion ?? null,
         );
       this.db
         .prepare(
@@ -312,7 +386,7 @@ export class WordHubStore {
         .run(
           event.id,
           event.projectId,
-          normalizeSearchText(JSON.stringify(event.payload)),
+          normalizeSearchText(searchableText(event)),
         );
       this.db.exec("COMMIT");
       return event;
@@ -354,6 +428,56 @@ export class WordHubStore {
         .all(projectId, phrase) as SqlRow[]
     ).map(eventRow);
   }
+  private rebuildSearchIndex(): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.exec("DELETE FROM event_fts");
+      const insert = this.db.prepare(
+        "INSERT INTO event_fts(event_id,project_id,body) VALUES(?,?,?)",
+      );
+      for (const row of this.db
+        .prepare("SELECT * FROM events")
+        .all() as SqlRow[]) {
+        const event = eventRow(row);
+        insert.run(
+          event.id,
+          event.projectId,
+          normalizeSearchText(searchableText(event)),
+        );
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  listAllRevisions(projectId: string): RevisionRecord[] {
+    return (
+      this.db
+        .prepare(
+          "SELECT * FROM revisions WHERE project_id=? ORDER BY revision_no",
+        )
+        .all(projectId) as SqlRow[]
+    ).map((row) => this.revisionRow(row));
+  }
+  getRun(runId: string): RunRecord | undefined {
+    const row = this.db.prepare("SELECT * FROM runs WHERE id=?").get(runId) as
+      | SqlRow
+      | undefined;
+    return row
+      ? {
+          id: asString(row.id),
+          projectId: asString(row.project_id),
+          sessionId: asString(row.session_id),
+          status: asString(row.status) as RunRecord["status"],
+          prompt: asString(row.prompt),
+          model: row.model ? asString(row.model) : undefined,
+          startedAt: asString(row.started_at),
+          endedAt: row.ended_at ? asString(row.ended_at) : undefined,
+          error: row.error ? asString(row.error) : undefined,
+        }
+      : undefined;
+  }
   recordUsage(usage: UsageRecord): void {
     this.db
       .prepare(
@@ -386,28 +510,7 @@ export class WordHubStore {
         "SELECT * FROM revisions WHERE project_id=? AND artifact_id=? ORDER BY revision_no",
       )
       .all(projectId, artifactId) as SqlRow[];
-    return rows.map((row) => ({
-      schemaVersion: 1,
-      id: asString(row.id),
-      artifactId: asString(row.artifact_id),
-      projectId: asString(row.project_id),
-      sessionId: row.session_id ? asString(row.session_id) : undefined,
-      revisionNo: Number(row.revision_no),
-      parentRevisionId: row.parent_revision_id
-        ? asString(row.parent_revision_id)
-        : undefined,
-      status: asString(row.status) as Revision["status"],
-      contentHash: asString(row.content_hash) as Hash,
-      contentType: row.content_type ? asString(row.content_type) : undefined,
-      storagePath: asString(row.storage_path),
-      patch: row.patch_json ? JSON.parse(asString(row.patch_json)) : undefined,
-      author: JSON.parse(asString(row.author_json)),
-      sourceEventId: row.source_event_id
-        ? asString(row.source_event_id)
-        : undefined,
-      createdAt: asString(row.created_at),
-      snapshotPath: asString(row.storage_path),
-    }));
+    return rows.map((row) => this.revisionRow(row));
   }
   addRevision(input: {
     id: string;
@@ -424,6 +527,7 @@ export class WordHubStore {
     sourceTaskId?: string;
     sourceEventId?: string;
     approvedByEventId?: string;
+    advanceCurrent?: boolean;
   }): RevisionRecord {
     const revision: RevisionRecord = {
       schemaVersion: 1,
@@ -434,11 +538,13 @@ export class WordHubStore {
     };
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      this.db
-        .prepare(
-          "UPDATE revisions SET status='superseded' WHERE project_id=? AND artifact_id=? AND status='current'",
-        )
-        .run(input.projectId, input.artifactId);
+      if (input.advanceCurrent ?? input.status === "current") {
+        this.db
+          .prepare(
+            "UPDATE revisions SET status='superseded' WHERE project_id=? AND artifact_id=? AND status='current'",
+          )
+          .run(input.projectId, input.artifactId);
+      }
       const revisionValues = [
         revision.id,
         revision.artifactId,
@@ -469,123 +575,76 @@ export class WordHubStore {
       throw error;
     }
   }
-}
 
-export class ControlledFileWriter {
-  constructor(
-    private readonly store: WordHubStore,
-    private readonly projectId: string,
-    private readonly linkedFolder: string,
-  ) {}
-
-  private async safeTarget(
-    relativePath: string,
-  ): Promise<{ root: string; target: string }> {
-    const root = await realpath(this.linkedFolder);
-    const normalized = relativePath.replaceAll("\\", "/");
-    const parts = normalized.split("/");
-    if (
-      !normalized ||
-      path.posix.isAbsolute(normalized) ||
-      parts.some((part) => part === ".." || part === ".wordhub")
-    )
-      throw new Error("文件路径不在项目受控范围内");
-    const target = path.resolve(root, normalized);
-    if (target !== root && !target.startsWith(`${root}${path.sep}`))
-      throw new Error("文件路径越过项目根目录");
-    for (let index = 1; index < parts.length; index += 1) {
-      const candidate = path.join(root, ...parts.slice(0, index));
-      const info = await lstat(candidate).catch(() => undefined);
-      if (info?.isSymbolicLink())
-        throw new Error("不允许通过符号链接写入项目文件");
-    }
-    return { root, target };
-  }
-
-  async writeText(input: {
-    relativePath: string;
-    content: string;
-    sessionId?: string;
-    artifactId?: string;
-    author?: WriteAuthor;
-    contentType?: string;
-  }): Promise<FileWriteResult> {
-    const { target } = await this.safeTarget(input.relativePath);
-    await mkdir(path.dirname(target), { recursive: true });
-    const artifactId =
-      input.artifactId ?? `file:${input.relativePath.replaceAll("\\", "/")}`;
-    const revisions = this.store.listRevisions(this.projectId, artifactId);
-    const parent = revisions.at(-1);
-    const revisionId = id("rev");
-    const contentHash =
-      `sha256:${createHash("sha256").update(input.content, "utf8").digest("hex")}` as Hash;
-    const snapshotDir = path.join(
-      this.store.storageDir,
-      "snapshots",
-      artifactId.replace(/[^a-zA-Z0-9._-]/gu, "_"),
-    );
-    const snapshotPath = path.join(snapshotDir, `${revisionId}.snapshot`);
-    await mkdir(snapshotDir, { recursive: true });
-    await writeFile(snapshotPath, input.content, "utf8");
-    const temporary = path.join(
-      path.dirname(target),
-      `.${path.basename(target)}.${revisionId}.tmp`,
-    );
-    const handle = await open(temporary, "w");
+  promoteRevision(revisionId: string): RevisionRecord {
+    const row = this.db
+      .prepare("SELECT * FROM revisions WHERE id=?")
+      .get(revisionId) as SqlRow | undefined;
+    if (!row) throw new Error("待提交的修订不存在");
+    this.db.exec("BEGIN IMMEDIATE");
     try {
-      await handle.writeFile(input.content, "utf8");
-      await handle.sync();
-    } finally {
-      await handle.close();
+      this.db
+        .prepare(
+          "UPDATE revisions SET status='superseded' WHERE project_id=? AND artifact_id=? AND status='current'",
+        )
+        .run(asString(row.project_id), asString(row.artifact_id));
+      this.db
+        .prepare(
+          "UPDATE revisions SET status='current',patch_json=? WHERE id=?",
+        )
+        .run(
+          JSON.stringify({
+            ...(row.patch_json ? JSON.parse(asString(row.patch_json)) : {}),
+            phase: "committed",
+          }),
+          revisionId,
+        );
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
     }
-    await rename(temporary, target);
-    const revision = this.store.addRevision({
-      id: revisionId,
-      artifactId,
-      projectId: this.projectId,
-      sessionId: input.sessionId,
-      parentRevisionId: parent?.id,
-      status: "current",
-      contentHash,
-      contentType: input.contentType ?? "text/markdown",
-      snapshotPath,
-      author: input.author ?? { type: "user", id: "user" },
-    });
-    return {
-      relativePath: input.relativePath,
-      revision,
-      contentHash,
-      bytes: Buffer.byteLength(input.content, "utf8"),
-    };
+    const promoted = this.db
+      .prepare("SELECT * FROM revisions WHERE id=?")
+      .get(revisionId) as SqlRow;
+    return this.revisionRow(promoted);
   }
 
-  async undo(input: {
-    artifactId: string;
-    relativePath: string;
-    sessionId?: string;
-    author?: WriteAuthor;
-  }): Promise<FileWriteResult> {
-    const revisions = this.store.listRevisions(
-      this.projectId,
-      input.artifactId,
-    );
-    const current =
-      [...revisions]
-        .reverse()
-        .find((revision) => revision.status === "current") ?? revisions.at(-1);
-    if (!current?.parentRevisionId) throw new Error("没有可撤销的修订");
-    const parent = revisions.find(
-      (revision) => revision.id === current.parentRevisionId,
-    );
-    if (!parent) throw new Error("撤销目标修订不存在");
-    return this.writeText({
-      relativePath: input.relativePath,
-      content: await readFile(parent.snapshotPath, "utf8"),
-      sessionId: input.sessionId,
-      artifactId: input.artifactId,
-      author: input.author,
-      contentType: parent.contentType,
-    });
+  markRevision(revisionId: string, status: Revision["status"]): void {
+    this.db
+      .prepare("UPDATE revisions SET status=? WHERE id=?")
+      .run(status, revisionId);
+  }
+
+  private revisionRow(row: SqlRow): RevisionRecord {
+    return {
+      schemaVersion: 1,
+      id: asString(row.id),
+      artifactId: asString(row.artifact_id),
+      projectId: asString(row.project_id),
+      sessionId: row.session_id ? asString(row.session_id) : undefined,
+      revisionNo: Number(row.revision_no),
+      parentRevisionId: row.parent_revision_id
+        ? asString(row.parent_revision_id)
+        : undefined,
+      status: asString(row.status) as Revision["status"],
+      contentHash: asString(row.content_hash) as Hash,
+      contentType: row.content_type ? asString(row.content_type) : undefined,
+      storagePath: asString(row.storage_path),
+      patch: row.patch_json ? JSON.parse(asString(row.patch_json)) : undefined,
+      author: JSON.parse(asString(row.author_json)),
+      sourceTaskId: row.source_task_id
+        ? asString(row.source_task_id)
+        : undefined,
+      sourceEventId: row.source_event_id
+        ? asString(row.source_event_id)
+        : undefined,
+      approvedByEventId: row.approved_by_event_id
+        ? asString(row.approved_by_event_id)
+        : undefined,
+      createdAt: asString(row.created_at),
+      snapshotPath: asString(row.storage_path),
+    };
   }
 }
 

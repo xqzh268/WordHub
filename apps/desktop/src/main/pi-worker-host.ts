@@ -12,6 +12,10 @@ type WorkerMessage = {
 export type WorkerRunRequest = {
   runId: string;
   prompt: string;
+  rawPrompt?: string;
+  agentId?: string;
+  mentions?: string[];
+  apiKey?: string;
   model?: string;
   reasoning?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   mode?: "live" | "mock";

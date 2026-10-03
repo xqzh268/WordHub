@@ -6,6 +6,17 @@
 
 存储地基扎实，重启恢复真实可用，报告列出的 7 条命令与测试我在干净安装后全部复现通过。但对照 [m1-plan.md](m1-plan.md) 的 6 条验收标准，**有 1 条未达成、2 条部分达成**，其中一个缺陷会导致用户的手改内容丢失。这些问题应在进入 M2 之前用一个 **M1.1 加固（约 3 天）** 修掉，详见 [m2-plan.md](m2-plan.md)。
 
+## M1.1复核（2026-10-04）
+
+本轮已完成并在本地工作树验证：
+
+- 写入前对账磁盘哈希；外部版本先保存为`external`修订并追加`file.changed_externally`，默认拒绝覆盖，可选`keep-both`。
+- `run.started`保存`agentId / agentVersion / model / reasoning`，用户事件保留原始输入和`mentions`；强杀后启动清扫`running`并投影为`interrupted`。
+- 候选修订、临时文件、原子替换和启动对账覆盖替换前、替换后、提交前三个故障点。
+- 投影测试使用`fast-check`运行1000组；`test:m1:e2e`真实Electron脚本当前11/11通过。
+
+因此原报告中缺陷1、2、3、6、7、8、9、10、11、12已修复。仍保留两个边界：当前外部修改检测在受控写入前和显式watcher库中触发，尚未把watcher作为常驻产品服务；密钥扫描已覆盖safeStorage和mock路径，live密钥场景仍需在CI之外验证。M1.1以“有条件通过”进入M2，避免把这两个未覆盖边界写成已验收。
+
 ## 我做了什么
 
 1. 干净 `npm ci` 后重跑：`validate:schema`、`typecheck`、`lint`、`test`、`test:m1:store`、`build:desktop`、`test:desktop`，全部通过。

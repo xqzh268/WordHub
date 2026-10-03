@@ -4,6 +4,7 @@ import type { ThemePreference } from "@wordhub/contracts";
 import { AGENTS } from "../lib/agents";
 import { useWorkbench, type ReadingFont } from "../state/store";
 import { Seal } from "./Seal";
+import { useEffect, useState } from "react";
 
 const THEMES: { id: ThemePreference; label: string; Icon: typeof Sun }[] = [
   { id: "light", label: "宣纸", Icon: Sun },
@@ -21,6 +22,21 @@ export function SettingsView() {
   const reading = useWorkbench((s) => s.reading);
   const setTheme = useWorkbench((s) => s.setTheme);
   const setReading = useWorkbench((s) => s.setReading);
+  const [secret, setSecret] = useState("");
+  const [credentialState, setCredentialState] = useState<{ configured: boolean; encryptionAvailable: boolean } | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    void window.wordhub?.invoke("settings.credentialStatus", undefined).then((result) => setCredentialState(result));
+  }, []);
+
+  const saveCredential = async () => {
+    if (!secret.trim()) return;
+    await window.wordhub?.invoke("settings.setCredential", { provider: "deepseek", secret });
+    setSecret("");
+    setSaved(true);
+    setCredentialState((state) => state ? { ...state, configured: true } : state);
+  };
 
   return (
     <div className="page selectable" data-testid="settings">
@@ -29,6 +45,17 @@ export function SettingsView() {
           <h1>设置</h1>
           <p>让写作的环境，贴近你习惯的纸。</p>
         </header>
+
+        <section className="panel-section">
+          <h2>服务商与密钥</h2>
+          <div className="field">
+            <div className="field-label"><strong>DeepSeek</strong><span>{credentialState?.encryptionAvailable === false ? "系统安全存储不可用" : credentialState?.configured ? "密钥已加密保存" : "尚未配置密钥"}</span></div>
+            <div className="credential-row">
+              <input className="text-input mono" type="password" value={secret} onChange={(event) => { setSecret(event.target.value); setSaved(false); }} placeholder="输入API key，不会回显" aria-label="DeepSeek API key" />
+              <button className="btn btn-primary" onClick={() => void saveCredential()} disabled={!secret.trim() || credentialState?.encryptionAvailable === false}>{saved ? "已保存" : "保存"}</button>
+            </div>
+          </div>
+        </section>
 
         <section className="panel-section">
           <h2>外观</h2>
