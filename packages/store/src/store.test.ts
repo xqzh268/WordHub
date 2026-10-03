@@ -209,4 +209,50 @@ describe("WordHub M1 store", () => {
     stop();
     expect(changes).toContain("章节.md");
   });
+
+  // ── 已知缺陷（见 docs/m1-acceptance.md）。修复后把 it.fails 改回 it。 ──
+  it.fails("外部修改后，受控写入不得静默覆盖用户的改动", async () => {
+    const { store, project, session, folder } = await makeProject();
+    const writer = new ControlledFileWriter(store, project.id, folder);
+    await writer.writeText({
+      relativePath: "第一章.md",
+      content: "应用写入",
+      sessionId: session.id,
+    });
+    await writeFile(path.join(folder, "第一章.md"), "用户手改", "utf8");
+    const outcome = await writer
+      .writeText({
+        relativePath: "第一章.md",
+        content: "Agent写入",
+        sessionId: session.id,
+      })
+      .then(
+        () => "written",
+        () => "rejected",
+      );
+    const kept = await Promise.all(
+      store
+        .listRevisions(project.id, "file:第一章.md")
+        .map((revision) => readFile(revision.snapshotPath, "utf8")),
+    );
+    // 期望：要么拒绝写入，要么先把用户的版本保留下来，二者必居其一。
+    expect(outcome === "rejected" || kept.includes("用户手改")).toBe(true);
+  });
+
+  it.fails("运行中途被终止后，重开时不应一直显示为streaming", async () => {
+    const { project, session } = await makeProject();
+    const interrupted = [
+      event(project.id, session.id, 1, "chat.user_message", {
+        text: "写第三章",
+      }),
+      event(project.id, session.id, 2, "run.started", {}),
+      event(project.id, session.id, 3, "run.text_delta", {
+        delta: "暮鼓三百声，",
+      }),
+    ];
+    const agent = projectChat(interrupted).find(
+      (item) => item.kind === "agent",
+    );
+    expect(agent?.status).not.toBe("streaming");
+  });
 });

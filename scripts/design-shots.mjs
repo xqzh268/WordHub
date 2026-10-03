@@ -1,6 +1,7 @@
 // 设计检视：用 Electron 实际渲染界面并截图，输出到 docs/design/screenshots/。
 // 用法：npm run build:desktop && node scripts/design-shots.mjs
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -16,7 +17,7 @@ const electronBinary = createRequire(import.meta.url)("electron");
 async function launch(env) {
   const app = await _electron.launch({
     executablePath: electronBinary,
-    args: [path.join(root, "out", "main", "index.js")],
+    args: [path.join(root, "out", "main", "index.js"), `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-test-"))}`],
     cwd: root,
     env: { ...cleanEnv(), WORDHUB_MOCK: "1", WORDHUB_WORKSPACE_ROOT: root, ...env }
   });

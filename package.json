@@ -26,6 +26,7 @@
     "dev:desktop": "electron-vite dev --config apps/desktop/electron.vite.config.ts",
     "test:desktop": "node scripts/desktop-smoke.mjs",
     "test": "npm run build:store && vitest run",
+    "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",
     "test:m1:store": "npm run build:store && node scripts/m1-store-smoke.mjs",
     "lint": "biome check packages/store/src",
     "spike:all": "npm run validate:schema && npm run spike:pi && npm run spike:pi:utility && npm run spike:superdoc && npm run spike:superdoc:node && npm run spike:foliate"

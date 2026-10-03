@@ -1,0 +1,60 @@
+{
+  "ok": false,
+  "findings": [
+    {
+      "name": "链接含中文路径的文件夹后，生成 .wordhub/project.json",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重启前：回复来自被 @ 的 Agent",
+      "passed": true,
+      "detail": "评审"
+    },
+    {
+      "name": "SQLite 放在应用数据目录而不是写作文件夹",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "强杀后事件日志完整且 seq 连续无重复",
+      "passed": true,
+      "detail": "共 8 条"
+    },
+    {
+      "name": "用户消息只记录一次",
+      "passed": true,
+      "detail": "1 条"
+    },
+    {
+      "name": "事件载荷中没有密钥痕迹",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重开后无需操作，界面自动恢复项目",
+      "passed": true,
+      "detail": "项目名：长安夜"
+    },
+    {
+      "name": "重开后无需操作，界面自动恢复聊天记录",
+      "passed": true,
+      "detail": "聊天区文本：\"你\\n你\\n21:17\\n\\n核对第三章的设定\\n\\n纲\\n纲领\\n21:17\\n\\n文枢后台进程正在流式写作。文枢后台进程正在流式写作。文\""
+    },
+    {
+      "name": "手动重新链接后聊天记录恢复",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "恢复后回复者与重启前一致（评审）",
+      "passed": false,
+      "detail": "恢复后显示：纲领"
+    },
+    {
+      "name": "恢复后用户消息与重启前一致（保留 @评审）",
+      "passed": false,
+      "detail": "恢复后显示：\"核对第三章的设定\""
+    }
+  ]
+}
