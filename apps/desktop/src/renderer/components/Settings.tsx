@@ -87,7 +87,7 @@ export function SettingsView() {
 
         <section className="panel-section">
           <h2>模型分配</h2>
-          <p className="section-note">开发期默认值。服务商、密钥与逐 Agent 配置将在 M2 开放。</p>
+          <p className="section-note">当前分配读取内置AGENT.md与项目models.json；逐 Agent 表单将在M2收尾接入。</p>
           <ul className="model-table" role="list">
             {AGENTS.map((agent) => (
               <li key={agent.id}>
