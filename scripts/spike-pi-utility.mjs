@@ -29,7 +29,8 @@ const build = process.platform === "win32"
 if (build.error) throw build.error;
 if (build.status !== 0) process.exit(build.status ?? 1);
 
-const env = { ...process.env, WORDHUB_WORKSPACE_ROOT: root };
+const { ELECTRON_RUN_AS_NODE: _ignored, ...baseEnv } = process.env;
+const env = { ...baseEnv, WORDHUB_WORKSPACE_ROOT: root };
 const child = spawnSync(electronBinary, [path.join(root, "out", "main", "index.js"), "--wordhub-pi-spike"], { cwd: root, env, encoding: "utf8", windowsHide: true });
 const artifactPath = path.join(root, "artifacts", "pi-utility-result.json");
 let result = null;

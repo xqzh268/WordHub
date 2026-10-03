@@ -1,5 +1,7 @@
 # P1 开发计划：小说核心闭环
 
+> **当前进度（2026-10-03）**：M0 与桌面壳界面已完成；下一步见 [m1-plan.md](m1-plan.md)。界面设计说明见 [design/README.md](design/README.md)。
+
 > M0状态：已完成（2026-10-03）。实现与验证记录见[m0-report.md](m0-report.md)；Pi utilityProcess、取消、崩溃重启、中文路径以及DeepSeek两模型思考模式多轮工具调用均已实测通过。
 
 **日期：2026-10-03**　前置：P0 全部门槛已通过（契约校验、Pi + DeepSeek 真实调用、SuperDoc 中文 DOCX 读写、foliate-js 读 EPUB/MOBI，见 [p0-spikes.md](p0-spikes.md)）。

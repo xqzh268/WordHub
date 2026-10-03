@@ -1,9 +1,10 @@
 {
   "ok": true,
+  "problems": [],
   "snapshot": {
     "projectName": "未命名项目",
     "linkedFolder": null,
-    "worker": "busy"
+    "worker": "ready"
   },
   "title": "文枢 · WordHub"
 }

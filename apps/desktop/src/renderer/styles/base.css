@@ -1,0 +1,69 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink-1);
+  background: var(--bg-canvas);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  line-height: var(--lh-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  text-autospace: normal;
+  user-select: none;
+  transition: background-color var(--dur-slow) var(--ease-inout), color var(--dur-slow) var(--ease-inout);
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+button:disabled { cursor: default; }
+h1, h2, h3, h4, p { margin: 0; }
+::selection { background: var(--sel); }
+.selectable, .selectable * { user-select: text; }
+:focus { outline: none; }
+:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+
+/* 纸纹：静态噪点（SVG feTurbulence）只铺在背景与纸面，不压文字层 */
+:root {
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .26 0 0 0 0 .2 1.6 0 0 0 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.grain { position: relative; isolation: isolate; }
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--grain);
+  background-size: 240px 240px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
+}
+.grain > * { position: relative; z-index: 1; }
+
+/* 细滚动条 */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mono { font-family: var(--font-mono); font-feature-settings: "calt" 0; }
+
+.kbd {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px;
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px;
+  font-family: var(--font-ui); font-size: 10.5px; color: var(--ink-3); background: var(--bg-raised);
+}
+
+/* 轻量提示：CSS 实现，悬停 350ms 后出现 */
+.tip { position: relative; }
+.tip::after {
+  content: attr(data-tip);
+  position: absolute; left: calc(100% + 10px); top: 50%; transform: translate(-4px, -50%);
+  padding: 5px 9px; border-radius: var(--r-sm); white-space: nowrap; pointer-events: none;
+  font-size: var(--fs-xs); color: var(--bg-canvas); background: var(--ink-1);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  z-index: 60;
+}
+.tip:hover::after { opacity: 1; transform: translate(0, -50%); transition-delay: 350ms; }
+.tip.tip-below::after { left: 50%; top: calc(100% + 8px); transform: translate(-50%, -4px); }
+.tip.tip-below:hover::after { transform: translate(-50%, 0); }

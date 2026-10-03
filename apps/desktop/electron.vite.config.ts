@@ -5,6 +5,22 @@ import react from "@vitejs/plugin-react";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+// 生产构建注入 CSP：只允许自身资源。开发模式下 HMR 需要内联脚本，所以仅在 build 时启用。
+const csp = {
+  name: "wordhub-csp",
+  apply: "build" as const,
+  transformIndexHtml: () => [
+    {
+      tag: "meta",
+      attrs: {
+        "http-equiv": "Content-Security-Policy",
+        content: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'"
+      },
+      injectTo: "head-prepend" as const
+    }
+  ]
+};
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
@@ -31,7 +47,7 @@ export default defineConfig({
   },
   renderer: {
     root: path.resolve(here, "src/renderer"),
-    plugins: [react()],
+    plugins: [react(), csp],
     build: {
       rollupOptions: {
         input: path.resolve(here, "src/renderer/index.html")

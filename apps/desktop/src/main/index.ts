@@ -1,8 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import type { AppEvent, CommandPayloads, CommandResults, WorkspaceCommand, WorkspaceSnapshot } from "@wordhub/contracts";
+import type { AppEvent, CommandPayloads, CommandResults, ResolvedTheme, ThemePreference, WorkspaceCommand, WorkspaceSnapshot } from "@wordhub/contracts";
 import { PiWorkerHost } from "./pi-worker-host.js";
 
 const root = path.resolve(process.env.WORDHUB_WORKSPACE_ROOT ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "../../../../"));
@@ -11,6 +11,21 @@ let mainWindow: BrowserWindow | null = null;
 let linkedFolder: string | null = null;
 let projectName = "未命名项目";
 const worker = new PiWorkerHost((event) => mainWindow?.webContents.send("wordhub:event", event));
+
+// 自绘标题栏：窗口控制按钮由系统叠加绘制，颜色需与渲染进程的主题 token 保持一致。
+const TITLEBAR_HEIGHT = 44;
+const OVERLAY: Record<ResolvedTheme, { color: string; symbolColor: string; background: string }> = {
+  light: { color: "#F1EDE3", symbolColor: "#4A453D", background: "#F7F4EC" },
+  dark: { color: "#1C1B18", symbolColor: "#BEB7AA", background: "#171614" }
+};
+
+function applyTheme(preference: ThemePreference, resolved: ResolvedTheme): void {
+  nativeTheme.themeSource = preference;
+  const tokens = OVERLAY[resolved];
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setBackgroundColor(tokens.background);
+  if (process.platform !== "darwin") mainWindow.setTitleBarOverlay({ color: tokens.color, symbolColor: tokens.symbolColor, height: TITLEBAR_HEIGHT });
+}
 
 function snapshot(): WorkspaceSnapshot {
   return { projectName, linkedFolder, worker: worker.status };
@@ -28,7 +43,7 @@ function registerIpc(): void {
     }
     if (command === "run.start") {
       const payload = request.payload as CommandPayloads["run.start"];
-      const runId = `run_${Date.now().toString(36)}`;
+      const runId = payload.runId ?? `run_${Date.now().toString(36)}`;
       worker.run({ runId, prompt: payload.prompt, mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live", projectPath: payload.projectPath ?? linkedFolder ?? undefined });
       return { runId } as CommandResults["run.start"];
     }
@@ -36,6 +51,11 @@ function registerIpc(): void {
       const payload = request.payload as CommandPayloads["run.abort"];
       worker.abort(payload.runId);
       return { runId: payload.runId, aborted: true } as CommandResults["run.abort"];
+    }
+    if (command === "app.setTheme") {
+      const payload = request.payload as CommandPayloads["app.setTheme"];
+      applyTheme(payload.preference, payload.resolved);
+      return { applied: true } as CommandResults["app.setTheme"];
     }
     worker.restart();
     return { worker: worker.status } as CommandResults["run.restartWorker"];
@@ -93,17 +113,29 @@ async function runUtilitySpike(): Promise<void> {
 }
 
 async function createWindow(): Promise<void> {
+  const initial = OVERLAY[nativeTheme.shouldUseDarkColors ? "dark" : "light"];
   mainWindow = new BrowserWindow({
     width: 1440,
-    height: 960,
+    height: 940,
     minWidth: 1080,
     minHeight: 720,
-    backgroundColor: "#e7dfd2",
+    show: false,
+    backgroundColor: initial.background,
+    title: "文枢 · WordHub",
+    titleBarStyle: "hidden",
+    titleBarOverlay: process.platform === "darwin" ? undefined : { color: initial.color, symbolColor: initial.symbolColor, height: TITLEBAR_HEIGHT },
     webPreferences: { preload: path.join(path.dirname(fileURLToPath(import.meta.url)), "../preload/index.cjs"), contextIsolation: true, sandbox: true }
   });
+  // 渲染进程只加载应用自身页面；外链一律拒绝，避免被注入内容带走窗口。
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(process.env.ELECTRON_RENDERER_URL ?? "file://")) event.preventDefault();
+  });
+  mainWindow.once("ready-to-show", () => mainWindow?.show());
+  const query = process.env.WORDHUB_DEMO === "1" ? { demo: "1" } : undefined;
   const rendererUrl = process.env.ELECTRON_RENDERER_URL;
-  if (rendererUrl) await mainWindow.loadURL(rendererUrl);
-  else await mainWindow.loadFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "../renderer/index.html"));
+  if (rendererUrl) await mainWindow.loadURL(query ? `${rendererUrl}?demo=1` : rendererUrl);
+  else await mainWindow.loadFile(path.join(path.dirname(fileURLToPath(import.meta.url)), "../renderer/index.html"), { query });
   worker.start();
 }
 

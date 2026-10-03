@@ -3,7 +3,8 @@ export type WorkspaceCommand =
   | "workspace.chooseFolder"
   | "run.start"
   | "run.abort"
-  | "run.restartWorker";
+  | "run.restartWorker"
+  | "app.setTheme";
 
 export interface WorkspaceSnapshot {
   projectName: string;
@@ -11,12 +12,16 @@ export interface WorkspaceSnapshot {
   worker: "offline" | "starting" | "ready" | "busy" | "stopped" | "crashed";
 }
 
+export type ThemePreference = "light" | "dark" | "system";
+export type ResolvedTheme = "light" | "dark";
+
 export interface CommandPayloads {
   "workspace.getSnapshot": undefined;
   "workspace.chooseFolder": undefined;
-  "run.start": { prompt: string; projectPath?: string };
+  "run.start": { prompt: string; projectPath?: string; runId?: string };
   "run.abort": { runId: string };
   "run.restartWorker": undefined;
+  "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
 
 export interface CommandResults {
@@ -25,6 +30,7 @@ export interface CommandResults {
   "run.start": { runId: string };
   "run.abort": { runId: string; aborted: boolean };
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
+  "app.setTheme": { applied: boolean };
 }
 
 export interface AppEvent {

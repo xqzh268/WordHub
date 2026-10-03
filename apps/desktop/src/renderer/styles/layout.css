@@ -1,0 +1,81 @@
+/* ── 外壳 ───────────────────────────────────────────── */
+.app { height: 100vh; display: grid; grid-template-rows: var(--titlebar-h) minmax(0, 1fr); background: var(--bg-canvas); }
+.app-body { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); min-height: 0; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--bg-canvas); }
+.stage-view { height: 100%; }
+
+/* 自绘标题栏：右侧为系统窗口控制按钮预留空间（titleBarOverlay） */
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px) 0 14px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--line);
+  transition: background-color var(--dur-slow) var(--ease-inout);
+}
+.titlebar button, .titlebar a { -webkit-app-region: no-drag; }
+.titlebar-brand { display: flex; align-items: center; gap: 9px; width: 188px; }
+.titlebar-name { font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: 0.22em; color: var(--ink-1); }
+.titlebar-crumb { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+.titlebar-crumb strong { font-weight: 500; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; }
+.titlebar-actions { display: flex; align-items: center; gap: 4px; }
+
+/* ── 导航轨 ─────────────────────────────────────────── */
+.rail { display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: 12px 0; background: var(--bg-sidebar); border-right: 1px solid var(--line); transition: background-color var(--dur-slow) var(--ease-inout); }
+.rail-group { display: flex; flex-direction: column; gap: 6px; }
+.rail-btn { position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-md); color: var(--ink-3); transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out); }
+.rail-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.rail-btn.active { color: var(--accent-ink); background: var(--bg-active); }
+.rail-btn svg { position: relative; z-index: 1; }
+.rail-indicator { position: absolute; left: -8px; top: 11px; bottom: 11px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+
+/* ── 可拖拽分栏 ─────────────────────────────────────── */
+.workspace { height: 100%; }
+.panel-sessions, .panel-chat, .panel-paper { min-width: 0; }
+.sep { position: relative; width: 1px; background: var(--line); outline: none; box-shadow: none; }
+.sep::before { content: ""; position: absolute; inset: 0 -1px; background: var(--accent); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.sep::after { content: ""; position: absolute; inset: 0 -4px; }
+.sep:hover::before, .sep[data-separator="hover"]::before { opacity: 0.45; }
+.sep[data-separator="active"]::before { opacity: 0.85; }
+
+/* ── 印章头像 ───────────────────────────────────────── */
+.seal {
+  --seal-size: 28px;
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  width: var(--seal-size); height: var(--seal-size);
+  border-radius: calc(var(--seal-size) * 0.14);
+  background: var(--seal); color: var(--seal-glyph);
+  font-family: "Noto Serif SC Variable", var(--font-serif); font-weight: 700; font-size: calc(var(--seal-size) * 0.54); line-height: 1; letter-spacing: 0;
+  box-shadow: inset 0 0 0 calc(var(--seal-size) * 0.06) color-mix(in srgb, var(--seal-glyph) 36%, transparent), 0 1px 1px rgba(0, 0, 0, 0.1);
+  user-select: none; overflow: hidden;
+}
+.seal::after { content: ""; position: absolute; inset: 0; background-image: var(--grain); background-size: 120px 120px; opacity: 0.4; mix-blend-mode: multiply; pointer-events: none; }
+.seal-round { border-radius: 50%; }
+
+/* ── 通用控件 ───────────────────────────────────────── */
+.icon-btn { width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: var(--r-sm); color: var(--ink-3); transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.icon-btn.sm { width: 26px; height: 26px; }
+.tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; color: var(--ink-3); background: var(--bg-active); white-space: nowrap; }
+.tag-danger { color: var(--danger); background: var(--danger-soft); }
+.btn { height: 30px; padding: 0 14px; border-radius: var(--r-sm); font-size: 12.5px; font-weight: 500; color: var(--ink-2); background: var(--bg-canvas); box-shadow: 0 0 0 1px var(--line-strong); transition: background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.btn-primary { color: var(--accent-contrast); background: var(--accent); box-shadow: none; }
+.btn-primary:hover { color: var(--accent-contrast); background: var(--accent-hover); }
+
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); flex: none; }
+.status-dot.ready { background: var(--ok); }
+.status-dot.starting { background: var(--accent); opacity: 0.6; }
+.status-dot.busy { background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+.status-dot.crashed { background: var(--danger); }
+
+/* ── 动画 ───────────────────────────────────────────── */
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.8); } }
+@keyframes breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.72); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes sheen { to { background-position: -200% 0; } }
+.spin { animation: spin 0.9s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot.busy, .pulse-dot, .ink-dot, .spin, .thinking { animation: none; }
+}

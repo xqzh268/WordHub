@@ -1,0 +1,31 @@
+/*
+ * 中文标点矫正：拉丁衬线（Source Serif / Newsreader）自带的弯引号、破折号、省略号是窄字形，
+ * 与中文正文并排会显得突兀。这里把这几个码位单独指向思源宋体 / 霞鹜文楷的全角字形，
+ * 通过 unicode-range 只在这些字符上生效，其余字符不受影响。
+ * 分片编号来自 fontsource 的 unicode-range 表（114: …  117: “”  119: — ·）；升级字体包后需复核。
+ */
+@font-face {
+  font-family: "WH Punct Serif";
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("../../../../../node_modules/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-114-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+2026;
+}
+@font-face {
+  font-family: "WH Punct Serif";
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("../../../../../node_modules/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-117-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+201C-201D;
+}
+@font-face {
+  font-family: "WH Punct Serif";
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("../../../../../node_modules/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-119-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+2014, U+00B7;
+}
+
+@font-face { font-family: "WH Punct Kai"; font-display: swap; src: url("../../../../../node_modules/lxgw-wenkai-screen-webfont/files/lxgwwenkaiscreen-subset-114.woff2") format("woff2"); unicode-range: U+2026; }
+@font-face { font-family: "WH Punct Kai"; font-display: swap; src: url("../../../../../node_modules/lxgw-wenkai-screen-webfont/files/lxgwwenkaiscreen-subset-117.woff2") format("woff2"); unicode-range: U+201C-201D; }
+@font-face { font-family: "WH Punct Kai"; font-display: swap; src: url("../../../../../node_modules/lxgw-wenkai-screen-webfont/files/lxgwwenkaiscreen-subset-119.woff2") format("woff2"); unicode-range: U+2014, U+00B7; }

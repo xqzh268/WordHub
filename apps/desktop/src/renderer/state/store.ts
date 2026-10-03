@@ -1,0 +1,213 @@
+import { create } from "zustand";
+import type { AppEvent, ResolvedTheme, ThemePreference } from "@wordhub/contracts";
+import { routeMessage, toolLabel } from "../lib/agents";
+import { DEMO_CHAPTER, DEMO_PROJECT, demoSessions } from "../lib/demo";
+import type { ChatItem, PaperParagraph, PaperTab, Session, View, WorkerState } from "./types";
+
+export type ReadingFont = "serif" | "literary";
+type Prefs = { theme: ThemePreference; reading: ReadingFont };
+
+const PREFS_KEY = "wordhub.prefs";
+const isDemo = new URLSearchParams(window.location.search).get("demo") === "1";
+
+function loadPrefs(): Prefs {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") as Partial<Prefs>;
+    return {
+      theme: raw.theme === "light" || raw.theme === "dark" || raw.theme === "system" ? raw.theme : "system",
+      reading: raw.reading === "literary" ? "literary" : "serif"
+    };
+  } catch {
+    return { theme: "system", reading: "serif" };
+  }
+}
+
+const uid = (prefix: string): string => `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const emptySession = (title: string): Session => ({ id: uid("s"), title, items: [] });
+
+type State = Prefs & {
+  demo: boolean;
+  view: View;
+  paperTab: PaperTab;
+  project: { name: string; folder: string | null };
+  worker: WorkerState;
+  sessions: Session[];
+  activeSessionId: string;
+  paper: { no: string; page: number; title: string; paragraphs: PaperParagraph[] } | null;
+  activeRunId: string | null;
+  composer: string;
+
+  setTheme(theme: ThemePreference): void;
+  setReading(reading: ReadingFont): void;
+  setView(view: View): void;
+  setPaperTab(tab: PaperTab): void;
+  setComposer(text: string): void;
+  mention(agentName: string): void;
+  newSession(): void;
+  selectSession(id: string): void;
+  linkFolder(): Promise<void>;
+  restartWorker(): Promise<void>;
+  send(text: string): Promise<void>;
+  abort(): Promise<void>;
+  resolveApproval(itemId: string, choice: string): void;
+  handleEvent(event: AppEvent): void;
+};
+
+const initialSessions = isDemo ? demoSessions() : [emptySession("新会话")];
+
+export const useWorkbench = create<State>((set, get) => {
+  const patchItems = (sessionId: string, update: (items: ChatItem[]) => ChatItem[]) =>
+    set((state) => ({ sessions: state.sessions.map((session) => (session.id === sessionId ? { ...session, items: update(session.items) } : session)) }));
+
+  const patchRun = (runId: string, update: (item: Extract<ChatItem, { kind: "agent" }>) => Extract<ChatItem, { kind: "agent" }>) =>
+    set((state) => ({
+      sessions: state.sessions.map((session) => ({
+        ...session,
+        items: session.items.map((item) => (item.kind === "agent" && item.runId === runId ? update(item) : item))
+      }))
+    }));
+
+  return {
+    ...loadPrefs(),
+    demo: isDemo,
+    view: "workspace",
+    paperTab: "paper",
+    project: isDemo ? DEMO_PROJECT : { name: "未命名项目", folder: null },
+    worker: "offline",
+    sessions: initialSessions,
+    activeSessionId: initialSessions[0]!.id,
+    paper: isDemo ? DEMO_CHAPTER : null,
+    activeRunId: null,
+    composer: "",
+
+    setTheme(theme) {
+      set({ theme });
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ theme, reading: get().reading }));
+    },
+    setReading(reading) {
+      set({ reading });
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ theme: get().theme, reading }));
+    },
+    setView: (view) => set({ view }),
+    setPaperTab: (paperTab) => set({ paperTab }),
+    setComposer: (composer) => set({ composer }),
+
+    mention(agentName) {
+      const text = get().composer.replace(/^@\S*\s*/, "");
+      set({ composer: `@${agentName} ${text}`, view: "workspace" });
+    },
+
+    newSession() {
+      const count = get().sessions.length + 1;
+      const session = emptySession(`新会话 ${count}`);
+      set((state) => ({ sessions: [...state.sessions, session], activeSessionId: session.id, view: "workspace" }));
+    },
+    selectSession: (id) => set({ activeSessionId: id, view: "workspace" }),
+
+    async linkFolder() {
+      const result = await window.wordhub?.invoke("workspace.chooseFolder", undefined);
+      const folder = result?.path;
+      if (folder) set({ project: { name: folder.split(/[\\/]/).pop() || folder, folder } });
+    },
+
+    async restartWorker() {
+      await window.wordhub?.invoke("run.restartWorker", undefined);
+    },
+
+    async send(text) {
+      const trimmed = text.trim();
+      const state = get();
+      if (!trimmed || state.activeRunId) return;
+      const { agent, body } = routeMessage(trimmed);
+      const runId = uid("run");
+      const now = Date.now();
+      patchItems(state.activeSessionId, (items) => [
+        ...items,
+        { kind: "user", id: uid("u"), at: now, text: trimmed },
+        { kind: "agent", id: uid("a"), at: now, agentId: agent.id, status: "thinking", text: "", tools: [], runId }
+      ]);
+      set({ composer: "", activeRunId: runId });
+      if (!window.wordhub) return;
+      try {
+        await window.wordhub.invoke("run.start", { runId, prompt: body || trimmed, projectPath: state.project.folder ?? undefined });
+      } catch (error) {
+        patchRun(runId, (item) => ({ ...item, status: "error", error: error instanceof Error ? error.message : String(error) }));
+        set({ activeRunId: null });
+      }
+    },
+
+    async abort() {
+      const runId = get().activeRunId;
+      if (runId) await window.wordhub?.invoke("run.abort", { runId });
+    },
+
+    resolveApproval(itemId, choice) {
+      patchItems(get().activeSessionId, (items) => items.map((item) => (item.kind === "approval" && item.id === itemId ? { ...item, resolved: choice } : item)));
+    },
+
+    handleEvent(event) {
+      if (event.type === "worker.state") {
+        const next = (event.payload as { state?: string }).state;
+        if (next === "offline" || next === "starting" || next === "ready" || next === "busy" || next === "stopped" || next === "crashed") {
+          set({ worker: next });
+          if (next === "crashed") {
+            const runId = get().activeRunId;
+            if (runId) patchRun(runId, (item) => ({ ...item, status: "error", error: "后台进程意外退出，已准备重启。" }));
+            set({ activeRunId: null });
+          }
+        }
+        return;
+      }
+      if (event.type !== "run.event") return;
+      const message = event.payload as { type?: string; runId?: string; delta?: string; tool?: string; error?: string; text?: string };
+      const runId = message.runId;
+      switch (message.type) {
+        case "run.text":
+          if (runId && message.delta) patchRun(runId, (item) => ({ ...item, status: "streaming", text: item.text + message.delta }));
+          break;
+        case "run.tool_execution_start":
+          if (runId) {
+            patchRun(runId, (item) => ({
+              ...item,
+              tools: [...item.tools, { id: uid("t"), name: message.tool ?? "tool", label: toolLabel(message.tool ?? "tool"), status: "running" }]
+            }));
+          }
+          break;
+        case "run.tool_execution_end":
+          if (runId) {
+            patchRun(runId, (item) => {
+              const index = item.tools.findLastIndex((tool) => tool.name === message.tool && tool.status === "running");
+              if (index < 0) return item;
+              return { ...item, tools: item.tools.map((tool, i) => (i === index ? { ...tool, status: "done" } : tool)) };
+            });
+          }
+          break;
+        case "run.finished":
+          if (runId) {
+            patchRun(runId, (item) => ({ ...item, status: "done", text: item.text || message.text || "" }));
+            if (get().activeRunId === runId) set({ activeRunId: null });
+          }
+          break;
+        case "run.aborted":
+          if (runId) {
+            patchRun(runId, (item) => ({ ...item, status: "aborted" }));
+            if (get().activeRunId === runId) set({ activeRunId: null });
+          }
+          break;
+        case "error":
+          if (runId) {
+            patchRun(runId, (item) => ({ ...item, status: "error", error: message.error ?? "未知错误" }));
+            if (get().activeRunId === runId) set({ activeRunId: null });
+          }
+          break;
+        default:
+      }
+    }
+  };
+});
+
+/** 解析主题偏好为实际主题，并同步窗口标题栏。 */
+export function resolveTheme(preference: ThemePreference): ResolvedTheme {
+  if (preference === "system") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return preference;
+}

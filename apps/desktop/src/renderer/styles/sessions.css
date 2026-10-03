@@ -1,0 +1,38 @@
+.sessions { height: 100%; display: flex; flex-direction: column; background: var(--bg-sidebar); transition: background-color var(--dur-slow) var(--ease-inout); }
+.sessions-scroll { flex: 1; overflow-y: auto; padding: 14px 10px 12px; }
+
+.project-card {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; text-align: left;
+  padding: 10px 12px; border-radius: var(--r-md); background: var(--bg-raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); color: var(--ink-3);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+.project-card:hover { box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-raised); }
+.project-name { font-family: var(--font-serif); font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-path { grid-column: 1 / -1; font-size: 11px; color: var(--ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-card.empty { display: flex; align-items: center; gap: 10px; background: transparent; box-shadow: none; border: 1px dashed var(--line-strong); }
+.project-card.empty:hover { background: var(--bg-hover); }
+.project-card.empty strong { display: block; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.project-card.empty small { display: block; font-size: 11px; color: var(--ink-4); }
+
+.section-head { display: flex; align-items: center; justify-content: space-between; margin: 22px 4px 6px 10px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
+.section-head .icon-btn { margin: -4px 0; }
+
+.session-list, .agent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.session-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: var(--r-sm); text-align: left; font-size: 13px; color: var(--ink-2); transition: background-color var(--dur-fast) var(--ease-out); }
+.session-row:hover { background: var(--bg-hover); }
+.session-row.active { background: var(--bg-active); color: var(--ink-1); font-weight: 500; }
+.session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
+
+.agent-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: var(--r-sm); text-align: left; transition: background-color var(--dur-fast) var(--ease-out); }
+.agent-row:not(:disabled):hover { background: var(--bg-hover); }
+.agent-name { font-size: 13px; color: var(--ink-2); }
+.agent-model { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-4); }
+.pulse-dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+.agent-row.add { color: var(--ink-4); }
+.agent-row.add .agent-name { color: var(--ink-4); }
+.seal-add { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 3px; border: 1px dashed var(--line-strong); color: var(--ink-4); }
+
+.sessions-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); }
+.sessions-foot .icon-btn { margin-left: auto; }

@@ -1,0 +1,129 @@
+/* 文枢设计 token：亮色「宣纸」与暗色「墨」。组件只引用 token，不直接写色值。 */
+
+:root {
+  /* 字体：衬线做标题与阅读，无衬线做界面，中英文各自回退到思源/文楷 */
+  --font-ui: "Inter Variable", "Noto Sans SC Variable", "Microsoft YaHei UI", system-ui, sans-serif;
+  --font-serif: "WH Punct Serif", "Source Serif 4 Variable", "Noto Serif SC Variable", "Songti SC", "SimSun", serif;
+  --font-literary: "WH Punct Kai", "Newsreader Variable", "LXGW WenKai Screen", "KaiTi", serif;
+  --font-display: "WH Punct Serif", "Fraunces Variable", "Noto Serif SC Variable", "Songti SC", serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-read: var(--font-serif);
+
+  /* 字号与行高 */
+  --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-base: 14px; --fs-md: 15px;
+  --fs-read: 17px; --fs-lg: 20px; --fs-xl: 24px; --fs-2xl: 30px; --fs-3xl: 38px;
+  --lh-ui: 1.5; --lh-read-zh: 1.85; --lh-display: 1.2;
+
+  /* 圆角：纸面只有 2px——纸不是圆角卡片 */
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-sheet: 2px;
+
+  /* 间距（4px 基线） */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+
+  /* 动效 */
+  --dur-instant: 80ms; --dur-fast: 140ms; --dur-base: 220ms; --dur-slow: 360ms; --dur-page: 520ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-paper: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --titlebar-h: 44px;
+  --rail-w: 56px;
+
+  /* Agent 身份色：矿物颜料系，低饱和 */
+  --agent-planner: #4F6D8A;   /* 黛蓝·纲领 */
+  --agent-writer: #A0703C;    /* 赭石·写手 */
+  --agent-editor: #5E7D62;    /* 松绿·编辑 */
+  --agent-reviewer: #B0473A;  /* 朱砂·评审 */
+  --agent-observer: #7D6A9A;  /* 藤紫·观察者 */
+  --agent-custom: #3F7F86;    /* 石青·自建 */
+}
+
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --bg-canvas: #F7F4EC;
+  --bg-sidebar: #F1EDE3;
+  --bg-raised: #FBF9F4;
+  --bg-sunken: #EFEADF;
+  --paper-sheet: #FFFDF8;
+  --bg-hover: #ECE6D9;
+  --bg-active: #E6DFD0;
+  --line: #E4DDCF;
+  --line-strong: #D3C9B6;
+
+  --ink-1: #1E1C19;
+  --ink-2: #4A453D;
+  --ink-3: #7B7468;
+  --ink-4: #A9A194;
+
+  --accent: #C2603A;
+  --accent-hover: #AE5430;
+  --accent-soft: #F4E4D8;
+  --accent-ink: #9E4A2B;
+  --accent-contrast: #FFF9F2;
+  --ok: #5E7D62;
+  --danger: #B0473A;
+  --danger-soft: #F6E1DB;
+
+  --highlight: rgba(222, 178, 92, 0.28);
+  --sel: rgba(194, 96, 58, 0.16);
+  --focus-ring: 0 0 0 3px rgba(194, 96, 58, 0.18);
+
+  --shadow-raised: 0 1px 2px rgba(40, 28, 16, 0.06), 0 1px 1px rgba(40, 28, 16, 0.04);
+  --shadow-popover: 0 8px 24px -6px rgba(40, 28, 16, 0.16), 0 0 0 1px var(--line);
+  --shadow-sheet: 0 1px 1px rgba(60, 40, 20, 0.04), 0 6px 16px -4px rgba(60, 40, 20, 0.07), 0 24px 48px -16px rgba(60, 40, 20, 0.12);
+
+  --grain-opacity: 0.05;
+  --grain-blend: multiply;
+  --sheet-edge: inset 0 0 0 1px rgba(120, 96, 64, 0.06);
+  --seal-glyph: #FBF6EA;
+  --user-ink: #3A342C;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-canvas: #171614;
+  --bg-sidebar: #1C1B18;
+  --bg-raised: #22201D;
+  --bg-sunken: #131210;
+  --paper-sheet: #1F1D1A;
+  --bg-hover: #2A2824;
+  --bg-active: #34312B;
+  --line: #33302B;
+  --line-strong: #45413A;
+
+  --ink-1: #ECE7DC;
+  --ink-2: #BEB7AA;
+  --ink-3: #8B8478;
+  --ink-4: #615B52;
+
+  --accent: #E08A66;
+  --accent-hover: #EC9C7B;
+  --accent-soft: #3A2A22;
+  --accent-ink: #EBA283;
+  --accent-contrast: #1F130C;
+  --ok: #8DB08F;
+  --danger: #E07A6B;
+  --danger-soft: #3C2420;
+
+  --highlight: rgba(201, 160, 80, 0.22);
+  --sel: rgba(224, 138, 102, 0.22);
+  --focus-ring: 0 0 0 3px rgba(224, 138, 102, 0.22);
+
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-popover: 0 10px 28px -6px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--line-strong);
+  --shadow-sheet: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -8px rgba(0, 0, 0, 0.5), 0 28px 56px -20px rgba(0, 0, 0, 0.55);
+
+  --grain-opacity: 0.07;
+  --grain-blend: soft-light;
+  --sheet-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  --seal-glyph: #F3ECDD;
+  --user-ink: #D9D2C4;
+}
+
+/* 阅读字体切换：学术（衬线）/ 文艺（文楷） */
+[data-reading="literary"] { --font-read: var(--font-literary); --lh-read-zh: 1.95; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-instant: 1ms; --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms; --dur-page: 1ms; }
+}

@@ -1,0 +1,50 @@
+.paper-pane { height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--bg-canvas); }
+.paper-bar { flex: none; height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid var(--line); }
+.paper-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.paper-meta i { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-4); }
+
+/* 分段控件 */
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 9px; background: var(--bg-sunken); }
+.seg button { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 14px; border-radius: 6px; font-size: 12.5px; color: var(--ink-3); transition: color var(--dur-fast) var(--ease-out); }
+.seg button:hover { color: var(--ink-1); }
+.seg button.active { color: var(--ink-1); font-weight: 500; }
+.seg-pill { position: absolute; inset: 0; z-index: -1; border-radius: 6px; background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }
+.seg-lg button { height: 32px; padding: 0 16px; font-size: 13px; }
+
+.paper-stage { flex: 1; min-height: 0; overflow-y: auto; padding: 36px 32px 64px; }
+
+/* ── 纸面 ───────────────────────────────────────────── */
+.sheet {
+  position: relative; display: flex; flex-direction: column;
+  max-width: 640px; min-height: 880px; margin: 0 auto; padding: 36px 64px 32px;
+  border-radius: var(--r-sheet); background: var(--paper-sheet);
+  box-shadow: var(--shadow-sheet), var(--sheet-edge);
+  font-family: var(--font-read); color: var(--ink-1);
+  transition: background-color var(--dur-slow) var(--ease-inout);
+}
+.sheet-head { display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-family: var(--font-ui); font-size: 10.5px; letter-spacing: 0.2em; color: var(--ink-4); }
+.chapter { margin: 46px 0 40px; text-align: center; }
+.chapter-no { display: block; margin-bottom: 14px; padding-left: 0.42em; font-family: var(--font-ui); font-size: 11px; letter-spacing: 0.42em; color: var(--accent-ink); }
+.chapter h2 { padding-left: 0.2em; font-family: var(--font-display); font-size: 34px; font-weight: 500; letter-spacing: 0.2em; line-height: 1.2; }
+.ornament { position: relative; display: block; width: 56px; height: 1px; margin: 24px auto 0; background: var(--line-strong); }
+.ornament::after { content: ""; position: absolute; left: calc(50% - 2.5px); top: -2px; width: 5px; height: 5px; background: var(--accent); transform: rotate(45deg); }
+
+.prose { font-size: var(--fs-read); line-height: var(--lh-read-zh); }
+.prose p { position: relative; text-indent: 2em; text-align: justify; text-justify: inter-ideograph; text-wrap: pretty; }
+.prose p + p { margin-top: 0.1em; }
+.prose p.revised, .prose p.flagged { margin-inline: -14px; padding-inline: 14px; border-radius: 3px; }
+.prose p.revised { background: linear-gradient(90deg, color-mix(in srgb, var(--author) 11%, transparent), transparent 88%); box-shadow: inset 2px 0 0 var(--author); }
+.prose p.flagged { background: linear-gradient(90deg, transparent, var(--danger-soft) 10%, var(--danger-soft) 90%, transparent); }
+.margin-pin { position: absolute; right: -48px; top: 6px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; text-indent: 0; font: 700 11px/1 "Noto Serif SC Variable", serif; color: var(--seal-glyph); background: var(--agent-reviewer); box-shadow: 0 0 0 3px var(--paper-sheet); cursor: default; }
+.margin-pin.tip::after { left: auto; right: calc(100% + 10px); transform: translate(4px, -50%); }
+.margin-pin.tip:hover::after { transform: translate(0, -50%); }
+.sheet-foot { margin-top: auto; padding-top: 44px; text-align: center; font-family: var(--font-ui); font-size: 11px; letter-spacing: 0.2em; color: var(--ink-4); }
+
+.sheet-blank .blank-note { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 280px; margin: 24% auto 0; text-align: center; font-size: 15px; line-height: 1.9; color: var(--ink-4); }
+.sheet-blank .blank-note p { text-wrap: balance; }
+.sheet-blank .blank-note .sub { font-size: 13px; }
+
+.soft-empty { max-width: 320px; margin: 18vh auto 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; color: var(--ink-3); }
+.soft-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-sunken); color: var(--ink-3); }
+.soft-empty h3 { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--ink-2); }
+.soft-empty p { font-family: var(--font-serif); font-size: 13.5px; line-height: 1.9; }
