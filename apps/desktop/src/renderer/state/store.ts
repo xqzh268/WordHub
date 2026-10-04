@@ -457,13 +457,6 @@ export const useWorkbench = create<State>((set, get) => {
             runId: item.runId,
             approved: choice === "批准",
           });
-          patchItems(get().activeSessionId, (items) =>
-            items.map((candidate) =>
-              candidate.kind === "approval" && candidate.id === itemId
-                ? { ...candidate, resolved: choice }
-                : candidate,
-            ),
-          );
         } catch (error) {
           patchItems(get().activeSessionId, (items) => [
             ...items,
@@ -629,12 +622,15 @@ export const useWorkbench = create<State>((set, get) => {
             );
           break;
         case "run.started":
-          if (runId)
+          if (runId) {
             patchRun(runId, (item) => ({
               ...item,
+              status: "thinking",
               model: message.model,
               reasoningLevel: message.reasoning,
             }));
+            set({ activeRunId: runId });
+          }
           break;
         case "context.injected":
           if (runId && message.manifest)

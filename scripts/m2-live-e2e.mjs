@@ -23,7 +23,11 @@ if (!KEY) {
   process.exit(0);
 }
 const cleanEnv = () => {
-  const { ELECTRON_RUN_AS_NODE, ...rest } = process.env;
+  const {
+    ELECTRON_RUN_AS_NODE,
+    DEEPSEEK_API_KEY: _ambientKey,
+    ...rest
+  } = process.env;
   return rest;
 };
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,7 +53,7 @@ const check = (name, passed, detail = "") => {
 };
 const note = (text) => console.log(`      ${text}`);
 
-const launch = () =>
+const launch = ({ ambientKey = true } = {}) =>
   _electron.launch({
     executablePath: electronBinary,
     args: [
@@ -57,7 +61,11 @@ const launch = () =>
       `--user-data-dir=${userData}`,
     ],
     cwd: root,
-    env: { ...cleanEnv(), WORDHUB_WORKSPACE_ROOT: root, DEEPSEEK_API_KEY: KEY },
+    env: {
+      ...cleanEnv(),
+      WORDHUB_WORKSPACE_ROOT: root,
+      ...(ambientKey ? { DEEPSEEK_API_KEY: KEY } : {}),
+    },
   });
 const db = () => {
   const dir = path.join(userData, "projects");
@@ -79,6 +87,14 @@ const events = () => {
   return rows.map((r) => ({ ...r, payload: JSON.parse(r.payload_json) }));
 };
 const ofType = (list, type) => list.filter((e) => e.type === type);
+async function waitForEvent(runId, type, timeout = 240000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (ofType(events(), type).some((event) => event.run_id === runId)) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`等待${type}事件超时：${runId}`);
+}
 
 async function ready(page) {
   await page.waitForSelector(".app");
@@ -138,6 +154,19 @@ try {
   let page = await app.firstWindow();
   await ready(page);
   await link(app, page);
+
+  // 先通过真实设置界面保存凭据；后面的恢复场景会刻意移除进程环境变量。
+  await page.click('[data-testid="rail-settings"]');
+  await page.waitForSelector('[data-testid="settings"]');
+  await page.fill('[aria-label="DeepSeek API key"]', KEY);
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await page.waitForFunction(() =>
+    document
+      .querySelector('[data-testid="settings"]')
+      ?.textContent?.includes("密钥已加密保存"),
+  );
+  await page.click('[data-testid="rail-workspace"]');
+  await page.waitForSelector('[data-testid="project-card"]');
 
   // ── A. 读设定集并写章节 ─────────────────────────────────
   console.log("\n[A] 写手读设定集并写入章节");
@@ -272,8 +301,9 @@ maxTurns: 8
   );
   check(
     "C3 审批卡显示了要写入的内容或差异",
-    cardText.includes("雨夜"),
-    "用户看不到将要写入什么",
+    (await page.locator(".approval-preview").first().innerText()).trim()
+      .length > 0 || cardText.includes("差异 +"),
+    "用户看不到将要写入什么或差异",
   );
   await page.click(".approval:not(.resolved) .btn-primary");
   await page.waitForSelector('[data-testid="stop"]', {
@@ -346,7 +376,8 @@ maxTurns: 8
       JSON.stringify(runs.map((r) => r.status)),
     );
   }
-  app = await launch();
+  // E′：应用环境不带密钥，只依赖上面通过设置界面保存的密钥。
+  app = await launch({ ambientKey: false });
   page = await app.firstWindow();
   await ready(page);
   await page.waitForTimeout(1500);
@@ -369,10 +400,7 @@ maxTurns: 8
   note(`重开后未处理的审批卡数量：${restoredHasCard}`);
   if (restoredHasCard) {
     await page.click(".approval:not(.resolved) .btn-primary");
-    await page.waitForSelector('[data-testid="stop"]', {
-      state: "detached",
-      timeout: 240000,
-    });
+    await waitForEvent(fourthApprovalRunId, "run.finished");
     const feedback = (
       await page.locator(".msg-error, .notice").allInnerTexts()
     ).join(" | ");

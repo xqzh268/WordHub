@@ -193,6 +193,7 @@ maxTurns: 8
       type: "run.approve",
       runId: "run_approval_recovery",
       approved: true,
+      apiKey: "saved-only-test-key",
       requestId: "approval-recovery-response",
     });
     await new Promise<void>((resolve) => {

@@ -7,6 +7,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import type { ReasoningLevel, RuntimeStreamEvent } from "../types.js";
+import { resumeTools } from "./resume-tools.js";
 
 export type PiAgentHostOptions = {
   models: Models;
@@ -37,8 +38,9 @@ export class PiAgentHost {
   private readonly agent: Agent;
   private readonly logicalNames = new Map<string, string>();
   private aborted = false;
+  private readonly replayController = new AbortController();
 
-  constructor(options: PiAgentHostOptions) {
+  constructor(private readonly options: PiAgentHostOptions) {
     const tools = (options.tools ?? []).map((tool) => {
       const alias = tool.name.replaceAll(".", "_");
       if (!/^[a-zA-Z0-9_-]{1,64}$/u.test(alias))
@@ -94,8 +96,20 @@ export class PiAgentHost {
     await this.agent.continue();
     this.checkTerminal();
   }
+  async resume(messages: AgentMessage[]): Promise<void> {
+    await resumeTools(
+      this.agent,
+      messages,
+      this.options,
+      this.replayController.signal,
+      (name) => this.logical(name),
+    );
+    this.replayController.signal.throwIfAborted();
+    await this.continue();
+  }
   abort(): void {
     this.aborted = true;
+    this.replayController.abort();
     this.agent.abort();
   }
   waitForIdle(): Promise<void> {

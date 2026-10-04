@@ -199,6 +199,7 @@ function registerIpc(): void {
           type: "run.approve",
           runId: payload.runId,
           approved: payload.approved,
+          apiKey: await credentials.resolve("deepseek"),
         });
       }
       if (command === "settings.credentialStatus") {
