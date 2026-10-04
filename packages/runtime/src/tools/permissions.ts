@@ -13,6 +13,9 @@ export const BUILTIN_TOOLS: ToolDescriptor[] = [
   { name: "bible.propose", kind: "write" },
   { name: "history.search", kind: "read" },
   { name: "history.get", kind: "read" },
+  { name: "challenge.raise", kind: "system" },
+  { name: "challenge.reply", kind: "system" },
+  { name: "question.ask", kind: "system" },
 ];
 
 export class PermissionDeniedError extends Error {

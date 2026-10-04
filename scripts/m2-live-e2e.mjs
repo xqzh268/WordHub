@@ -13,7 +13,13 @@ import { _electron } from "playwright";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
-  console.log("跳过：未设置 DEEPSEEK_API_KEY");
+  if (process.env.WORDHUB_REQUIRE_LIVE === "1") {
+    console.error(
+      "失败：夜间真实模型回归要求 DEEPSEEK_API_KEY，但仓库未提供。",
+    );
+    process.exit(2);
+  }
+  console.log("跳过：未设置 DEEPSEEK_API_KEY（本地可选）");
   process.exit(0);
 }
 const cleanEnv = () => {
@@ -219,9 +225,9 @@ try {
     denied.length > 0,
     `${denied.length} 条${denied[0] ? `：${denied[0].payload.reason}` : ""}`,
   );
-  const bReply = (
-    await page.locator(".entry-agent").last().innerText()
-  ).replace(/\s+/g, " ");
+  const bReply = (await page.locator(".entry-notice").allTextContents())
+    .join(" ")
+    .replace(/\s+/g, " ");
   check(
     "B3 被拦截后用户在聊天里能看到明确说明",
     /权限|范围|拒绝|不允许|无法/.test(bReply),
@@ -259,7 +265,9 @@ maxTurns: 8
   const cardText = await page.locator(".approval").first().innerText();
   check(
     "C2 审批卡显示了要写入的路径",
-    cardText.includes("第二章"),
+    (await page.locator(".approval-path").first().innerText()).includes(
+      "chapters/第二章.md",
+    ),
     `卡片内容：${JSON.stringify(cardText.replace(/\n/g, " "))}`,
   );
   check(
@@ -320,6 +328,9 @@ maxTurns: 8
   await say(page, "@写手 请把“第四章开头：残月”写进文件 chapters/第四章.md。", {
     wait: "approval",
   });
+  const fourthApprovalRunId = ofType(events(), "approval.requested").at(
+    -1,
+  )?.run_id;
   killTree(app);
   await new Promise((r) => setTimeout(r, 1500));
   {
@@ -358,7 +369,10 @@ maxTurns: 8
   note(`重开后未处理的审批卡数量：${restoredHasCard}`);
   if (restoredHasCard) {
     await page.click(".approval:not(.resolved) .btn-primary");
-    await page.waitForTimeout(3000);
+    await page.waitForSelector('[data-testid="stop"]', {
+      state: "detached",
+      timeout: 240000,
+    });
     const feedback = (
       await page.locator(".msg-error, .notice").allInnerTexts()
     ).join(" | ");
@@ -372,16 +386,19 @@ maxTurns: 8
     );
     check(
       "E2 重开后批准旧审批：界面给出明确说明（不能无声地“已批准”却什么都没发生）",
-      feedback.length > 0 ||
-        (await page.locator(".chat-scroll").innerText()).includes("已过期") ||
-        (await page.locator(".chat-scroll").innerText()).includes("已中断"),
+      Boolean(fourthApprovalRunId) &&
+        exists("chapters/第四章.md") &&
+        ofType(events(), "run.finished").some(
+          (event) => event.run_id === fourthApprovalRunId,
+        ),
       `点击后无任何错误或提示；卡片${(await page.locator(".approval:not(.resolved)").count()) === 0 ? "显示为已裁决" : "仍待处理"}，文件${exists("chapters/第四章.md") ? "已写入" : "未写入"}`,
     );
   } else {
     const recoveredChat = await page.locator(".chat-scroll").innerText();
     check(
-      "E2 重开后审批卡可见（或运行被标为已中断）",
-      recoveredChat.includes("已过期") || recoveredChat.includes("已中断"),
+      "E2 重开后审批卡可见",
+      recoveredChat.includes("Agent请求写入") &&
+        !recoveredChat.includes("已过期"),
       `既无审批卡也无恢复提示；聊天末尾：${JSON.stringify(recoveredChat.slice(-320))}`,
     );
   }

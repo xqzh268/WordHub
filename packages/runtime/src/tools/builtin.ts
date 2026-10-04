@@ -34,6 +34,26 @@ export type BuiltinToolRuntime = {
   getHistory?(
     seq: number,
   ): Promise<{ type: string; seq: number; text?: string } | undefined>;
+  challengeRaise?(input: {
+    threadId?: string;
+    target: string;
+    claim: string;
+    path?: string;
+    range?: string;
+    evidence?: string[];
+    severity: "blocking" | "minor";
+  }): Promise<{ threadId: string; round: number }>;
+  challengeReply?(input: {
+    threadId: string;
+    disposition: "accept" | "refute" | "partial";
+    text: string;
+    patchRef?: string;
+  }): Promise<{ threadId: string; round: number }>;
+  questionAsk?(input: {
+    target: string;
+    question: string;
+    blocking?: boolean;
+  }): Promise<{ questionId: string }>;
 };
 
 const pathParameters = Type.Object({
@@ -48,6 +68,32 @@ const writeParameters = Type.Object({
 });
 const searchParameters = Type.Object({
   query: Type.String({ minLength: 1, maxLength: 200 }),
+});
+const challengeParameters = Type.Object({
+  threadId: Type.Optional(Type.String({ maxLength: 100 })),
+  target: Type.String({ minLength: 1, maxLength: 64 }),
+  claim: Type.String({ minLength: 1, maxLength: 2000 }),
+  path: Type.Optional(Type.String({ maxLength: 500 })),
+  range: Type.Optional(Type.String({ maxLength: 200 })),
+  evidence: Type.Optional(
+    Type.Array(Type.String({ maxLength: 500 }), { maxItems: 8 }),
+  ),
+  severity: Type.Union([Type.Literal("blocking"), Type.Literal("minor")]),
+});
+const replyParameters = Type.Object({
+  threadId: Type.String({ minLength: 1, maxLength: 100 }),
+  disposition: Type.Union([
+    Type.Literal("accept"),
+    Type.Literal("refute"),
+    Type.Literal("partial"),
+  ]),
+  text: Type.String({ minLength: 1, maxLength: 2000 }),
+  patchRef: Type.Optional(Type.String({ maxLength: 200 })),
+});
+const questionParameters = Type.Object({
+  target: Type.String({ minLength: 1, maxLength: 64 }),
+  question: Type.String({ minLength: 1, maxLength: 2000 }),
+  blocking: Type.Optional(Type.Boolean()),
 });
 
 const textResult = (text: string, details: Record<string, unknown> = {}) => ({
@@ -152,6 +198,36 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
       });
     },
   };
+  const challengeRaise: AgentTool<typeof challengeParameters> = {
+    name: "challenge.raise",
+    label: "发起质询",
+    description: "针对正文或设定提出带证据的质询。",
+    parameters: challengeParameters,
+    execute: async (_id, params) =>
+      runtime.challengeRaise
+        ? textResult(JSON.stringify(await runtime.challengeRaise(params)))
+        : textResult("当前运行时未提供质询能力", { isError: true }),
+  };
+  const challengeReply: AgentTool<typeof replyParameters> = {
+    name: "challenge.reply",
+    label: "回应质询",
+    description: "回应已有质询并说明接受、反驳或部分接受。",
+    parameters: replyParameters,
+    execute: async (_id, params) =>
+      runtime.challengeReply
+        ? textResult(JSON.stringify(await runtime.challengeReply(params)))
+        : textResult("当前运行时未提供质询能力", { isError: true }),
+  };
+  const questionAsk: AgentTool<typeof questionParameters> = {
+    name: "question.ask",
+    label: "向Agent提问",
+    description: "向另一个Agent提出一个可追踪的问题。",
+    parameters: questionParameters,
+    execute: async (_id, params) =>
+      runtime.questionAsk
+        ? textResult(JSON.stringify(await runtime.questionAsk(params)))
+        : textResult("当前运行时未提供提问能力", { isError: true }),
+  };
   return [
     docRead,
     docWrite,
@@ -160,5 +236,8 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
     biblePropose,
     historySearch,
     historyGet,
+    ...(runtime.challengeRaise ? [challengeRaise] : []),
+    ...(runtime.challengeReply ? [challengeReply] : []),
+    ...(runtime.questionAsk ? [questionAsk] : []),
   ];
 }

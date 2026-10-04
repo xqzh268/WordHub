@@ -17,6 +17,7 @@ export type PiAgentHostOptions = {
   getApiKey?: AgentOptions["getApiKey"];
   beforeToolCall?: AgentOptions["beforeToolCall"];
   maxTurns?: number;
+  onCheckpoint?: (messages: AgentMessage[]) => void | Promise<void>;
   transformContext?: AgentOptions["transformContext"];
   emit: (event: RuntimeStreamEvent) => void | Promise<void>;
 };
@@ -72,7 +73,8 @@ export class PiAgentHost {
           },
           signal,
         ),
-      finishTurn: (turn) => {
+      finishTurn: async (turn) => {
+        await options.onCheckpoint?.(this.agent.state.messages);
         if (
           ++turns >= (options.maxTurns ?? 20) &&
           turn.message.content.some((block) => block.type === "toolCall")
@@ -98,6 +100,13 @@ export class PiAgentHost {
   }
   waitForIdle(): Promise<void> {
     return this.agent.waitForIdle();
+  }
+
+  /** 用于跨重启恢复的普通JSON消息快照，不写入事件日志。 */
+  messages(): AgentMessage[] {
+    return this.agent.state.messages.map((message) => ({
+      ...message,
+    })) as AgentMessage[];
   }
 
   private checkTerminal(): void {

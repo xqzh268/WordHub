@@ -107,6 +107,49 @@ export function projectTools(input: {
         .find((event) => event.seq === seq);
       return event ? summary(event) : undefined;
     },
+    challengeRaise: async (value) => {
+      const threadId =
+        value.threadId ?? `thread_${input.runId}_${Date.now().toString(36)}`;
+      const round =
+        input.store
+          .listEvents(input.projectId)
+          .filter(
+            (event) =>
+              event.type === "challenge.raise" &&
+              event.payload &&
+              typeof event.payload === "object" &&
+              (event.payload as Record<string, unknown>).threadId === threadId,
+          ).length + 1;
+      input.event("challenge.raise", { threadId, ...value, round });
+      return { threadId, round };
+    },
+    challengeReply: async (value) => {
+      const round = input.store
+        .listEvents(input.projectId)
+        .filter(
+          (event) =>
+            event.type === "challenge.raise" &&
+            event.payload &&
+            typeof event.payload === "object" &&
+            (event.payload as Record<string, unknown>).threadId ===
+              value.threadId,
+        ).length;
+      if (round >= 2 && value.disposition !== "accept") {
+        input.event("escalation.created", {
+          threadId: value.threadId,
+          round,
+          reason: "质询已达两轮且仍未解决，请用户裁决。",
+        });
+        return { threadId: value.threadId, round };
+      }
+      input.event("challenge.reply", { ...value, round });
+      return { threadId: value.threadId, round };
+    },
+    questionAsk: async (value) => {
+      const questionId = `question_${input.runId}_${Date.now().toString(36)}`;
+      input.event("question.ask", { questionId, ...value });
+      return { questionId };
+    },
   });
   return {
     tools: tools.filter((tool) => input.agent.tools.includes(tool.name)),

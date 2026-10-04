@@ -98,6 +98,21 @@ function Entry({ item }: { item: ChatItem }) {
       return <ApprovalCard item={item} />;
     case "notice":
       return <p className={`notice ${item.tone ?? ""}`}>{item.text}</p>;
+    case "task":
+      return (
+        <div className={`task-progress task-${item.status}`}>
+          <span aria-hidden="true">
+            {item.status === "succeeded"
+              ? "●"
+              : item.status === "failed" || item.status === "blocked"
+                ? "✕"
+                : item.status === "running"
+                  ? "◐"
+                  : "○"}
+          </span>
+          <span>{item.label}</span>
+        </div>
+      );
   }
 }
 
@@ -396,8 +411,27 @@ function ApprovalCard({ item }: { item: ApprovalItem }) {
       >
         <h3>{item.title}</h3>
         <p>{item.body}</p>
+        {item.path && (
+          <p className="approval-path">
+            路径：<code>{item.path}</code>
+            {typeof item.contentLength === "number" &&
+              ` · ${item.contentLength}字`}
+            {item.diff &&
+              ` · 差异 +${item.diff.addedLines}/-${item.diff.removedLines}行`}
+          </p>
+        )}
         {item.preview && <pre className="approval-preview">{item.preview}</pre>}
-        {item.resolved ? (
+        {item.resolved?.includes("过期") ? (
+          <div className="approval-actions">
+            <span className="approval-done">审批已过期</span>
+            <button
+              className="btn btn-primary"
+              onClick={() => resolve(item.id, "重新发起")}
+            >
+              重新发起
+            </button>
+          </div>
+        ) : item.resolved ? (
           <p className="approval-done">
             <Check size={14} strokeWidth={2} aria-hidden="true" />
             已裁决：{item.resolved}

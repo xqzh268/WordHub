@@ -11,6 +11,8 @@ import type {
   RunRecord,
   SessionRecord,
   UsageRecord,
+  TaskRecord,
+  RunSnapshotRecord,
 } from "./types.js";
 
 type SqlRow = Record<string, unknown>;
@@ -61,6 +63,21 @@ CREATE TABLE IF NOT EXISTS revisions (
 CREATE INDEX IF NOT EXISTS revisions_current ON revisions(project_id, artifact_id, status);
 CREATE VIRTUAL TABLE IF NOT EXISTS event_fts USING fts5(event_id UNINDEXED, project_id UNINDEXED, body, tokenize='unicode61');
 `;
+const TASKS_MIGRATION = `
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), session_id TEXT NOT NULL REFERENCES sessions(id), run_id TEXT NOT NULL,
+  kind TEXT NOT NULL, status TEXT NOT NULL, assigned_agent TEXT, dependencies_json TEXT NOT NULL, input_refs_json TEXT, output_refs_json TEXT,
+  context_snapshot_id TEXT NOT NULL, attempt INTEGER NOT NULL DEFAULT 0, max_attempts INTEGER NOT NULL DEFAULT 1, budget_json TEXT, checkpoint_json TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS tasks_run ON tasks(run_id);
+CREATE TABLE IF NOT EXISTS run_snapshots (
+  id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), session_id TEXT NOT NULL REFERENCES sessions(id), run_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL, messages_json TEXT NOT NULL, system_prompt TEXT, model_json TEXT, pending_tool_calls_json TEXT, created_at TEXT NOT NULL,
+  UNIQUE(run_id, sequence)
+);
+CREATE INDEX IF NOT EXISTS run_snapshots_latest ON run_snapshots(run_id, sequence DESC);
+`;
 
 function projectRow(row: SqlRow): ProjectRecord {
   return {
@@ -110,6 +127,51 @@ function eventRow(row: SqlRow): Event {
     payload: JSON.parse(asString(row.payload_json)),
   };
 }
+function taskRow(row: SqlRow): TaskRecord {
+  return {
+    id: asString(row.id),
+    projectId: asString(row.project_id),
+    sessionId: asString(row.session_id),
+    runId: asString(row.run_id),
+    kind: asString(row.kind),
+    status: asString(row.status) as TaskRecord["status"],
+    assignedAgent: row.assigned_agent
+      ? asString(row.assigned_agent)
+      : undefined,
+    dependencies: JSON.parse(asString(row.dependencies_json)),
+    inputRefs: row.input_refs_json
+      ? JSON.parse(asString(row.input_refs_json))
+      : undefined,
+    outputRefs: row.output_refs_json
+      ? JSON.parse(asString(row.output_refs_json))
+      : undefined,
+    contextSnapshotId: asString(row.context_snapshot_id),
+    attempt: Number(row.attempt),
+    maxAttempts: Number(row.max_attempts),
+    budget: row.budget_json ? JSON.parse(asString(row.budget_json)) : undefined,
+    checkpoint: row.checkpoint_json
+      ? JSON.parse(asString(row.checkpoint_json))
+      : undefined,
+    createdAt: asString(row.created_at),
+    updatedAt: asString(row.updated_at),
+  };
+}
+function snapshotRow(row: SqlRow): RunSnapshotRecord {
+  return {
+    id: asString(row.id),
+    projectId: asString(row.project_id),
+    sessionId: asString(row.session_id),
+    runId: asString(row.run_id),
+    sequence: Number(row.sequence),
+    messages: JSON.parse(asString(row.messages_json)),
+    systemPrompt: row.system_prompt ? asString(row.system_prompt) : undefined,
+    model: row.model_json ? JSON.parse(asString(row.model_json)) : undefined,
+    pendingToolCalls: row.pending_tool_calls_json
+      ? JSON.parse(asString(row.pending_tool_calls_json))
+      : undefined,
+    createdAt: asString(row.created_at),
+  };
+}
 
 export class WordHubStore {
   readonly dbPath: string;
@@ -129,6 +191,7 @@ export class WordHubStore {
     const migrations = [
       SCHEMA,
       "ALTER TABLE events ADD COLUMN actor_version TEXT;",
+      TASKS_MIGRATION,
     ];
     if (version > migrations.length)
       throw new Error("数据库版本高于当前应用，拒绝降级打开");
@@ -187,6 +250,7 @@ export class WordHubStore {
         continue;
       }
       if (asString(row.status) === "waiting_approval") {
+        if (this.latestRunSnapshot(runId)) continue;
         events.push(
           this.appendEvent({
             schemaVersion: 1,
@@ -509,6 +573,108 @@ export class WordHubStore {
         usage.costUsd ?? null,
         usage.createdAt,
       );
+  }
+
+  createTask(input: Omit<TaskRecord, "createdAt" | "updatedAt">): TaskRecord {
+    const createdAt = now();
+    const record = { ...input, createdAt, updatedAt: createdAt };
+    this.db
+      .prepare(
+        "INSERT INTO tasks(id,project_id,session_id,run_id,kind,status,assigned_agent,dependencies_json,input_refs_json,output_refs_json,context_snapshot_id,attempt,max_attempts,budget_json,checkpoint_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+      )
+      .run(
+        record.id,
+        record.projectId,
+        record.sessionId,
+        record.runId,
+        record.kind,
+        record.status,
+        record.assignedAgent ?? null,
+        JSON.stringify(record.dependencies),
+        record.inputRefs ? JSON.stringify(record.inputRefs) : null,
+        record.outputRefs ? JSON.stringify(record.outputRefs) : null,
+        record.contextSnapshotId,
+        record.attempt,
+        record.maxAttempts,
+        record.budget ? JSON.stringify(record.budget) : null,
+        record.checkpoint ? JSON.stringify(record.checkpoint) : null,
+        record.createdAt,
+        record.updatedAt,
+      );
+    return record;
+  }
+
+  updateTask(
+    taskId: string,
+    patch: Partial<
+      Pick<
+        TaskRecord,
+        "status" | "attempt" | "checkpoint" | "budget" | "outputRefs"
+      >
+    >,
+  ): void {
+    const current = this.getTask(taskId);
+    if (!current) throw new Error(`任务不存在：${taskId}`);
+    const next = { ...current, ...patch, updatedAt: now() };
+    this.db
+      .prepare(
+        "UPDATE tasks SET status=?,attempt=?,checkpoint_json=?,budget_json=?,output_refs_json=?,updated_at=? WHERE id=?",
+      )
+      .run(
+        next.status,
+        next.attempt,
+        next.checkpoint ? JSON.stringify(next.checkpoint) : null,
+        next.budget ? JSON.stringify(next.budget) : null,
+        next.outputRefs ? JSON.stringify(next.outputRefs) : null,
+        next.updatedAt,
+        taskId,
+      );
+  }
+
+  listTasks(runId: string): TaskRecord[] {
+    return (
+      this.db
+        .prepare("SELECT * FROM tasks WHERE run_id=? ORDER BY created_at,id")
+        .all(runId) as SqlRow[]
+    ).map(taskRow);
+  }
+  getTask(taskId: string): TaskRecord | undefined {
+    const row = this.db.prepare("SELECT * FROM tasks WHERE id=?").get(taskId) as
+      | SqlRow
+      | undefined;
+    return row ? taskRow(row) : undefined;
+  }
+  saveRunSnapshot(
+    input: Omit<RunSnapshotRecord, "createdAt">,
+  ): RunSnapshotRecord {
+    const record = { ...input, createdAt: now() };
+    this.db
+      .prepare(
+        "INSERT INTO run_snapshots(id,project_id,session_id,run_id,sequence,messages_json,system_prompt,model_json,pending_tool_calls_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(run_id,sequence) DO UPDATE SET messages_json=excluded.messages_json,system_prompt=excluded.system_prompt,model_json=excluded.model_json,pending_tool_calls_json=excluded.pending_tool_calls_json,created_at=excluded.created_at",
+      )
+      .run(
+        record.id,
+        record.projectId,
+        record.sessionId,
+        record.runId,
+        record.sequence,
+        JSON.stringify(record.messages),
+        record.systemPrompt ?? null,
+        record.model ? JSON.stringify(record.model) : null,
+        record.pendingToolCalls
+          ? JSON.stringify(record.pendingToolCalls)
+          : null,
+        record.createdAt,
+      );
+    return record;
+  }
+  latestRunSnapshot(runId: string): RunSnapshotRecord | undefined {
+    const row = this.db
+      .prepare(
+        "SELECT * FROM run_snapshots WHERE run_id=? ORDER BY sequence DESC LIMIT 1",
+      )
+      .get(runId) as SqlRow | undefined;
+    return row ? snapshotRow(row) : undefined;
   }
 
   private nextRevision(projectId: string, artifactId: string): number {

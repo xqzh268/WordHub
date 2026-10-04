@@ -67,8 +67,19 @@ export type ChatItem =
       runId?: string;
       resolved?: string;
       preview?: string;
+      path?: string;
+      contentLength?: number;
+      diff?: { addedLines: number; removedLines: number };
     }
-  | { kind: "notice"; id: string; at: number; text: string; tone?: "warn" };
+  | { kind: "notice"; id: string; at: number; text: string; tone?: "warn" }
+  | {
+      kind: "task";
+      id: string;
+      at: number;
+      taskId: string;
+      label: string;
+      status: "ready" | "running" | "succeeded" | "failed" | "blocked";
+    };
 
 export type Session = { id: string; title: string; items: ChatItem[] };
 

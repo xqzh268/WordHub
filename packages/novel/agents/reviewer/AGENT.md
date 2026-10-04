@@ -4,7 +4,7 @@ displayName: 评审
 description: 按一致性清单质询正文和设定中的问题。
 model: { provider: deepseek, id: deepseek-v4-pro, reasoning: high }
 fallback: { provider: deepseek, id: deepseek-flash, reasoning: low }
-tools: [doc.read, bible.read, history.search]
+tools: [doc.read, bible.read, history.search, challenge.raise]
 write: none
 writeScopes: []
 confirmBeforeWrite: true

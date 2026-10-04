@@ -49,6 +49,11 @@
 .msg-error svg { flex: none; margin-top: 4px; }
 .notice { text-align: center; font-size: 12px; color: var(--ink-4); }
 .notice.warn { color: var(--danger); }
+.entry-task { display: block; }
+.task-progress { display: flex; align-items: center; gap: 8px; padding: 5px 12px; color: var(--ink-4); font-size: 12px; }
+.task-progress span:first-child { width: 14px; color: var(--accent-ink); text-align: center; }
+.task-succeeded span:first-child { color: var(--ok); }
+.task-failed span:first-child, .task-blocked span:first-child { color: var(--danger); }
 
 /* ── 质询线程 ───────────────────────────────────────── */
 .thread { position: relative; min-width: 0; overflow: hidden; border-radius: var(--r-md); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }
@@ -69,6 +74,8 @@
 .approval { padding: 14px 16px 14px; border-radius: var(--r-md); background: var(--bg-raised); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 42%, var(--line)), var(--shadow-raised); }
 .approval h3 { font-family: var(--font-serif); font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
 .approval p { margin: 4px 0 12px; font-size: 13px; line-height: 1.75; color: var(--ink-2); }
+.approval-path { font-size: 12px !important; color: var(--ink-3) !important; }
+.approval-path code { font-family: var(--font-mono); color: var(--ink-1); }
 .approval-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .approval.resolved { box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }
 .approval-done { display: flex; align-items: center; gap: 6px; margin: 0 !important; color: var(--ok) !important; font-weight: 500; }

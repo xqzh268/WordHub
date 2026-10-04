@@ -3,7 +3,7 @@ name: writer
 displayName: 写手
 description: 按照设定集和章节大纲生成小说正文。
 model: { provider: deepseek, id: deepseek-flash, reasoning: low }
-tools: [doc.read, doc.write, bible.read, history.search]
+tools: [doc.read, doc.write, bible.read, history.search, challenge.reply]
 write: write
 writeScopes: [chapters/**]
 confirmBeforeWrite: false

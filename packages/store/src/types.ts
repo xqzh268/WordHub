@@ -42,6 +42,37 @@ export type UsageRecord = {
   costUsd?: number;
   createdAt: string;
 };
+export type TaskRecord = {
+  id: string;
+  projectId: string;
+  sessionId: string;
+  runId: string;
+  kind: string;
+  status: import("@wordhub/contracts").TaskStatus;
+  assignedAgent?: string;
+  dependencies: string[];
+  inputRefs?: unknown[];
+  outputRefs?: unknown[];
+  contextSnapshotId: string;
+  attempt: number;
+  maxAttempts: number;
+  budget?: Record<string, unknown>;
+  checkpoint?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+export type RunSnapshotRecord = {
+  id: string;
+  projectId: string;
+  sessionId: string;
+  runId: string;
+  sequence: number;
+  messages: unknown[];
+  systemPrompt?: string;
+  model?: Record<string, unknown>;
+  pendingToolCalls?: unknown[];
+  createdAt: string;
+};
 export type RevisionRecord = Revision & {
   snapshotPath: string;
   sessionId?: string;

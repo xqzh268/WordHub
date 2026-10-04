@@ -1,0 +1,7 @@
+{
+  "id": "review-only",
+  "label": "只评审",
+  "nodes": [
+    { "id": "reviewer", "kind": "review", "agent": "reviewer", "dependencies": [], "status": "pending", "maxAttempts": 2 }
+  ]
+}

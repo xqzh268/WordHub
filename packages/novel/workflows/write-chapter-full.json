@@ -1,0 +1,10 @@
+{
+  "id": "write-chapter-full",
+  "label": "写一章（全流程）",
+  "nodes": [
+    { "id": "writer", "kind": "write", "agent": "writer", "dependencies": [], "status": "pending", "maxAttempts": 2 },
+    { "id": "editor", "kind": "edit", "agent": "editor", "dependencies": ["writer"], "status": "pending", "maxAttempts": 2 },
+    { "id": "reviewer", "kind": "review", "agent": "reviewer", "dependencies": ["editor"], "status": "pending", "maxAttempts": 2 },
+    { "id": "rework", "kind": "rework", "agent": "writer", "dependencies": ["reviewer"], "status": "pending", "maxAttempts": 2 }
+  ]
+}

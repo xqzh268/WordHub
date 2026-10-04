@@ -46,6 +46,39 @@ export type ProjectedChatItem =
       runId?: string;
       resolved?: string;
       preview?: string;
+      path?: string;
+      contentLength?: number;
+      diff?: { addedLines: number; removedLines: number };
+      eventId: string;
+    }
+  | {
+      kind: "thread";
+      id: string;
+      at: number;
+      from: string;
+      to: string;
+      round: number;
+      maxRounds: number;
+      severity: "blocking" | "minor";
+      claim: string;
+      replies: { agentId: string; text: string }[];
+      eventId: string;
+    }
+  | {
+      kind: "task";
+      id: string;
+      at: number;
+      taskId: string;
+      label: string;
+      status: "ready" | "running" | "succeeded" | "failed" | "blocked";
+      eventId: string;
+    }
+  | {
+      kind: "notice";
+      id: string;
+      at: number;
+      text: string;
+      tone?: "warn";
       eventId: string;
     };
 
@@ -102,10 +135,129 @@ export function applyChatEvent(
         typeof payload.contentPreview === "string"
           ? payload.contentPreview
           : undefined,
+      path: typeof payload.path === "string" ? payload.path : undefined,
+      contentLength:
+        typeof payload.contentLength === "number"
+          ? payload.contentLength
+          : undefined,
+      diff:
+        payload.diff && typeof payload.diff === "object"
+          ? {
+              addedLines: Number(
+                (payload.diff as Record<string, unknown>).addedLines ?? 0,
+              ),
+              removedLines: Number(
+                (payload.diff as Record<string, unknown>).removedLines ?? 0,
+              ),
+            }
+          : undefined,
       options: ["批准", "拒绝"],
       runId: event.runId,
       eventId: event.id,
     });
+    return state;
+  }
+  if (event.type === "permission.denied") {
+    state.items.push({
+      kind: "notice",
+      id: event.id,
+      at: timestamp(event.occurredAt),
+      text:
+        typeof payload.reason === "string"
+          ? `权限被拒：${payload.reason}`
+          : "权限被拒：该工具或路径不在Agent授权范围内。",
+      tone: "warn",
+      eventId: event.id,
+    });
+    return state;
+  }
+  if (event.type === "challenge.raise") {
+    const threadId =
+      typeof payload.threadId === "string" ? payload.threadId : event.id;
+    state.items.push({
+      kind: "thread",
+      id: threadId,
+      at: timestamp(event.occurredAt),
+      from: event.actor.id,
+      to: typeof payload.target === "string" ? payload.target : "planner",
+      round: Number(payload.round ?? 1),
+      maxRounds: 2,
+      severity: payload.severity === "minor" ? "minor" : "blocking",
+      claim: typeof payload.claim === "string" ? payload.claim : "",
+      replies: [],
+      eventId: event.id,
+    });
+    return state;
+  }
+  if (event.type === "challenge.reply") {
+    const threadId =
+      typeof payload.threadId === "string" ? payload.threadId : undefined;
+    const thread = threadId
+      ? [...state.items]
+          .reverse()
+          .find(
+            (item): item is Extract<ProjectedChatItem, { kind: "thread" }> =>
+              item.kind === "thread" && item.id === threadId,
+          )
+      : undefined;
+    if (thread) {
+      thread.round = Number(payload.round ?? thread.round);
+      thread.replies.push({
+        agentId: event.actor.id,
+        text: typeof payload.text === "string" ? payload.text : "",
+      });
+      thread.eventId = event.id;
+    }
+    return state;
+  }
+  if (event.type === "escalation.created") {
+    state.items.push({
+      kind: "approval",
+      id: event.id,
+      at: timestamp(event.occurredAt),
+      title: "质询需要你的裁决",
+      body:
+        typeof payload.reason === "string"
+          ? payload.reason
+          : "两个Agent仍未达成一致，请选择后继续工作流。",
+      options: ["接受修改", "保留原文"],
+      runId: event.runId,
+      eventId: event.id,
+    });
+    return state;
+  }
+  if (event.type.startsWith("task.")) {
+    const taskId =
+      typeof payload.taskId === "string" ? payload.taskId : undefined;
+    if (!taskId) return state;
+    const status =
+      event.type === "task.succeeded"
+        ? "succeeded"
+        : event.type === "task.failed"
+          ? "failed"
+          : event.type === "task.blocked"
+            ? "blocked"
+            : event.type === "task.started"
+              ? "running"
+              : "ready";
+    const existing = state.items.find(
+      (item): item is Extract<ProjectedChatItem, { kind: "task" }> =>
+        item.kind === "task" && item.taskId === taskId,
+    );
+    if (existing) {
+      existing.status = status;
+      existing.eventId = event.id;
+    } else {
+      state.items.push({
+        kind: "task",
+        id: `task_${taskId}`,
+        at: timestamp(event.occurredAt),
+        taskId,
+        label: typeof payload.kind === "string" ? payload.kind : "Agent任务",
+        status,
+        eventId: event.id,
+      });
+    }
     return state;
   }
   if (
@@ -129,6 +281,20 @@ export function applyChatEvent(
     return state;
   }
   if (!event.runId) return state;
+  const projectsRun = new Set([
+    "run.text_delta",
+    "run.tool_started",
+    "run.tool_finished",
+    "run.finished",
+    "run.started",
+    "run.usage",
+    "context.injected",
+    "run.aborted",
+    "run.interrupted",
+    "run.waiting_approval",
+    "run.error",
+  ]);
+  if (!projectsRun.has(event.type)) return state;
   let run = state.runs.get(event.runId);
   if (!run) {
     run = {

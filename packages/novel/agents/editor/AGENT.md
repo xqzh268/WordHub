@@ -3,7 +3,7 @@ name: editor
 displayName: 编辑
 description: 对候选章节做结构、语言和一致性改写。
 model: { provider: deepseek, id: deepseek-flash, reasoning: low }
-tools: [doc.read, doc.write, bible.read, history.search]
+tools: [doc.read, doc.write, bible.read, history.search, challenge.reply]
 write: write
 writeScopes: [chapters/**]
 confirmBeforeWrite: false

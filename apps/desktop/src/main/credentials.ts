@@ -52,4 +52,18 @@ export class ElectronCredentialStore {
   async configured(provider: string): Promise<boolean> {
     return Boolean(await this.get(provider));
   }
+
+  async source(provider: string): Promise<"saved" | "environment" | "none"> {
+    if (await this.get(provider)) return "saved";
+    if (provider === "deepseek" && process.env.DEEPSEEK_API_KEY)
+      return "environment";
+    return "none";
+  }
+
+  async resolve(provider: string): Promise<string | undefined> {
+    return (
+      (await this.get(provider)) ??
+      (provider === "deepseek" ? process.env.DEEPSEEK_API_KEY : undefined)
+    );
+  }
 }

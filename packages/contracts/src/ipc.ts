@@ -7,6 +7,7 @@ export type WorkspaceCommand =
   | "session.rename"
   | "chat.list"
   | "run.start"
+  | "run.estimate"
   | "run.abort"
   | "run.approve"
   | "run.restartWorker"
@@ -37,6 +38,7 @@ export interface CommandPayloads {
   "session.rename": { projectId?: string; sessionId: string; title: string };
   "chat.list": { projectId: string; sessionId: string };
   "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
+  "run.estimate": { prompt: string; agentId?: string; projectPath?: string };
   "run.abort": { runId: string };
   "run.approve": { runId: string; approved: boolean };
   "run.restartWorker": undefined;
@@ -57,10 +59,11 @@ export interface CommandResults {
   "session.rename": { sessionId: string };
   "chat.list": { events: unknown[]; items: unknown[] };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
+  "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; tasks: unknown[] };
   "run.abort": { runId: string; aborted: boolean };
   "run.approve": { runId: string; approved: boolean };
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
-  "settings.credentialStatus": { provider: string; configured: boolean; encryptionAvailable: boolean };
+  "settings.credentialStatus": { provider: string; configured: boolean; source?: "saved" | "environment" | "none"; encryptionAvailable: boolean };
   "settings.setCredential": { saved: boolean };
   "settings.models": { agents: Array<{ id: string; displayName: string; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }> };
   "settings.setAgentModel": { saved: boolean };

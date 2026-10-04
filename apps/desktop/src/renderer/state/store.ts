@@ -112,6 +112,49 @@ function restoreItems(raw: unknown): ChatItem[] {
             typeof value.resolved === "string" ? value.resolved : undefined,
           preview:
             typeof value.preview === "string" ? value.preview : undefined,
+          path: typeof value.path === "string" ? value.path : undefined,
+          contentLength:
+            typeof value.contentLength === "number"
+              ? value.contentLength
+              : undefined,
+          diff:
+            value.diff && typeof value.diff === "object"
+              ? {
+                  addedLines: Number(
+                    (value.diff as Record<string, unknown>).addedLines ?? 0,
+                  ),
+                  removedLines: Number(
+                    (value.diff as Record<string, unknown>).removedLines ?? 0,
+                  ),
+                }
+              : undefined,
+        } satisfies ChatItem,
+      ];
+    if (value.kind === "notice" && typeof value.text === "string")
+      return [
+        {
+          kind: "notice",
+          id: String(value.id),
+          at: Number(value.at),
+          text: value.text,
+          tone: value.tone === "warn" ? "warn" : undefined,
+        } satisfies ChatItem,
+      ];
+    if (value.kind === "task" && typeof value.taskId === "string")
+      return [
+        {
+          kind: "task",
+          id: String(value.id),
+          at: Number(value.at),
+          taskId: value.taskId,
+          label: String(value.label ?? "任务"),
+          status:
+            value.status === "running" ||
+            value.status === "succeeded" ||
+            value.status === "failed" ||
+            value.status === "blocked"
+              ? value.status
+              : "ready",
         } satisfies ChatItem,
       ];
     if (value.kind !== "agent") return [];
@@ -123,7 +166,7 @@ function restoreItems(raw: unknown): ChatItem[] {
             {
               id: String(current.id),
               name: String(current.name),
-              label: String(current.name),
+              label: toolLabel(String(current.name)),
               status: (current.status === "error"
                 ? "error"
                 : current.status === "running"
@@ -346,6 +389,23 @@ export const useWorkbench = create<State>((set, get) => {
       set({ composer: "", activeRunId: runId });
       if (!window.wordhub) return;
       try {
+        const estimate = await window.wordhub
+          .invoke("run.estimate", {
+            prompt: body || trimmed,
+            agentId: agent.id,
+            projectPath: state.project.folder ?? undefined,
+          })
+          .catch(() => undefined);
+        if (estimate)
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("estimate"),
+              at: Date.now(),
+              text: `本次运行预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元。`,
+            },
+          ]);
         await window.wordhub.invoke("run.start", {
           runId,
           prompt: body || trimmed,
@@ -379,6 +439,19 @@ export const useWorkbench = create<State>((set, get) => {
             candidate.kind === "approval" && candidate.id === itemId,
         );
       if (item?.kind === "approval" && item.runId) {
+        if (choice === "重新发起") {
+          const session = get().sessions.find((candidate) =>
+            candidate.items.some(
+              (candidateItem) => candidateItem.id === item.id,
+            ),
+          );
+          const index =
+            session?.items.findIndex((candidate) => candidate.id === item.id) ??
+            -1;
+          const previous = index > 0 ? session?.items[index - 1] : undefined;
+          if (previous?.kind === "user") await get().send(previous.text);
+          return;
+        }
         try {
           await window.wordhub?.invoke("run.approve", {
             runId: item.runId,
@@ -472,6 +545,7 @@ export const useWorkbench = create<State>((set, get) => {
         delta?: string;
         tool?: string;
         error?: string;
+        reason?: string;
         text?: string;
         model?: string;
         reasoning?: string;
@@ -481,6 +555,9 @@ export const useWorkbench = create<State>((set, get) => {
           totalTokens: number;
           cost?: { total?: number };
         };
+        path?: string;
+        contentLength?: number;
+        diff?: { addedLines?: number; removedLines?: number };
         manifest?: Array<{
           id: string;
           kind: string;
@@ -504,6 +581,22 @@ export const useWorkbench = create<State>((set, get) => {
                   typeof (message as { contentPreview?: unknown })
                     .contentPreview === "string"
                     ? (message as { contentPreview: string }).contentPreview
+                    : undefined,
+                path:
+                  typeof (message as { path?: unknown }).path === "string"
+                    ? (message as { path: string }).path
+                    : undefined,
+                contentLength:
+                  typeof (message as { contentLength?: unknown })
+                    .contentLength === "number"
+                    ? (message as { contentLength: number }).contentLength
+                    : undefined,
+                diff:
+                  message.diff && typeof message.diff === "object"
+                    ? {
+                        addedLines: Number(message.diff.addedLines ?? 0),
+                        removedLines: Number(message.diff.removedLines ?? 0),
+                      }
                     : undefined,
                 options: ["批准", "拒绝"],
                 runId,
@@ -646,6 +739,67 @@ export const useWorkbench = create<State>((set, get) => {
             }));
           }
           break;
+        case "permission.denied":
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("permission"),
+              at: Date.now(),
+              tone: "warn",
+              text:
+                typeof message.reason === "string"
+                  ? `权限被拒：${message.reason}`
+                  : "权限被拒：该工具或路径不在Agent授权范围内。",
+            },
+          ]);
+          break;
+        case "task.created":
+        case "task.ready":
+        case "task.started":
+        case "task.succeeded":
+        case "task.failed":
+        case "task.blocked": {
+          const taskId =
+            typeof (message as { taskId?: unknown }).taskId === "string"
+              ? (message as { taskId: string }).taskId
+              : undefined;
+          if (!taskId) break;
+          const status =
+            message.type === "task.succeeded"
+              ? "succeeded"
+              : message.type === "task.failed"
+                ? "failed"
+                : message.type === "task.blocked"
+                  ? "blocked"
+                  : message.type === "task.started"
+                    ? "running"
+                    : "ready";
+          patchItems(get().activeSessionId, (items) => {
+            const existing = items.find(
+              (item): item is Extract<ChatItem, { kind: "task" }> =>
+                item.kind === "task" && item.taskId === taskId,
+            );
+            if (!existing)
+              return [
+                ...items,
+                {
+                  kind: "task",
+                  id: uid("task"),
+                  at: Date.now(),
+                  taskId,
+                  label: "Agent任务",
+                  status,
+                },
+              ];
+            return items.map((item) =>
+              item.kind === "task" && item.taskId === taskId
+                ? { ...item, status }
+                : item,
+            );
+          });
+          break;
+        }
         case "error":
           if (runId) {
             patchRun(runId, (item) => ({

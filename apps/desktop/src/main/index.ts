@@ -168,13 +168,22 @@ function registerIpc(): void {
           rawPrompt: payload.rawPrompt,
           agentId: payload.agentId,
           mentions: payload.mentions,
-          apiKey: await credentials.get("deepseek"),
+          apiKey: await credentials.resolve("deepseek"),
           mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
           projectPath: payload.projectPath ?? linkedFolder ?? undefined,
           projectId: payload.projectId ?? projectId,
           sessionId,
         });
         return { runId, projectId, sessionId } as CommandResults["run.start"];
+      }
+      if (command === "run.estimate") {
+        const payload = request.payload as CommandPayloads["run.estimate"];
+        return await worker.request<CommandResults["run.estimate"]>({
+          type: "run.estimate",
+          prompt: payload.prompt,
+          agentId: payload.agentId,
+          projectPath: payload.projectPath ?? linkedFolder ?? undefined,
+        });
       }
       if (command === "run.abort") {
         const payload = request.payload as CommandPayloads["run.abort"];
@@ -195,7 +204,8 @@ function registerIpc(): void {
       if (command === "settings.credentialStatus") {
         return {
           provider: "deepseek",
-          configured: await credentials.configured("deepseek"),
+          configured: (await credentials.source("deepseek")) !== "none",
+          source: await credentials.source("deepseek"),
           encryptionAvailable: credentials.encryptionAvailable(),
         } as CommandResults["settings.credentialStatus"];
       }
@@ -236,13 +246,11 @@ function registerIpc(): void {
       if (command === "settings.testConnection") {
         const payload =
           request.payload as CommandPayloads["settings.testConnection"];
-        const configured = await credentials.configured(payload.provider);
-        return {
-          ok: configured,
-          message: configured
-            ? "密钥已配置，可在下一次运行中使用。"
-            : "尚未配置该服务商的密钥。",
-        } as CommandResults["settings.testConnection"];
+        return await worker.request<CommandResults["settings.testConnection"]>({
+          type: "settings.testConnection",
+          provider: payload.provider,
+          apiKey: await credentials.resolve(payload.provider),
+        });
       }
       if (command === "app.setTheme") {
         const payload = request.payload as CommandPayloads["app.setTheme"];

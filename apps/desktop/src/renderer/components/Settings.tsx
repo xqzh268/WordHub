@@ -43,10 +43,14 @@ export function SettingsView() {
   const [secret, setSecret] = useState("");
   const [credentialState, setCredentialState] = useState<{
     configured: boolean;
+    source?: "saved" | "environment" | "none";
     encryptionAvailable: boolean;
   } | null>(null);
   const [saved, setSaved] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [autoReview, setAutoReview] = useState(
+    () => localStorage.getItem("wordhub.autoReview") === "1",
+  );
   const [modelData, setModelData] = useState<Awaited<
     ReturnType<NonNullable<typeof window.wordhub>["invoke"]>
   > | null>(null);
@@ -69,7 +73,7 @@ export function SettingsView() {
     setSecret("");
     setSaved(true);
     setCredentialState((state) =>
-      state ? { ...state, configured: true } : state,
+      state ? { ...state, configured: true, source: "saved" } : state,
     );
   };
 
@@ -89,9 +93,11 @@ export function SettingsView() {
               <span>
                 {credentialState?.encryptionAvailable === false
                   ? "系统安全存储不可用"
-                  : credentialState?.configured
-                    ? "密钥已加密保存"
-                    : "尚未配置密钥"}
+                  : credentialState?.source === "environment"
+                    ? "使用系统环境变量密钥"
+                    : credentialState?.configured
+                      ? "密钥已加密保存"
+                      : "尚未配置密钥"}
               </span>
             </div>
             <div className="credential-row">
@@ -206,6 +212,25 @@ export function SettingsView() {
         </section>
 
         <section className="panel-section">
+          <h2>写作流程</h2>
+          <label className="field-label" htmlFor="auto-review">
+            <strong>章节定稿后自动评审</strong>
+            <span>默认关闭；开启后编辑完成会自动安排评审任务。</span>
+          </label>
+          <input
+            id="auto-review"
+            data-testid="auto-review"
+            type="checkbox"
+            checked={autoReview}
+            onChange={(event) => {
+              const next = event.target.checked;
+              setAutoReview(next);
+              localStorage.setItem("wordhub.autoReview", next ? "1" : "0");
+            }}
+          />
+        </section>
+
+        <section className="panel-section">
           <h2>模型分配</h2>
           <p className="section-note">
             模型和思考强度保存到当前项目的`.wordhub/agent-models.json`。
@@ -277,9 +302,12 @@ export function SettingsView() {
                               .find((item) => item.id === provider)
                               ?.models.find((item) => item.id === id)
                           : undefined;
-                      const reasoning =
-                        providerModel?.supportedReasoning?.[0] ??
-                        agent.model.reasoning;
+                      const supported = providerModel?.supportedReasoning ?? [];
+                      const reasoning = supported.includes(
+                        agent.model.reasoning as (typeof supported)[number],
+                      )
+                        ? agent.model.reasoning
+                        : (supported[0] ?? agent.model.reasoning);
                       saveModel({ provider, id, reasoning });
                     }}
                     aria-label={`${agent.displayName}模型`}
