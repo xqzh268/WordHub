@@ -77,7 +77,35 @@ try {
             : "",
         };
       });
+      const geometry = await page.evaluate(() => {
+        const timeline = document.querySelector(".timeline");
+        const box = timeline?.getBoundingClientRect();
+        // 竖线：left 13.5px、宽 1px，中心 = timeline.left + 14
+        const lineX = box ? box.left + 14 : 0;
+        const dots = [...document.querySelectorAll(".task-dot")].map((node) => {
+          const rect = node.getBoundingClientRect();
+          return Math.abs(rect.left + rect.width / 2 - lineX);
+        });
+        const texts = [
+          ...document.querySelectorAll(".entry-notice .notice, .task-name"),
+        ].map((node) => node.getBoundingClientRect().left - lineX);
+        return {
+          dotCount: dots.length,
+          maxDotOffset: dots.length ? Math.max(...dots) : 0,
+          minTextGap: texts.length ? Math.min(...texts) : 99,
+        };
+      });
       const label = `${width}x${height} ${theme}`;
+      if (geometry.dotCount === 0)
+        problems.push(`${label}: 演示数据里没有任务圆点，无法检查对齐`);
+      if (geometry.maxDotOffset > 0.75)
+        problems.push(
+          `${label}: 任务圆点中心偏离竖线 ${geometry.maxDotOffset.toFixed(1)}px`,
+        );
+      if (geometry.minTextGap < 8)
+        problems.push(
+          `${label}: 提示/任务文字压到竖线（间距 ${geometry.minTextGap.toFixed(1)}px）`,
+        );
       if (metrics.chatOverflowX > 1)
         problems.push(`${label}: 聊天区横向溢出 ${metrics.chatOverflowX}px`);
       if (metrics.previewOverflowX > 1)

@@ -81,6 +81,23 @@ const TOOL_LABELS: Record<string, string> = {
 };
 export const toolLabel = (name: string): string => TOOL_LABELS[name] ?? name;
 
+const TASK_KIND_LABELS: Record<string, string> = {
+  write: "撰写",
+  edit: "润色",
+  review: "核验",
+  rework: "返工",
+  consult: "征询意见",
+  summary: "汇总",
+};
+/** 任务行的显示名：「写手 · 撰写」。 */
+export const taskLabel = (agentId?: string, kind?: string): string => {
+  const agent = agentId
+    ? AGENTS.find((item) => item.id === agentId || item.name === agentId)
+    : undefined;
+  const action = kind ? (TASK_KIND_LABELS[kind] ?? kind) : "";
+  return [agent?.name, action].filter(Boolean).join(" · ") || "Agent任务";
+};
+
 export const WORKER_LABEL: Record<string, string> = {
   offline: "后台未启动",
   starting: "后台启动中",

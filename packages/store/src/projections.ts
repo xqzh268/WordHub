@@ -72,6 +72,8 @@ export type ProjectedChatItem =
       at: number;
       taskId: string;
       label: string;
+      agentId?: string;
+      taskKind?: string;
       status: "ready" | "running" | "succeeded" | "failed" | "blocked";
       eventId: string;
     }
@@ -262,6 +264,11 @@ export function applyChatEvent(
         at: timestamp(event.occurredAt),
         taskId,
         label: typeof payload.kind === "string" ? payload.kind : "Agent任务",
+        agentId:
+          typeof payload.assignedAgent === "string"
+            ? payload.assignedAgent
+            : undefined,
+        taskKind: typeof payload.kind === "string" ? payload.kind : undefined,
         status,
         eventId: event.id,
       });

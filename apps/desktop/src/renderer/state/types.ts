@@ -80,6 +80,8 @@ export type ChatItem =
       at: number;
       taskId: string;
       label: string;
+      agentId?: string;
+      taskKind?: string;
       status: "ready" | "running" | "succeeded" | "failed" | "blocked";
     };
 

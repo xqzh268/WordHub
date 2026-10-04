@@ -5,7 +5,7 @@ import type {
   ThemePreference,
   WorkspaceSnapshot,
 } from "@wordhub/contracts";
-import { routeMessage, toolLabel } from "../lib/agents";
+import { routeMessage, toolLabel, taskLabel } from "../lib/agents";
 import { DEMO_CHAPTER, DEMO_PROJECT, demoSessions } from "../lib/demo";
 import type {
   ChatItem,
@@ -152,7 +152,14 @@ function restoreItems(raw: unknown): ChatItem[] {
           id: String(value.id),
           at: Number(value.at),
           taskId: value.taskId,
-          label: String(value.label ?? "任务"),
+          label: taskLabel(
+            typeof value.agentId === "string" ? value.agentId : undefined,
+            typeof value.taskKind === "string" ? value.taskKind : undefined,
+          ),
+          agentId:
+            typeof value.agentId === "string" ? value.agentId : undefined,
+          taskKind:
+            typeof value.taskKind === "string" ? value.taskKind : undefined,
           status:
             value.status === "running" ||
             value.status === "succeeded" ||
@@ -818,7 +825,17 @@ export const useWorkbench = create<State>((set, get) => {
         case "workflow.started":
           if (runId) set({ activeRunId: runId });
           patchItems(get().activeSessionId, (items) => [
-            ...items,
+            // 发送时放的“正在构思”占位气泡属于父运行；工作流由各节点任务承担，不再需要它。
+            ...items.filter(
+              (item) =>
+                !(
+                  item.kind === "agent" &&
+                  item.runId === runId &&
+                  item.status === "thinking" &&
+                  !item.text &&
+                  item.tools.length === 0
+                ),
+            ),
             {
               kind: "notice",
               id: uid("workflow"),
@@ -873,7 +890,20 @@ export const useWorkbench = create<State>((set, get) => {
                   id: uid("task"),
                   at: Date.now(),
                   taskId,
-                  label: "Agent任务",
+                  label: taskLabel(
+                    typeof (message as { assignedAgent?: unknown })
+                      .assignedAgent === "string"
+                      ? (message as { assignedAgent: string }).assignedAgent
+                      : undefined,
+                    typeof (message as { kind?: unknown }).kind === "string"
+                      ? (message as { kind: string }).kind
+                      : undefined,
+                  ),
+                  agentId:
+                    typeof (message as { assignedAgent?: unknown })
+                      .assignedAgent === "string"
+                      ? (message as { assignedAgent: string }).assignedAgent
+                      : undefined,
                   status,
                 },
               ];

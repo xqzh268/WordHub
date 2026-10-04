@@ -130,16 +130,8 @@ function Entry({ item }: { item: ChatItem }) {
     case "task":
       return (
         <div className={`task-progress task-${item.status}`}>
-          <span aria-hidden="true">
-            {item.status === "succeeded"
-              ? "●"
-              : item.status === "failed" || item.status === "blocked"
-                ? "✕"
-                : item.status === "running"
-                  ? "◐"
-                  : "○"}
-          </span>
-          <span>{item.label}</span>
+          <span className="task-dot" aria-hidden="true" />
+          <span className="task-name">{item.label}</span>
         </div>
       );
   }
