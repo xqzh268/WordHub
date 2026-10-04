@@ -1,6 +1,6 @@
 # P1 开发计划：小说核心闭环
 
-> **当前进度（2026-10-04）**：M0、桌面壳、M1 存储地基、M1.1 加固已完成并验收；M2 运行时**未通过验收**（真实模型下带工具的运行全部失败，见 [m2-acceptance.md](m2-acceptance.md)）；下一步见 [m2-1-plan.md](m2-1-plan.md)。
+> **当前进度（2026-10-04）**：M0、桌面壳、M1、M1.1、M2、M2.1 已完成并验收（M2.1 通过，见 [m2-1-acceptance.md](m2-1-acceptance.md)）；下一步见 [m3-plan.md](m3-plan.md)（协调器与群聊）。
 
 > M0状态：已完成（2026-10-03）。实现与验证记录见[m0-report.md](m0-report.md)；Pi utilityProcess、取消、崩溃重启、中文路径以及DeepSeek两模型思考模式多轮工具调用均已实测通过。
 
