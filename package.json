@@ -26,6 +26,7 @@
     "build:desktop": "npm run build:store && npm run build:runtime && electron-vite build --config apps/desktop/electron.vite.config.ts",
     "dev:desktop": "electron-vite dev --config apps/desktop/electron.vite.config.ts",
     "test:desktop": "node scripts/desktop-smoke.mjs",
+    "test:layout": "node scripts/layout-check.mjs",
     "test": "npm run build:store && vitest run",
     "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",
     "test:m1:store": "npm run build:store && node scripts/m1-store-smoke.mjs",

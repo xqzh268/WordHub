@@ -141,6 +141,20 @@ export const demoSessions = (): Session[] => [
         options: ["采纳评审意见", "采纳写手意见", "稍后处理"],
       },
       {
+        kind: "approval",
+        id: "d8b",
+        at: t(9, 59),
+        title: "Agent请求写入",
+        body: "doc.write需要你的确认后才能继续。",
+        path: "chapters/第四章.md",
+        contentLength: 85,
+        diff: { addedLines: 8, removedLines: 0 },
+        // 故意包含一整行不含空格的长句和长路径，用来检验卡片内的自动折行。
+        preview:
+          "# 第四章 · 残月\n\n残月悬在天边，像被人咬去了一角的银盘。\n\n风从长街尽头卷来，掠过石阶上尚未干透的水痕，也掠过往事里那些再也回不去的人，吹得檐下的灯笼一盏接一盏地摇晃起来，光影在青砖上碎成一地。\n\n他站在窗前，久久未动。参见 .wordhub/bible/characters/裴照-完整人物档案-含童年经历与旧案线索.md",
+        options: ["批准", "拒绝"],
+      },
+      {
         kind: "agent",
         id: "d9",
         at: t(10, 0),

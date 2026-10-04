@@ -22,4 +22,5 @@ jobs:
       - run: npm run test:m1:store
       - run: npm run build:desktop
       - run: npm run test:desktop
+      - run: npm run test:layout
       - run: npm run test:m1:e2e
