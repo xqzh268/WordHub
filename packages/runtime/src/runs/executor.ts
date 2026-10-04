@@ -22,12 +22,17 @@ export function createRunExecutor(options: ExecutorOptions) {
   const live = createModels();
   live.setProvider(deepseekProvider());
   const models = options.models ?? live;
+  // 仅供Electron faux回归控制观察窗口；正常运行不设置该环境变量。
+  const mockTokenRate = Number(process.env.WORDHUB_MOCK_TOKEN_RATE);
   const faux = fauxProvider({
     provider: "deepseek",
     models: [
       { id: "deepseek-v4-pro", reasoning: true },
       { id: "deepseek-flash", reasoning: true },
     ],
+    ...(Number.isFinite(mockTokenRate) && mockTokenRate > 0
+      ? { tokensPerSecond: mockTokenRate }
+      : {}),
   });
   const simulated = createModels();
   simulated.setProvider(faux.provider);

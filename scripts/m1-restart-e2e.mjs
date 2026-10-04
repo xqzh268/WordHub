@@ -11,7 +11,11 @@ import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 
 const cleanEnv = () => {
-  const { ELECTRON_RUN_AS_NODE, ...rest } = process.env;
+  const {
+    ELECTRON_RUN_AS_NODE,
+    DEEPSEEK_API_KEY: _ambientKey,
+    ...rest
+  } = process.env;
   return rest;
 };
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -20,6 +24,27 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-m1-e2e-"));
 const storageRoot = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
 fs.mkdirSync(folder, { recursive: true });
+fs.mkdirSync(path.join(folder, ".wordhub", "agents", "writer"), {
+  recursive: true,
+});
+fs.writeFileSync(
+  path.join(folder, ".wordhub", "agents", "writer", "AGENT.md"),
+  `---
+name: writer
+displayName: 写手
+description: M1审批恢复测试写手
+model: { provider: deepseek, id: deepseek-flash, reasoning: low }
+tools: [bible.read, doc.write]
+write: write
+writeScopes: [chapters/**]
+confirmBeforeWrite: true
+memoryScopes: { read: [bible], write: [] }
+maxTurns: 8
+---
+需要写正文时使用工具，并等待用户审批。
+`,
+  "utf8",
+);
 
 const findings = [];
 const check = (name, passed, detail = "") => {
@@ -39,7 +64,12 @@ const launch = () =>
       `--user-data-dir=${storageRoot}`,
     ],
     cwd: root,
-    env: { ...cleanEnv(), WORDHUB_MOCK: "1", WORDHUB_WORKSPACE_ROOT: root },
+    env: {
+      ...cleanEnv(),
+      WORDHUB_MOCK: "1",
+      WORDHUB_MOCK_TOKEN_RATE: "8",
+      WORDHUB_WORKSPACE_ROOT: root,
+    },
   });
 
 async function stubFolderDialog(app) {
@@ -51,6 +81,29 @@ async function stubFolderDialog(app) {
   }, folder);
 }
 const chatText = (page) => page.locator(".chat-scroll").innerText();
+let dbPath;
+const readEvents = () => {
+  if (!dbPath) return [];
+  const db = new DatabaseSync(dbPath, { readOnly: true });
+  const rows = db
+    .prepare("SELECT seq,type,run_id,payload_json FROM events ORDER BY seq")
+    .all();
+  db.close();
+  return rows;
+};
+const waitForEvent = async (runId, type, timeout = 15000) => {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (
+      readEvents().some(
+        (event) => event.run_id === runId && event.type === type,
+      )
+    )
+      return true;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  return false;
+};
 
 try {
   // ── 第一次启动：链接项目、对话 ───────────────────────────
@@ -97,7 +150,7 @@ try {
   );
 
   // 数据库内容（应用仍在运行时只读检查）
-  const dbPath = fs
+  dbPath = fs
     .readdirSync(path.join(storageRoot, "projects"))
     .map((id) => path.join(storageRoot, "projects", id, "wordhub.sqlite"))[0];
   check(
@@ -199,6 +252,53 @@ try {
     "恢复后用户消息与重启前一致（保留 @评审）",
     afterUser === beforeUser,
     `恢复后显示：${JSON.stringify(afterUser)}`,
+  );
+
+  // ── 审批恢复：审批中强杀，不带环境密钥重开后批准 ────────
+  await page.fill(
+    '[data-testid="composer-input"]',
+    "@写手 请写入第一章，验证审批恢复。",
+  );
+  await page.click('[data-testid="send"]');
+  await page.waitForSelector(".approval:not(.resolved)", { timeout: 8000 });
+  const approvalRunId = readEvents()
+    .reverse()
+    .find((event) => event.type === "approval.requested")?.run_id;
+  check("审批恢复场景已进入待审批", typeof approvalRunId === "string");
+  check(
+    "审批恢复场景批准前文件未落盘",
+    !fs.existsSync(path.join(folder, "chapters", "第一章.md")),
+  );
+  const approvalPid = app.process().pid;
+  spawnSync("taskkill", ["/PID", String(approvalPid), "/T", "/F"], {
+    stdio: "ignore",
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  app = await launch();
+  page = await app.firstWindow();
+  await page.waitForSelector(".app");
+  await page.waitForSelector(".approval:not(.resolved)", { timeout: 15000 });
+  const stopAppeared = page
+    .waitForSelector('[data-testid="stop"]', { timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+  await page.click(".approval:not(.resolved) .btn-primary");
+  check(
+    "强杀重开后批准，恢复的运行出现停止按钮",
+    await stopAppeared,
+    "批准后8秒内没有出现停止按钮",
+  );
+  const resumedFinished =
+    typeof approvalRunId === "string" &&
+    (await waitForEvent(approvalRunId, "run.finished", 15000));
+  check("强杀重开后批准，恢复运行正常收尾", resumedFinished);
+  const resumedFile = path.join(folder, "chapters", "第一章.md");
+  check(
+    "强杀重开后批准，文件落盘",
+    fs.existsSync(resumedFile) &&
+      fs.readFileSync(resumedFile, "utf8").length > 0,
+    fs.existsSync(resumedFile) ? fs.readFileSync(resumedFile, "utf8") : "",
   );
   await app.close();
 } finally {
