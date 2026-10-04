@@ -300,16 +300,31 @@ maxTurns: 8
     `卡片内容：${JSON.stringify(cardText.replace(/\n/g, " "))}`,
   );
   check(
-    "C3 审批卡显示了要写入的内容或差异",
+    "C3a 审批卡显示了非空的内容预览",
     (await page.locator(".approval-preview").first().innerText()).trim()
-      .length > 0 || cardText.includes("差异 +"),
-    "用户看不到将要写入什么或差异",
+      .length >= 4,
+    "预览为空：用户看不到将要写入什么",
   );
+  const previewText = (
+    await page.locator(".approval-preview").first().innerText()
+  ).trim();
   await page.click(".approval:not(.resolved) .btn-primary");
   await page.waitForSelector('[data-testid="stop"]', {
     state: "detached",
     timeout: 240000,
   });
+  {
+    // 预览必须是真实将要写入的内容：取预览的前 12 个字，要求出现在最终文件里。
+    const probe = previewText.replace(/\s+/g, "").slice(0, 12);
+    const written = exists("chapters/第二章.md")
+      ? read("chapters/第二章.md").replace(/\s+/g, "")
+      : "";
+    check(
+      "C3b 审批预览与最终写入的内容一致",
+      probe.length >= 4 && written.includes(probe),
+      `预览开头：${JSON.stringify(probe)}`,
+    );
+  }
   check(
     "C4 批准后文件落盘",
     exists("chapters/第二章.md"),
@@ -400,6 +415,16 @@ maxTurns: 8
   note(`重开后未处理的审批卡数量：${restoredHasCard}`);
   if (restoredHasCard) {
     await page.click(".approval:not(.resolved) .btn-primary");
+    check(
+      "E3 重启后批准，界面进入“运行中”（出现停止按钮）",
+      await page
+        .waitForSelector('[data-testid="stop"]', { timeout: 8000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+      "批准后 8 秒内没有出现停止按钮：恢复的运行在界面上不可见",
+    );
     await waitForEvent(fourthApprovalRunId, "run.finished");
     const feedback = (
       await page.locator(".msg-error, .notice").allInnerTexts()

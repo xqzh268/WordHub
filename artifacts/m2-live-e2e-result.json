@@ -4,27 +4,27 @@
     {
       "name": "A1 章节文件被写入且有中文内容",
       "passed": true,
-      "detail": "崇仁坊的雪下到后半夜才停。裴照把横刀换到左手，刀鞘在青石板上磕出一声闷响。\n"
+      "detail": "长安崇仁坊，夜鼓将尽。裴照蹲在墙根的暗影里，左手按住刀鞘，右手却虚握着——他惯用"
     },
     {
       "name": "A2 事件里有 bible.read 与 doc.write 的工具调用",
       "passed": true,
-      "detail": "bible.read,doc.write"
+      "detail": "bible.read,doc.read,doc.write"
     },
     {
       "name": "A3 记录了上下文注入清单且包含设定集",
       "passed": true,
-      "detail": "[{\"id\":\"bible:bible.md\",\"kind\":\"bible\",\"sourcePath\":\"C:\\\\Users\\\\Hsiang\\\\AppData\\\\Local\\\\Temp\\\\wordhub-m2-live-xQp7Wn\\\\写作\\\\长安夜\\\\.wordhub\\\\bible\\\\bible.md\",\"estimatedTokens\":19}]"
+      "detail": "[{\"id\":\"bible:bible.md\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/bible.md\",\"estimatedTokens\":19}]"
     },
     {
       "name": "A4 记录了用量与费用",
       "passed": true,
-      "detail": "163/51 $0.000113 254/112 $0.000214 154/3 $0.000054"
+      "detail": "202/117 $0.000205 161/345 $0.000468 168/3 $0.000062"
     },
     {
       "name": "A5 run.started 记录 agentId/model/reasoning",
       "passed": true,
-      "detail": "{\"agentId\":\"writer\",\"agentVersion\":\"6f7d225ecded02a1\",\"model\":\"deepseek-flash\",\"reasoning\":\"low\",\"mentions\":[\"writer\"]}"
+      "detail": "{\"agentId\":\"writer\",\"agentVersion\":\"f6a21da053240d95\",\"model\":\"deepseek-flash\",\"reasoning\":\"low\",\"mode\":\"live\",\"mentions\":[\"writer\"]}"
     },
     {
       "name": "A6 修订由 agent:writer 署名",
@@ -34,7 +34,7 @@
     {
       "name": "A7 界面显示了用量",
       "passed": true,
-      "detail": "用量行：[\"输入 154 · 输出 3 token · $0.000054\"]；聊天末尾：\"章.md。完成后只回复“已写入”。\\n\\n写\\n写手\\n04:38\\n读取项目圣经\\n写入文档\\n思考内容（临时）\\nlow\\ndeepseek-flash\\n\\nLet me read the bible first, then write.Now write to chapters/第一章.md. Need expectedHash? First write, no existing file. Just write.\\n\\n已写入\\n\\n输入 154 · 输出 3 token · $0.000054\""
+      "detail": "用量行：[\"输入 168 · 输出 3 token · $0.000062\"]；聊天末尾：\"。(8)→53. Plus punctuation. That's decent ~53 chars, close to 60.\\n\\nLet me aim for ~60. Add a bit: \\\"总教人看错方向，慢了半息。\\\" → +5 = 58. Good.\\n\\nWrite it.\\n\\n已写入\\n\\n输入 168 · 输出 3 token · $0.000062\\n\\n查看上下文\\n1层\\n\\n本次运行预估：约17输入Token、1200输出Token，0.0014美元。\\n\\n●\\nAgent任务\""
     },
     {
       "name": "B1 越权文件没有被创建",
@@ -49,7 +49,7 @@
     {
       "name": "B3 被拦截后用户在聊天里能看到明确说明",
       "passed": true,
-      "detail": "最后一条回复：\"写 写手 04:38 读取文档 写入文档 读取项目圣经 检索对话记录 思考内容（临时） low deepseek-flash The user wants me\""
+      "detail": "最后一条回复：\"本次运行预估：约17输入Token、1200输出Token，0.0014美元。 本次运行预估：约11输入Token、1200输出Token，0.0014美元。 \""
     },
     {
       "name": "C1 批准前文件未落盘",
@@ -59,17 +59,22 @@
     {
       "name": "C2 审批卡显示了要写入的路径",
       "passed": true,
-      "detail": "卡片内容：\"Agent请求写入  doc.write需要你的确认后才能继续。  # 第二章 雨夜  第二章开头：雨夜  批准 拒绝\""
+      "detail": "卡片内容：\"Agent请求写入  doc.write需要你的确认后才能继续。  路径：chapters/第二章.md · 62字 · 差异 +2/-0行  雨落崇仁坊，屋檐连成一线水帘。裴照立在门廊底下，左手搭着横刀刀柄，雨声大得盖住了四方脚步——可他还是先听见了那人粗重的喘。  批准 拒绝\""
     },
     {
-      "name": "C3 审批卡显示了要写入的内容或差异",
+      "name": "C3a 审批卡显示了非空的内容预览",
       "passed": true,
-      "detail": "用户看不到将要写入什么"
+      "detail": "预览为空：用户看不到将要写入什么"
+    },
+    {
+      "name": "C3b 审批预览与最终写入的内容一致",
+      "passed": true,
+      "detail": "预览开头：\"雨落崇仁坊，屋檐连成一线\""
     },
     {
       "name": "C4 批准后文件落盘",
       "passed": true,
-      "detail": "# 第二章 雨夜\n\n第二章开头：雨夜\n"
+      "detail": "雨落崇仁坊，屋檐连成一线水帘。裴照立在门廊底下，左手搭着横刀"
     },
     {
       "name": "C5 事件里有 approval.requested、approval.granted，且批准后该运行以 run.finished 收尾",
@@ -92,9 +97,14 @@
       "detail": "[\"succeeded\",\"succeeded\",\"succeeded\",\"succeeded\",\"waiting_approval\"]"
     },
     {
-      "name": "E2 重开后审批卡可见（或运行被标为已中断）",
+      "name": "E3 重启后批准，界面进入“运行中”（出现停止按钮）",
       "passed": true,
-      "detail": "既无审批卡也无恢复提示；聊天末尾：\"其一：\\n1. 重新批准这次写入确认，我原样重试写入 `chapters/第三章.md`；\\n2. 若你想改内容或路径，请指定新的文案/目标文件，我按新要求写入；\\n3. 如果你更希望追加而非覆盖、或需要带上更多正文，也告诉我，我会调整后再提交。\\n\\n要我按第 1 条重试吗？\\n\\nAgent请求写入\\n\\ndoc.write需要你的确认后才能继续。\\n\\n第三章开头：晨雾\\n\\n已裁决：拒绝\\n\\n你\\n你\\n04:38\\n\\n@写手 请把“第四章开头：残月”写进文件 chapters/第四章.md。\\n\\n写\\n写手\\n04:38\\n已中断\\ndoc.write\\nAgent请求写入\\n\\ndoc.write需要你的确认后才能继续。\\n\\n第四章开头：残月\\n\\n已裁决：已过期，可重新发起\""
+      "detail": "批准后 8 秒内没有出现停止按钮：恢复的运行在界面上不可见"
+    },
+    {
+      "name": "E2 重开后批准旧审批：界面给出明确说明（不能无声地“已批准”却什么都没发生）",
+      "passed": true,
+      "detail": "点击后无任何错误或提示；卡片显示为已裁决，文件已写入"
     },
     {
       "name": "F1 用户数据目录与项目文件夹中不含明文密钥",
