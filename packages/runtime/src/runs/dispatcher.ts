@@ -11,7 +11,7 @@ import type {
 } from "./run-types.js";
 import type { ProjectService } from "../projects/service.js";
 import type { ModelSettings } from "../models/settings.js";
-import { estimateRun } from "../budget/estimate.js";
+import type { RunEstimate } from "../budget/estimate.js";
 
 type DispatcherDeps = {
   ready: Promise<unknown>;
@@ -38,6 +38,13 @@ type DispatcherDeps = {
   active: Map<string, { abort(): void }>;
   appendRunEvent: AppendRunEvent;
   runLive: (request: Extract<RuntimeRequest, { type: "run" }>) => Promise<void>;
+  estimate: (
+    request: Extract<RuntimeRequest, { type: "run.estimate" }>,
+  ) => Promise<RunEstimate>;
+  decideChallenge: (
+    request: Extract<RuntimeRequest, { type: "challenge.decide" }>,
+  ) => Promise<void>;
+  resumeRun: (runId: string, apiKey?: string) => Promise<void>;
 };
 
 export function createRequestHandler(deps: DispatcherDeps) {
@@ -58,6 +65,9 @@ export function createRequestHandler(deps: DispatcherDeps) {
     active,
     appendRunEvent,
     runLive,
+    estimate,
+    decideChallenge,
+    resumeRun,
   } = deps;
   const options = { storageRoot };
   async function handle(request: RuntimeRequest): Promise<void> {
@@ -124,26 +134,24 @@ export function createRequestHandler(deps: DispatcherDeps) {
         return;
       }
       if (request.type === "run.estimate") {
-        const resolved = await modelSettings.resolve({
-          agentId: request.agentId,
-          projectPath: request.projectPath,
+        sendResponse(request.requestId, await estimate(request));
+        return;
+      }
+      if (request.type === "challenge.decide") {
+        await decideChallenge(request);
+        sendResponse(request.requestId, {
+          workflowId: request.workflowId,
+          threadId: request.threadId,
+          decision: request.decision,
         });
-        sendResponse(
-          request.requestId,
-          estimateRun(
-            [
-              {
-                id: request.agentId ?? "planner",
-                model: resolved.ref,
-                contextTokens: Math.max(
-                  1,
-                  Math.ceil(request.prompt.length / 4),
-                ),
-              },
-            ],
-            resolved.config,
-          ),
-        );
+        return;
+      }
+      if (request.type === "run.resume") {
+        await resumeRun(request.runId, request.apiKey);
+        sendResponse(request.requestId, {
+          runId: request.runId,
+          resumed: true,
+        });
         return;
       }
       if (request.type === "settings.setAgentModel") {

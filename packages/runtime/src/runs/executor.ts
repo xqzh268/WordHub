@@ -16,6 +16,7 @@ import type { ExecutorOptions, RuntimeRequest } from "./executor-types.js";
 export type { ExecutorOptions, RuntimeRequest } from "./executor-types.js";
 import { createRequestHandler } from "./dispatcher.js";
 import { createRunSupport } from "./support.js";
+import { createWorkflowService } from "../coordinator/product.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
   const post = options.post;
@@ -152,6 +153,55 @@ export function createRunExecutor(options: ExecutorOptions) {
     createAgentTools,
     appendRunEvent,
   });
+  const workflows = createWorkflowService({
+    workspaceRoot: options.workspaceRoot,
+    projects: projectService,
+    settings: modelSettings,
+    run: runLive,
+    append: appendRunEvent,
+  });
+  const decideChallenge = async (
+    request: Extract<RuntimeRequest, { type: "challenge.decide" }>,
+  ) => {
+    const located = await workflows.locate(request.workflowId);
+    appendRunEvent(
+      located.store,
+      located.request,
+      "escalation.resolved",
+      { type: "user", id: "user" },
+      { threadId: request.threadId, decision: request.decision },
+    );
+    await workflows.continueWorkflow(request.workflowId, request.apiKey);
+  };
+  const resumeRun = async (runId: string, apiKey?: string) => {
+    for (const project of projectService.recent()) {
+      const store = await projectService.store(project.id);
+      const run = store.getRun(runId);
+      if (run?.status !== "interrupted") continue;
+      const started = store
+        .listEvents(project.id, run.sessionId)
+        .find((event) => event.runId === runId && event.type === "run.started");
+      const payload =
+        started?.payload && typeof started.payload === "object"
+          ? (started.payload as Record<string, unknown>)
+          : {};
+      await runLive({
+        type: "run",
+        runId,
+        prompt: run.prompt,
+        projectId: project.id,
+        projectPath: project.folderPath,
+        sessionId: run.sessionId,
+        agentId:
+          typeof payload.agentId === "string" ? payload.agentId : "writer",
+        mode: payload.mode === "mock" ? "mock" : "live",
+        apiKey,
+        resume: true,
+      });
+      return;
+    }
+    throw new Error("没有可继续的中断运行");
+  };
 
   async function testConnection(
     request: Extract<RuntimeRequest, { type: "settings.testConnection" }>,
@@ -290,7 +340,10 @@ export function createRunExecutor(options: ExecutorOptions) {
     runContexts,
     active,
     appendRunEvent,
-    runLive,
+    runLive: workflows.start,
+    estimate: workflows.estimate,
+    decideChallenge,
+    resumeRun,
   });
   return {
     ready,

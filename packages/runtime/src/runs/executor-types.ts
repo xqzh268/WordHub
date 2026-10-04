@@ -1,5 +1,6 @@
 import type { Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "../types.js";
+import type { RunRequest } from "./run-types.js";
 
 export type RuntimeRequest =
   | { type: "init"; storageRoot?: string; requestId?: string }
@@ -72,8 +73,10 @@ export type RuntimeRequest =
   | {
       type: "run.estimate";
       prompt: string;
+      rawPrompt?: string;
       agentId?: string;
       projectPath?: string;
+      workflow?: RunRequest["workflow"];
       requestId: string;
     }
   | {
@@ -83,22 +86,15 @@ export type RuntimeRequest =
       model: ModelRef;
       requestId: string;
     }
+  | RunRequest
+  | { type: "run.resume"; runId: string; apiKey?: string; requestId: string }
   | {
-      type: "run";
-      runId: string;
-      prompt: string;
-      rawPrompt?: string;
-      agentId?: string;
-      mentions?: string[];
+      type: "challenge.decide";
+      workflowId: string;
+      threadId: string;
+      decision: "accept" | "keep";
       apiKey?: string;
-      model?: string;
-      reasoning?: string;
-      mode?: "live" | "mock";
-      toolRoundTrip?: boolean;
-      projectPath?: string;
-      projectId?: string;
-      sessionId?: string;
-      resume?: boolean;
+      requestId: string;
     }
   | { type: "abort"; runId: string };
 

@@ -181,8 +181,10 @@ function registerIpc(): void {
         return await worker.request<CommandResults["run.estimate"]>({
           type: "run.estimate",
           prompt: payload.prompt,
+          rawPrompt: payload.rawPrompt,
           agentId: payload.agentId,
           projectPath: payload.projectPath ?? linkedFolder ?? undefined,
+          workflow: payload.workflow,
         });
       }
       if (command === "run.abort") {
@@ -193,12 +195,30 @@ function registerIpc(): void {
           aborted: true,
         } as CommandResults["run.abort"];
       }
+      if (command === "run.resume") {
+        const payload = request.payload as CommandPayloads["run.resume"];
+        return await worker.request<CommandResults["run.resume"]>({
+          type: "run.resume",
+          runId: payload.runId,
+          apiKey: await credentials.resolve("deepseek"),
+        });
+      }
       if (command === "run.approve") {
         const payload = request.payload as CommandPayloads["run.approve"];
         return await worker.request<CommandResults["run.approve"]>({
           type: "run.approve",
           runId: payload.runId,
           approved: payload.approved,
+          apiKey: await credentials.resolve("deepseek"),
+        });
+      }
+      if (command === "challenge.decide") {
+        const payload = request.payload as CommandPayloads["challenge.decide"];
+        return await worker.request<CommandResults["challenge.decide"]>({
+          type: "challenge.decide",
+          workflowId: payload.workflowId,
+          threadId: payload.threadId,
+          decision: payload.decision,
           apiKey: await credentials.resolve("deepseek"),
         });
       }

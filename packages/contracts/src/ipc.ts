@@ -9,7 +9,9 @@ export type WorkspaceCommand =
   | "run.start"
   | "run.estimate"
   | "run.abort"
+  | "run.resume"
   | "run.approve"
+  | "challenge.decide"
   | "run.restartWorker"
   | "settings.credentialStatus"
   | "settings.setCredential"
@@ -38,9 +40,11 @@ export interface CommandPayloads {
   "session.rename": { projectId?: string; sessionId: string; title: string };
   "chat.list": { projectId: string; sessionId: string };
   "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
-  "run.estimate": { prompt: string; agentId?: string; projectPath?: string };
+  "run.estimate": { prompt: string; rawPrompt?: string; agentId?: string; projectPath?: string; workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "all" };
   "run.abort": { runId: string };
+  "run.resume": { runId: string };
   "run.approve": { runId: string; approved: boolean };
+  "challenge.decide": { workflowId: string; threadId: string; decision: "accept" | "keep" };
   "run.restartWorker": undefined;
   "settings.credentialStatus": undefined;
   "settings.setCredential": { provider: string; secret: string };
@@ -59,9 +63,11 @@ export interface CommandResults {
   "session.rename": { sessionId: string };
   "chat.list": { events: unknown[]; items: unknown[] };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
-  "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; tasks: unknown[] };
+  "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; tasks: unknown[]; workflow?: string; label?: string };
   "run.abort": { runId: string; aborted: boolean };
+  "run.resume": { runId: string; resumed: boolean };
   "run.approve": { runId: string; approved: boolean };
+  "challenge.decide": { workflowId: string; threadId: string; decision: "accept" | "keep" };
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
   "settings.credentialStatus": { provider: string; configured: boolean; source?: "saved" | "environment" | "none"; encryptionAvailable: boolean };
   "settings.setCredential": { saved: boolean };

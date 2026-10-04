@@ -49,6 +49,8 @@ export type ProjectedChatItem =
       path?: string;
       contentLength?: number;
       diff?: { addedLines: number; removedLines: number };
+      threadId?: string;
+      workflowId?: string;
       eventId: string;
     }
   | {
@@ -222,6 +224,12 @@ export function applyChatEvent(
           : "两个Agent仍未达成一致，请选择后继续工作流。",
       options: ["接受修改", "保留原文"],
       runId: event.runId,
+      threadId:
+        typeof payload.threadId === "string" ? payload.threadId : undefined,
+      workflowId:
+        typeof payload.workflowId === "string"
+          ? payload.workflowId
+          : event.runId,
       eventId: event.id,
     });
     return state;
@@ -278,6 +286,20 @@ export function applyChatEvent(
           : event.type === "approval.rejected"
             ? "拒绝"
             : "已过期，可重新发起";
+    return state;
+  }
+  if (event.type === "escalation.resolved") {
+    const approval = [...state.items]
+      .reverse()
+      .find(
+        (item): item is Extract<ProjectedChatItem, { kind: "approval" }> =>
+          item.kind === "approval" &&
+          item.runId === event.runId &&
+          item.threadId === payload.threadId,
+      );
+    if (approval)
+      approval.resolved =
+        payload.decision === "accept" ? "接受修改" : "保留原文";
     return state;
   }
   if (!event.runId) return state;

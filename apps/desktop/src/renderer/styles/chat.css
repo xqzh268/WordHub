@@ -54,6 +54,9 @@
 .task-progress span:first-child { width: 14px; color: var(--accent-ink); text-align: center; }
 .task-succeeded span:first-child { color: var(--ok); }
 .task-failed span:first-child, .task-blocked span:first-child { color: var(--danger); }
+.usage-summary { flex: none; max-width: 680px; margin: 0 auto; padding: 5px 24px 0; text-align: right; font-size: 11px; color: var(--ink-4); }
+.review-shortcut { align-self: center; margin: 6px auto 0; padding: 5px 12px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-3); background: var(--bg-raised); font-size: 11px; }
+.review-shortcut:hover { color: var(--accent-ink); border-color: var(--accent); }
 
 /* ── 质询线程 ───────────────────────────────────────── */
 .thread { position: relative; min-width: 0; overflow: hidden; border-radius: var(--r-md); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }

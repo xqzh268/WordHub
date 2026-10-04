@@ -70,6 +70,8 @@ export type ChatItem =
       path?: string;
       contentLength?: number;
       diff?: { addedLines: number; removedLines: number };
+      threadId?: string;
+      workflowId?: string;
     }
   | { kind: "notice"; id: string; at: number; text: string; tone?: "warn" }
   | {

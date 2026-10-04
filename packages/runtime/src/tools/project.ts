@@ -120,6 +120,14 @@ export function projectTools(input: {
               typeof event.payload === "object" &&
               (event.payload as Record<string, unknown>).threadId === threadId,
           ).length + 1;
+      if (round > 2) {
+        input.event("escalation.created", {
+          threadId,
+          round: 2,
+          reason: "质询已达两轮且仍未解决，请用户裁决。",
+        });
+        return { threadId, round: 2 };
+      }
       input.event("challenge.raise", { threadId, ...value, round });
       return { threadId, round };
     },

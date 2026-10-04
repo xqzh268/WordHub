@@ -88,6 +88,9 @@ export function createRunSupport(deps: SupportDeps) {
     payload: Record<string, unknown>,
     idempotencyKey?: string,
   ): Event {
+    const eventPayload = request.workflowId
+      ? { ...payload, workflowId: request.workflowId }
+      : payload;
     const event = store.appendEvent({
       schemaVersion: 1,
       id: createId("evt"),
@@ -100,7 +103,7 @@ export function createRunSupport(deps: SupportDeps) {
       occurredAt: timestamp(),
       idempotencyKey,
       visibility: "room",
-      payload,
+      payload: eventPayload,
     });
     const compatibility: Record<string, string> = {
       "run.text_delta": "run.text",
@@ -111,7 +114,10 @@ export function createRunSupport(deps: SupportDeps) {
     post({
       type: compatibility[type] ?? type,
       runId: request.runId,
-      ...payload,
+      workflowId: request.workflowId,
+      sessionId: request.sessionId,
+      event,
+      ...eventPayload,
     });
     return event;
   }

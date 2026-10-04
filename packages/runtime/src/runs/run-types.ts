@@ -21,6 +21,13 @@ export type RunRequest = {
   projectId?: string;
   sessionId?: string;
   resume?: boolean;
+  workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "all";
+  workflowId?: string;
+  taskId?: string;
+  taskKind?: string;
+  dependencies?: string[];
+  internal?: boolean;
+  nodeId?: string;
 };
 
 export type RunContext = {

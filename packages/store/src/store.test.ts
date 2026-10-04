@@ -351,6 +351,31 @@ describe("WordHub M1 store", () => {
     ).rejects.toThrow();
   });
 
+  it("两个Agent并发写同一章时保留双方内容", async () => {
+    const { store, project, session, folder } = await makeProject();
+    const writer = new ControlledFileWriter(store, project.id, folder);
+    const results = await Promise.all([
+      writer.writeText({
+        relativePath: "chapters/并发.md",
+        content: "写手版本",
+        sessionId: session.id,
+      }),
+      writer.writeText({
+        relativePath: "chapters/并发.md",
+        content: "编辑版本",
+        sessionId: session.id,
+      }),
+    ]);
+    const paths = results.map((result) =>
+      path.join(folder, result.relativePath),
+    );
+    const contents = await Promise.all(
+      paths.map((file) => readFile(file, "utf8")),
+    );
+    expect(contents).toContain("写手版本");
+    expect(contents).toContain("编辑版本");
+  });
+
   it("拒绝通过符号链接写入项目外部", async () => {
     const { store, project, folder, root } = await makeProject();
     const outside = path.join(root, "outside");

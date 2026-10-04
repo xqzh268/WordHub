@@ -48,16 +48,16 @@ export function createRunLoop(deps: RunLoopDeps) {
         prompt: request.prompt,
         model: model.id,
       });
-    const taskId = `task_${request.runId}`;
+    const taskId = request.taskId ?? `task_${request.runId}`;
     const context = deps.runContexts.get(request.runId);
     if (context) context.taskId = taskId;
-    if (!request.resume)
+    if (!request.resume && !store.getTask(taskId))
       store.createTask({
         id: taskId,
         projectId: request.projectId!,
         sessionId: request.sessionId!,
-        runId: request.runId,
-        kind: "agent.run",
+        runId: request.workflowId ?? request.runId,
+        kind: request.taskKind ?? "agent.run",
         status: "running",
         assignedAgent: agentId,
         dependencies: [],
@@ -65,7 +65,7 @@ export function createRunLoop(deps: RunLoopDeps) {
         attempt: 1,
         maxAttempts: 1,
       });
-    if (!request.resume)
+    if (!request.resume && !request.internal)
       deps.appendRunEvent(
         store,
         request,
@@ -79,9 +79,9 @@ export function createRunLoop(deps: RunLoopDeps) {
         request,
         "task.started",
         { type: "system", id: "coordinator" },
-        { taskId },
+        { taskId, assignedAgent: agentId, workflowId: request.workflowId },
       );
-    if (!request.resume)
+    if (!request.resume && !request.internal)
       deps.appendRunEvent(
         store,
         request,
@@ -90,6 +90,9 @@ export function createRunLoop(deps: RunLoopDeps) {
         {
           text: request.rawPrompt ?? request.prompt,
           mentions: request.mentions ?? [],
+          workflowId: request.workflowId,
+          taskId,
+          nodeId: request.nodeId,
         },
         "prompt:" + request.runId,
       );
@@ -110,9 +113,13 @@ export function createRunLoop(deps: RunLoopDeps) {
           reasoning: runtime.modelRef.reasoning,
           mode: request.mode ?? "live",
           mentions: request.mentions ?? [],
+          workflowId: request.workflowId,
+          taskId,
+          nodeId: request.nodeId,
         },
       );
     if (request.resume) store.resumeRun(request.runId);
+    store.updateTask(taskId, { status: "running" });
     const guard = new PermissionGuard();
     const configuredTools = runtime.definition
       ? deps.createAgentTools(request, store, runtime.definition)
@@ -224,6 +231,26 @@ export function createRunLoop(deps: RunLoopDeps) {
       }
       const context = deps.runContexts.get(request.runId);
       if (!context || context.cancelled) return;
+      const escalated = store
+        .listEvents(request.projectId!, request.sessionId)
+        .some(
+          (event) =>
+            event.runId === request.runId &&
+            event.type === "escalation.created",
+        );
+      if (escalated) {
+        store.updateTask(taskId, { status: "waiting_approval" });
+        store.finishRun(request.runId, "waiting_approval");
+        deps.appendRunEvent(
+          store,
+          request,
+          "run.waiting_approval",
+          { type: "system", id: "coordinator" },
+          { reason: "质询等待用户裁决" },
+        );
+        context.finished = true;
+        return;
+      }
       store.updateTask(taskId, { status: "succeeded" });
       deps.appendRunEvent(
         store,

@@ -317,7 +317,19 @@ export class ControlledFileWriter {
     );
   }
   async writeText(input: WriteInput): Promise<FileWriteResult> {
-    return this.serialize(input.relativePath, () => this.write(input));
+    const key = `${this.store.dbPath}:${input.relativePath.toLowerCase()}`;
+    const concurrent = queues.has(key);
+    return this.serialize(input.relativePath, () =>
+      this.write({
+        ...input,
+        // 两个Agent在同一事件循环同时提交同一产物时，第二个写入保留为并列候选，避免静默覆盖。
+        conflictPolicy: concurrent ? "keep-both" : input.conflictPolicy,
+        expectedHash:
+          concurrent && input.expectedHash === undefined
+            ? null
+            : input.expectedHash,
+      }),
+    );
   }
   private async write(input: WriteInput): Promise<FileWriteResult> {
     const target = await this.target(input.relativePath);

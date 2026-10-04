@@ -76,6 +76,7 @@ type State = Prefs & {
   restartWorker(): Promise<void>;
   send(text: string): Promise<void>;
   abort(): Promise<void>;
+  resumeRun(runId: string): Promise<void>;
   resolveApproval(itemId: string, choice: string): void;
   handleEvent(event: AppEvent): void;
 };
@@ -128,6 +129,10 @@ function restoreItems(raw: unknown): ChatItem[] {
                   ),
                 }
               : undefined,
+          threadId:
+            typeof value.threadId === "string" ? value.threadId : undefined,
+          workflowId:
+            typeof value.workflowId === "string" ? value.workflowId : undefined,
         } satisfies ChatItem,
       ];
     if (value.kind === "notice" && typeof value.text === "string")
@@ -392,6 +397,7 @@ export const useWorkbench = create<State>((set, get) => {
         const estimate = await window.wordhub
           .invoke("run.estimate", {
             prompt: body || trimmed,
+            rawPrompt: trimmed,
             agentId: agent.id,
             projectPath: state.project.folder ?? undefined,
           })
@@ -403,7 +409,7 @@ export const useWorkbench = create<State>((set, get) => {
               kind: "notice",
               id: uid("estimate"),
               at: Date.now(),
-              text: `本次运行预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元。`,
+              text: `${estimate.label ?? "本次运行"}预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元（运行不设上限）。`,
             },
           ]);
         await window.wordhub.invoke("run.start", {
@@ -430,6 +436,23 @@ export const useWorkbench = create<State>((set, get) => {
       const runId = get().activeRunId;
       if (runId) await window.wordhub?.invoke("run.abort", { runId });
     },
+    async resumeRun(runId) {
+      try {
+        await window.wordhub?.invoke("run.resume", { runId });
+        set({ activeRunId: runId });
+      } catch (error) {
+        patchItems(get().activeSessionId, (items) => [
+          ...items,
+          {
+            kind: "notice",
+            id: uid("resume-error"),
+            at: Date.now(),
+            text: error instanceof Error ? error.message : String(error),
+            tone: "warn",
+          },
+        ]);
+      }
+    },
 
     async resolveApproval(itemId, choice) {
       const item = get()
@@ -439,6 +462,14 @@ export const useWorkbench = create<State>((set, get) => {
             candidate.kind === "approval" && candidate.id === itemId,
         );
       if (item?.kind === "approval" && item.runId) {
+        if (item.threadId && item.workflowId) {
+          await window.wordhub?.invoke("challenge.decide", {
+            workflowId: item.workflowId,
+            threadId: item.threadId,
+            decision: choice === "接受修改" ? "accept" : "keep",
+          });
+          return;
+        }
         if (choice === "重新发起") {
           const session = get().sessions.find((candidate) =>
             candidate.items.some(
@@ -551,6 +582,10 @@ export const useWorkbench = create<State>((set, get) => {
         path?: string;
         contentLength?: number;
         diff?: { addedLines?: number; removedLines?: number };
+        threadId?: string;
+        workflowId?: string;
+        label?: string;
+        estimate?: { costUsd?: number };
         manifest?: Array<{
           id: string;
           kind: string;
@@ -593,6 +628,35 @@ export const useWorkbench = create<State>((set, get) => {
                     : undefined,
                 options: ["批准", "拒绝"],
                 runId,
+                threadId:
+                  typeof (message as { threadId?: unknown }).threadId ===
+                  "string"
+                    ? (message as { threadId: string }).threadId
+                    : undefined,
+                workflowId:
+                  typeof (message as { workflowId?: unknown }).workflowId ===
+                  "string"
+                    ? (message as { workflowId: string }).workflowId
+                    : undefined,
+              },
+            ]);
+          break;
+        case "escalation.created":
+          if (runId)
+            patchItems(get().activeSessionId, (items) => [
+              ...items,
+              {
+                kind: "approval",
+                id: uid("escalation"),
+                at: Date.now(),
+                title: "质询需要你的裁决",
+                body:
+                  message.reason ??
+                  "两个Agent仍未达成一致，请选择后继续工作流。",
+                options: ["接受修改", "保留原文"],
+                runId,
+                threadId: message.threadId,
+                workflowId: message.workflowId ?? runId,
               },
             ]);
           break;
@@ -712,7 +776,8 @@ export const useWorkbench = create<State>((set, get) => {
                   }
                 : item.usage,
             }));
-            if (get().activeRunId === runId) set({ activeRunId: null });
+            if (get().activeRunId === runId)
+              set({ activeRunId: message.workflowId ?? null });
           }
           break;
         case "run.aborted":
@@ -747,6 +812,30 @@ export const useWorkbench = create<State>((set, get) => {
                 typeof message.reason === "string"
                   ? `权限被拒：${message.reason}`
                   : "权限被拒：该工具或路径不在Agent授权范围内。",
+            },
+          ]);
+          break;
+        case "workflow.started":
+          if (runId) set({ activeRunId: runId });
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("workflow"),
+              at: Date.now(),
+              text: `${message.label ?? "工作流"}已启动 · 预估${Number((message.estimate as { costUsd?: number } | undefined)?.costUsd ?? 0).toFixed(4)}美元`,
+            },
+          ]);
+          break;
+        case "workflow.finished":
+          if (runId && get().activeRunId === runId) set({ activeRunId: null });
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("workflow-done"),
+              at: Date.now(),
+              text: "工作流已完成",
             },
           ]);
           break;

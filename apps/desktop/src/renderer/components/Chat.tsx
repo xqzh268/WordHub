@@ -44,6 +44,20 @@ export function ChatPane() {
   const stick = useRef(true);
   const last = items[items.length - 1];
   const signal = `${items.length}:${last?.kind === "agent" ? last.text.length + last.tools.length : 0}`;
+  const send = useWorkbench((s) => s.send);
+  const project = useWorkbench((s) => s.project);
+  const activeRunId = useWorkbench((s) => s.activeRunId);
+  const usage = items.reduce(
+    (sum, item) =>
+      item.kind === "agent" && item.usage
+        ? {
+            input: sum.input + item.usage.input,
+            output: sum.output + item.usage.output,
+            cost: sum.cost + (item.usage.cost ?? 0),
+          }
+        : sum,
+    { input: 0, output: 0, cost: 0 },
+  );
 
   useEffect(() => {
     const node = scroller.current;
@@ -81,6 +95,21 @@ export function ChatPane() {
           </ol>
         )}
       </div>
+      {usage.input + usage.output > 0 && (
+        <div className="usage-summary" data-testid="session-usage">
+          本会话用量：输入{usage.input} · 输出{usage.output} token · $
+          {usage.cost.toFixed(6)}
+        </div>
+      )}
+      {project.folder && !activeRunId && (
+        <button
+          className="review-shortcut"
+          data-testid="request-review"
+          onClick={() => void send("请评审当前章节的一致性")}
+        >
+          请评审当前章节
+        </button>
+      )}
       <Composer />
     </section>
   );
@@ -162,6 +191,7 @@ function AgentMessage({ item }: { item: AgentItem }) {
   const [reasoningOpen, setReasoningOpen] = useState(true);
   const [contextOpen, setContextOpen] = useState(false);
   const [undone, setUndone] = useState(false);
+  const resumeRun = useWorkbench((s) => s.resumeRun);
 
   return (
     <>
@@ -278,6 +308,14 @@ function AgentMessage({ item }: { item: AgentItem }) {
             <AlertTriangle size={14} strokeWidth={1.75} aria-hidden="true" />
             <span>{item.error}</span>
           </p>
+        )}
+        {item.status === "interrupted" && item.runId && (
+          <button
+            className="btn btn-primary"
+            onClick={() => void resumeRun(item.runId!)}
+          >
+            继续运行
+          </button>
         )}
       </div>
     </>
