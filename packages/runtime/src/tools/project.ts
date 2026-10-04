@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import type { Actor, Hash } from "@wordhub/contracts";
 import {
   ControlledFileWriter,
@@ -37,9 +37,27 @@ export function projectTools(input: {
     agentVersion: input.agent.version,
   };
   const read = async (relativePath: string) => {
-    const data = await readFile(
-      await safeProjectTarget(input.projectPath, relativePath, true),
+    const target = await safeProjectTarget(
+      input.projectPath,
+      relativePath,
+      true,
     );
+    const info = await stat(target);
+    if (info.isDirectory()) {
+      const entries = await readdir(target, { withFileTypes: true });
+      const listing = entries
+        .sort((left, right) => left.name.localeCompare(right.name, "zh-CN"))
+        .map(
+          (entry) =>
+            `${entry.isDirectory() ? "[目录]" : "[文件]"} ${entry.name}`,
+        )
+        .join("\n");
+      return {
+        text: listing || "（目录为空）",
+        contentHash: null,
+      };
+    }
+    const data = await readFile(target);
     return { text: data.toString("utf8"), contentHash: contentHash(data) };
   };
   const proposal = async (value: WriteToolInput, relativePath = value.path) => {
@@ -67,7 +85,12 @@ export function projectTools(input: {
   });
   const tools = createBuiltinTools({
     readDocument: read,
-    readBible: (name) => read(`.wordhub/bible/${bibleRelative(name)}`),
+    readBible: (name) =>
+      read(
+        name === "."
+          ? ".wordhub/bible"
+          : `.wordhub/bible/${bibleRelative(name)}`,
+      ),
     writeDocument: async (value) => {
       try {
         const result = await writer.writeText({
@@ -82,6 +105,7 @@ export function projectTools(input: {
         input.event("file.updated", {
           path: value.path,
           revisionId: result.revision.id,
+          content: value.content,
         });
         return {
           revisionId: result.revision.id,
@@ -110,6 +134,14 @@ export function projectTools(input: {
     challengeRaise: async (value) => {
       const threadId =
         value.threadId ?? `thread_${input.runId}_${Date.now().toString(36)}`;
+      const alreadyEscalated = input.store
+        .listEvents(input.projectId)
+        .some(
+          (event) =>
+            event.type === "escalation.created" &&
+            (event.payload as Record<string, unknown>).threadId === threadId,
+        );
+      if (alreadyEscalated) return { threadId, round: 2 };
       const round =
         input.store
           .listEvents(input.projectId)
@@ -132,6 +164,15 @@ export function projectTools(input: {
       return { threadId, round };
     },
     challengeReply: async (value) => {
+      const alreadyEscalated = input.store
+        .listEvents(input.projectId)
+        .some(
+          (event) =>
+            event.type === "escalation.created" &&
+            (event.payload as Record<string, unknown>).threadId ===
+              value.threadId,
+        );
+      if (alreadyEscalated) return { threadId: value.threadId, round: 2 };
       const round = input.store
         .listEvents(input.projectId)
         .filter(
@@ -151,6 +192,12 @@ export function projectTools(input: {
         return { threadId: value.threadId, round };
       }
       input.event("challenge.reply", { ...value, round });
+      if (value.disposition === "accept")
+        input.event("challenge.resolved", {
+          threadId: value.threadId,
+          round,
+          resolution: "accepted",
+        });
       return { threadId: value.threadId, round };
     },
     questionAsk: async (value) => {

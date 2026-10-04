@@ -15,6 +15,13 @@
 .msg-head strong { font-size: 13px; font-weight: 600; }
 .msg-head time { font-size: 11px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
 .msg-text { font-family: var(--font-read); font-size: 15px; line-height: 1.85; color: var(--ink-1); white-space: pre-wrap; text-wrap: pretty; overflow-wrap: anywhere; }
+.agent-text > p { margin: 0; }
+.agent-text > p + p { margin-top: 0.85em; }
+.agent-text > ol, .agent-text > ul { margin: 0.35em 0 0.75em; padding-left: 1.65em; }
+.agent-text li { padding-left: 0.2em; }
+.agent-text strong { font-weight: 650; }
+.agent-text code { padding: 0.08em 0.35em; border-radius: 3px; font-family: var(--font-mono); font-size: 0.88em; color: var(--ink-2); background: var(--bg-sunken); }
+.agent-text h1, .agent-text h2, .agent-text h3, .agent-text h4, .agent-text h5, .agent-text h6 { margin: 0 0 0.35em; font-family: var(--font-serif); font-weight: 600; line-height: 1.45; }
 .user-text { display: inline-block; max-width: 100%; padding: 8px 14px; border-radius: var(--r-lg); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line); line-height: 1.75; }
 .mention { display: inline-block; padding: 0 6px; margin-right: 2px; border-radius: 4px; font-family: var(--font-ui); font-size: 0.9em; font-weight: 600; line-height: 1.55; color: var(--mention); background: color-mix(in srgb, var(--mention) 13%, transparent); }
 

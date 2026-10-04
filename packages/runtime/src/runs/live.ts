@@ -16,7 +16,8 @@ export function createRunLoop(deps: RunLoopDeps) {
     if (
       request.mode !== "mock" &&
       !request.apiKey &&
-      !process.env.DEEPSEEK_API_KEY
+      !process.env.DEEPSEEK_API_KEY &&
+      !process.env.WORDHUB_DEEPSEEK_API_KEY
     )
       throw new Error("DeepSeek密钥未配置");
     const store = await deps.ensureRunContext(request);
@@ -132,6 +133,7 @@ export function createRunLoop(deps: RunLoopDeps) {
       text: "",
       lastUsage: undefined,
       hasSideEffects: false,
+      hasCommittedWrite: false,
       activeModelForSnapshot: { provider: model.provider, id: model.id },
       activeRefForSnapshot: runtime.modelRef,
     };
@@ -287,6 +289,41 @@ export function createRunLoop(deps: RunLoopDeps) {
           : error instanceof Error
             ? error.message
             : String(error);
+      if (
+        state.hasCommittedWrite &&
+        error instanceof PiRunError &&
+        message.includes("最大工具轮数")
+      ) {
+        store.updateTask(taskId, { status: "succeeded" });
+        deps.appendRunEvent(
+          store,
+          request,
+          "task.succeeded",
+          { type: "system", id: "coordinator" },
+          { taskId, recoveredAfterWrite: true },
+        );
+        store.finishRun(request.runId, "succeeded");
+        deps.appendRunEvent(
+          store,
+          request,
+          "run.finished",
+          {
+            type: "agent",
+            id: agentId,
+            agentVersion: runtime.definition?.version,
+          },
+          {
+            ok: true,
+            model: usedModel.id,
+            reasoning: usedRef.reasoning,
+            text: state.text,
+            usage: state.lastUsage,
+            recoveredAfterWrite: true,
+          },
+        );
+        if (context) context.finished = true;
+        return;
+      }
       store.finishRun(
         request.runId,
         error instanceof PiRunError && error.aborted ? "cancelled" : "failed",

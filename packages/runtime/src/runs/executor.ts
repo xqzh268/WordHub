@@ -171,6 +171,16 @@ export function createRunExecutor(options: ExecutorOptions) {
       { type: "user", id: "user" },
       { threadId: request.threadId, decision: request.decision },
     );
+    appendRunEvent(
+      located.store,
+      located.request,
+      "challenge.resolved",
+      { type: "user", id: "user" },
+      {
+        threadId: request.threadId,
+        resolution: request.decision === "accept" ? "accepted" : "kept",
+      },
+    );
     await workflows.continueWorkflow(request.workflowId, request.apiKey);
   };
   const resumeRun = async (runId: string, apiKey?: string) => {
@@ -215,7 +225,10 @@ export function createRunExecutor(options: ExecutorOptions) {
       model,
       reasoning: "off",
       systemPrompt: "你是连接测试助手。只需回复：连接成功。",
-      getApiKey: () => request.apiKey ?? process.env.DEEPSEEK_API_KEY,
+      getApiKey: () =>
+        request.apiKey ??
+        process.env.DEEPSEEK_API_KEY ??
+        process.env.WORDHUB_DEEPSEEK_API_KEY,
       maxTurns: 1,
       emit: () => undefined,
     });
@@ -276,7 +289,12 @@ export function createRunExecutor(options: ExecutorOptions) {
           ? (started.payload as Record<string, unknown>)
           : {};
       const mode = payload.mode === "mock" ? "mock" : "live";
-      if (mode !== "mock" && !apiKey && !process.env.DEEPSEEK_API_KEY) {
+      if (
+        mode !== "mock" &&
+        !apiKey &&
+        !process.env.DEEPSEEK_API_KEY &&
+        !process.env.WORDHUB_DEEPSEEK_API_KEY
+      ) {
         const message = "DeepSeek密钥未配置，无法恢复这次审批";
         await failPersistedRun(runId, message);
         throw new Error(message);

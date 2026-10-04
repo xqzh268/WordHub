@@ -22,7 +22,10 @@ export function createRunHost(
       ...deps.configuredTools,
       ...(deps.request.toolRoundTrip ? [deps.echoTool] : []),
     ],
-    getApiKey: () => deps.request.apiKey ?? process.env.DEEPSEEK_API_KEY,
+    getApiKey: () =>
+      deps.request.apiKey ??
+      process.env.DEEPSEEK_API_KEY ??
+      process.env.WORDHUB_DEEPSEEK_API_KEY,
     maxTurns: deps.definition?.maxTurns ?? 20,
     onCheckpoint: async (messages) => {
       state.activeModelForSnapshot = {
@@ -226,7 +229,9 @@ export function createRunHost(
           },
         );
       }
-      if (event.type === "tool_finished")
+      if (event.type === "tool_finished") {
+        if (event.toolName === "doc.write" && event.ok)
+          state.hasCommittedWrite = true;
         deps.appendRunEvent(
           deps.store,
           deps.request,
@@ -242,6 +247,7 @@ export function createRunHost(
             ok: event.ok,
           },
         );
+      }
       if (event.type === "usage") {
         const usage = event.usage;
         state.lastUsage = usage;

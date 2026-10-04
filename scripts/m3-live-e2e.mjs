@@ -8,7 +8,25 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 
-const key = process.env.DEEPSEEK_API_KEY;
+const readWindowsEnvironmentKey = () => {
+  if (process.platform !== "win32") return undefined;
+  const command =
+    "$p=[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','Process');$u=[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','User');$m=[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','Machine');if($p){$p}elseif($u){$u}else{$m}";
+  for (const executable of ["powershell.exe", "pwsh.exe"]) {
+    const result = spawnSync(
+      executable,
+      ["-NoProfile", "-NonInteractive", "-Command", command],
+      { encoding: "utf8", windowsHide: true },
+    );
+    const value = result.stdout?.trim();
+    if (result.status === 0 && value) return value;
+  }
+  return undefined;
+};
+const key =
+  process.env.DEEPSEEK_API_KEY ??
+  process.env.WORDHUB_DEEPSEEK_API_KEY ??
+  readWindowsEnvironmentKey();
 if (!key) {
   if (process.env.WORDHUB_REQUIRE_LIVE === "1") {
     console.error("失败：M3真实回归要求DEEPSEEK_API_KEY。");
@@ -43,7 +61,12 @@ const launch = () =>
     executablePath: electron,
     args: [path.join(root, "out/main/index.js"), `--user-data-dir=${userData}`],
     cwd: root,
-    env: { ...cleanEnv(), DEEPSEEK_API_KEY: key, WORDHUB_WORKSPACE_ROOT: root },
+    env: {
+      ...cleanEnv(),
+      DEEPSEEK_API_KEY: key,
+      WORDHUB_DEEPSEEK_API_KEY: key,
+      WORDHUB_WORKSPACE_ROOT: root,
+    },
   });
 const database = () => {
   const id = fs
@@ -91,49 +114,149 @@ try {
   }, folder);
   await page.click('[data-testid="link-folder"]');
   await page.waitForSelector('[data-testid="project-card"]');
-  const runId = `m3-live-${Date.now().toString(36)}`;
-  await page.fill('[data-testid="composer-input"]', "写第三章");
-  await page.click('[data-testid="send"]');
-  await waitEvent(runId, "workflow.finished").catch(async () => {
-    const started = events().find((event) => event.type === "workflow.started");
-    if (!started) throw new Error("没有创建工作流");
-    await waitEvent(started.run_id, "workflow.finished");
-  });
-  const first = events();
-  const workflow = first.find((event) => event.type === "workflow.started");
-  const workflowId = workflow?.run_id;
-  if (!workflowId) throw new Error("没有工作流运行ID");
-  const taskAgents = first
+  const waitForWorkflow = async (before, timeout = 300000) => {
+    const end = Date.now() + timeout;
+    while (Date.now() < end) {
+      const current = events();
+      const started = current.find(
+        (event) => event.seq > before && event.type === "workflow.started",
+      );
+      if (started) return started;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error("没有创建工作流");
+  };
+  const waitForWorkflowEvent = async (workflowId, types, timeout = 300000) => {
+    const end = Date.now() + timeout;
+    while (Date.now() < end) {
+      const current = events();
+      const found = current.find(
+        (event) =>
+          (event.run_id === workflowId ||
+            event.payload?.workflowId === workflowId) &&
+          types.includes(event.type),
+      );
+      if (found) return found;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    throw new Error(`等待工作流事件超时：${types.join("/")}`);
+  };
+  const send = async (text) => {
+    await page.fill('[data-testid="composer-input"]', text);
+    await page.click('[data-testid="send"]');
+  };
+
+  const firstBefore = events().length;
+  await send(
+    "全流程写第三章。请保留现有正文中‘右手按住刀柄’这一动作，不要自行改成左手，让评审核验设定与正文的左右手矛盾。",
+  );
+  const firstWorkflow = await waitForWorkflow(firstBefore);
+  const workflowId = firstWorkflow.run_id;
+  const firstPhase = await waitForWorkflowEvent(workflowId, [
+    "escalation.created",
+    "workflow.finished",
+    "workflow.failed",
+  ]);
+  if (firstPhase.type === "workflow.failed")
+    throw new Error(
+      `全流程失败：${String(firstPhase.payload?.error ?? "未知错误")}`,
+    );
+  await page.waitForSelector(".entry-agent", { timeout: 300000 });
+  await page.waitForSelector("[data-testid=paper-sheet]", { timeout: 300000 });
+  await page.waitForSelector(".usage-summary", { timeout: 300000 });
+  await page.waitForSelector(".entry-thread", { timeout: 300000 });
+  const challenged = firstPhase;
+  const firstEvents = events();
+  const challengeEvents = firstEvents.filter(
+    (event) =>
+      event.type === "challenge.raise" &&
+      (event.payload?.workflowId === workflowId || event.run_id === workflowId),
+  );
+  if (!challengeEvents.length) throw new Error("真实评审未提出可见质询");
+  if (
+    !challengeEvents.some((event) =>
+      /左|右/u.test(String(event.payload?.claim ?? "")),
+    )
+  )
+    throw new Error("真实评审没有指出左右手矛盾");
+  const firstAgents = firstEvents
     .filter((event) => event.type === "run.started" && event.payload?.agentId)
     .map((event) => event.payload.agentId);
-  if (!taskAgents.includes("writer") || !taskAgents.includes("editor"))
-    throw new Error(`写手→编辑节点不完整：${taskAgents.join(",")}`);
-  await page.fill('[data-testid="composer-input"]', "请评审第三章的一致性");
-  await page.click('[data-testid="send"]');
-  await page.waitForSelector(".approval:not(.resolved), .entry-thread", {
-    timeout: 300000,
-  });
-  const afterReview = events();
-  if (!afterReview.some((event) => event.type === "challenge.raise"))
-    throw new Error("评审未提出质询");
-  if (!afterReview.some((event) => event.type === "escalation.created"))
-    throw new Error("质询没有升级为裁决");
-  await page.locator(".approval:not(.resolved) .btn-primary").last().click();
-  await page.waitForTimeout(2000);
-  const finalEvents = events();
+  for (const agent of ["writer", "editor", "reviewer"])
+    if (!firstAgents.includes(agent))
+      throw new Error(`工作流缺少${agent}节点：${firstAgents.join(",")}`);
+  const beforeDecision = fs.readFileSync(
+    path.join(folder, "chapters", "第三章.md"),
+    "utf8",
+  );
+  if (challenged.type === "escalation.created") {
+    await page.locator(".approval:not(.resolved) .btn-primary").last().click();
+    await waitForWorkflowEvent(workflowId, ["workflow.finished"], 300000);
+  } else if (
+    !firstEvents.some(
+      (event) =>
+        event.type === "challenge.resolved" &&
+        event.payload?.workflowId === workflowId,
+    )
+  ) {
+    throw new Error("质询既未升级裁决，也没有记录为已解决");
+  }
+  const afterDecision = events();
   const chapter = fs.readFileSync(
     path.join(folder, "chapters", "第三章.md"),
     "utf8",
   );
+  if (chapter === beforeDecision && !/左手/u.test(chapter))
+    throw new Error("质询处理后章节没有产生修订结果");
+
+  const cleanStart = events().length;
+  fs.writeFileSync(
+    path.join(folder, "chapters", "第四章.md"),
+    "裴照用左手按住刀柄，设定与正文一致。",
+    "utf8",
+  );
+  await send(
+    "请只评审第四章的一致性。第四章写的是：裴照是左撇子，本章明确写他用左手按住刀柄。不要依据第三章、历史对话或其他章节提出质询；若本章与设定一致，请直接说明无矛盾，不要调用challenge.raise。",
+  );
+  const cleanWorkflow = await waitForWorkflow(cleanStart);
+  const cleanTerminal = await waitForWorkflowEvent(cleanWorkflow.run_id, [
+    "workflow.finished",
+    "workflow.failed",
+    "escalation.created",
+  ]);
+  const cleanEvents = events().filter((event) => event.seq > cleanStart);
+  if (cleanTerminal.type !== "workflow.finished")
+    throw new Error("无矛盾章节被错误升级或失败");
+  if (cleanEvents.some((event) => event.type === "challenge.raise"))
+    throw new Error("无矛盾章节出现误报质询");
+
+  const allStart = events().length;
+  await send("@all 请分别给出当前项目的协作意见");
+  const allWorkflow = await waitForWorkflow(allStart);
+  await waitForWorkflowEvent(allWorkflow.run_id, ["workflow.finished"]);
+  const allAgents = events()
+    .filter(
+      (event) =>
+        event.run_id === allWorkflow.run_id ||
+        event.payload?.workflowId === allWorkflow.run_id,
+    )
+    .filter((event) => event.type === "run.started" && event.payload?.agentId)
+    .map((event) => event.payload.agentId);
+  for (const agent of ["writer", "editor", "reviewer", "observer", "planner"])
+    if (!allAgents.includes(agent))
+      throw new Error(`all工作流缺少${agent}节点：${allAgents.join(",")}`);
   const result = {
     workflowId,
-    agents: taskAgents,
-    challenge: finalEvents.some((event) => event.type === "challenge.raise"),
-    escalation: finalEvents.some(
+    agents: firstAgents,
+    challenge: challengeEvents.length,
+    escalation: firstEvents.some(
       (event) => event.type === "escalation.created",
     ),
-    resolved: finalEvents.some((event) => event.type === "escalation.resolved"),
+    resolved: afterDecision.some(
+      (event) => event.type === "escalation.resolved",
+    ),
     chapter,
+    allAgents,
   };
   fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
   fs.writeFileSync(

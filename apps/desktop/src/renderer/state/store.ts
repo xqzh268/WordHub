@@ -47,6 +47,44 @@ const emptySession = (title: string): Session => ({
   items: [],
 });
 
+function paperFromText(filePath: string, text: string) {
+  const name = filePath.split(/[\\/]/u).at(-1) ?? filePath;
+  const title = name.replace(/\.(?:md|markdown|txt)$/iu, "") || "当前章节";
+  const paragraphs = text
+    .split(/\r?\n\s*\r?\n/u)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value, index) => ({
+      id: `paper-${index}`,
+      text: value.replace(/^#{1,6}\s+/u, ""),
+    }));
+  const chapter = title.match(/[一二三四五六七八九十百千万\d]+/u)?.[0];
+  return {
+    no: chapter ? `第${chapter}章` : "当前章节",
+    page: 1,
+    title,
+    paragraphs,
+  };
+}
+
+function latestPaperFromEvents(events: unknown[]) {
+  for (const event of [...events].reverse()) {
+    if (!event || typeof event !== "object") continue;
+    const value = event as Record<string, unknown>;
+    if (value.type !== "file.updated") continue;
+    const payload = value.payload;
+    if (!payload || typeof payload !== "object") continue;
+    const data = payload as Record<string, unknown>;
+    if (
+      typeof data.path === "string" &&
+      typeof data.text === "string" &&
+      /^chapters[\\/]/u.test(data.path)
+    )
+      return paperFromText(data.path, data.text);
+  }
+  return undefined;
+}
+
 type State = Prefs & {
   demo: boolean;
   view: View;
@@ -167,6 +205,34 @@ function restoreItems(raw: unknown): ChatItem[] {
             value.status === "blocked"
               ? value.status
               : "ready",
+        } satisfies ChatItem,
+      ];
+    if (value.kind === "thread" && typeof value.claim === "string")
+      return [
+        {
+          kind: "thread",
+          id: String(value.id),
+          at: Number(value.at),
+          from: String(value.from ?? "reviewer"),
+          to: String(value.to ?? "writer"),
+          round: Number(value.round ?? 1),
+          maxRounds: Number(value.maxRounds ?? 2),
+          severity: value.severity === "minor" ? "minor" : "blocking",
+          claim: value.claim,
+          replies: Array.isArray(value.replies)
+            ? value.replies.flatMap((reply) => {
+                if (!reply || typeof reply !== "object") return [];
+                const item = reply as Record<string, unknown>;
+                return typeof item.text === "string"
+                  ? [
+                      {
+                        agentId: String(item.agentId ?? "writer"),
+                        text: item.text,
+                      },
+                    ]
+                  : [];
+              })
+            : [],
         } satisfies ChatItem,
       ];
     if (value.kind !== "agent") return [];
@@ -366,6 +432,7 @@ export const useWorkbench = create<State>((set, get) => {
               session.id === result.sessionId ? restoreItems(chat?.items) : [],
           })),
           activeSessionId: result.sessionId,
+          paper: latestPaperFromEvents(chat?.events ?? []) ?? null,
         });
       } else if (folder)
         set({
@@ -531,7 +598,7 @@ export const useWorkbench = create<State>((set, get) => {
               sessionId: snapshot.activeSessionId,
             }),
           ]).then(([sessions, chat]) =>
-            set({
+            set((state) => ({
               sessions: sessions.sessions.map((session) => ({
                 id: session.id,
                 title: session.title,
@@ -540,7 +607,8 @@ export const useWorkbench = create<State>((set, get) => {
                     ? restoreItems(chat.items)
                     : [],
               })),
-            }),
+              paper: latestPaperFromEvents(chat.events) ?? state.paper,
+            })),
           );
         }
         return;
@@ -591,7 +659,10 @@ export const useWorkbench = create<State>((set, get) => {
         diff?: { addedLines?: number; removedLines?: number };
         threadId?: string;
         workflowId?: string;
+        agentId?: string;
+        actorId?: string;
         label?: string;
+        content?: string;
         estimate?: { costUsd?: number };
         manifest?: Array<{
           id: string;
@@ -692,15 +763,139 @@ export const useWorkbench = create<State>((set, get) => {
               ),
             );
           break;
+        case "escalation.resolved":
+          patchItems(get().activeSessionId, (items) =>
+            items.map((item) =>
+              item.kind === "approval" &&
+              item.threadId === message.threadId &&
+              (!runId || item.workflowId === runId || item.runId === runId)
+                ? {
+                    ...item,
+                    resolved:
+                      (message as { decision?: string }).decision === "accept"
+                        ? "接受修改"
+                        : "保留原文",
+                  }
+                : item,
+            ),
+          );
+          break;
+        case "challenge.raise":
+          if (message.threadId) {
+            const threadId = message.threadId;
+            patchItems(get().activeSessionId, (items) => {
+              const existing = items.find(
+                (item): item is Extract<ChatItem, { kind: "thread" }> =>
+                  item.kind === "thread" && item.id === threadId,
+              );
+              if (existing)
+                return items.map((item) =>
+                  item.kind === "thread" && item.id === threadId
+                    ? {
+                        ...item,
+                        round: Number(
+                          (message as { round?: number }).round ?? item.round,
+                        ),
+                        claim:
+                          typeof (message as { claim?: unknown }).claim ===
+                          "string"
+                            ? (message as { claim: string }).claim
+                            : item.claim,
+                      }
+                    : item,
+                );
+              return [
+                ...items,
+                {
+                  kind: "thread",
+                  id: threadId,
+                  at: Date.now(),
+                  from: message.actorId ?? "reviewer",
+                  to:
+                    typeof (message as { target?: unknown }).target === "string"
+                      ? (message as { target: string }).target
+                      : "writer",
+                  round: Number((message as { round?: number }).round ?? 1),
+                  maxRounds: 2,
+                  severity:
+                    (message as { severity?: string }).severity === "minor"
+                      ? "minor"
+                      : "blocking",
+                  claim:
+                    typeof (message as { claim?: unknown }).claim === "string"
+                      ? (message as { claim: string }).claim
+                      : "",
+                  replies: [],
+                },
+              ];
+            });
+          }
+          break;
+        case "challenge.reply":
+          if (message.threadId)
+            patchItems(get().activeSessionId, (items) =>
+              items.map((item) =>
+                item.kind === "thread" && item.id === message.threadId
+                  ? {
+                      ...item,
+                      round: Number(
+                        (message as { round?: number }).round ?? item.round,
+                      ),
+                      replies: [
+                        ...item.replies,
+                        {
+                          agentId: message.actorId ?? "writer",
+                          text:
+                            typeof (message as { text?: unknown }).text ===
+                            "string"
+                              ? (message as { text: string }).text
+                              : "",
+                        },
+                      ],
+                    }
+                  : item,
+              ),
+            );
+          break;
+        case "file.updated":
+          if (
+            typeof message.path === "string" &&
+            typeof message.content === "string" &&
+            /^chapters[\\/]/u.test(message.path)
+          )
+            set({ paper: paperFromText(message.path, message.content) });
+          break;
         case "run.started":
           if (runId) {
+            const sessionId = get().activeSessionId;
+            const exists = get().sessions.some(
+              (session) =>
+                session.id === sessionId &&
+                session.items.some(
+                  (item) => item.kind === "agent" && item.runId === runId,
+                ),
+            );
+            if (!exists)
+              patchItems(sessionId, (items) => [
+                ...items,
+                {
+                  kind: "agent",
+                  id: uid("agent"),
+                  at: Date.now(),
+                  agentId: message.agentId ?? "writer",
+                  status: "thinking",
+                  text: "",
+                  tools: [],
+                  runId,
+                },
+              ]);
             patchRun(runId, (item) => ({
               ...item,
               status: "thinking",
               model: message.model,
               reasoningLevel: message.reasoning,
             }));
-            set({ activeRunId: runId });
+            set({ activeRunId: message.workflowId ?? runId });
           }
           break;
         case "context.injected":
@@ -853,6 +1048,19 @@ export const useWorkbench = create<State>((set, get) => {
               id: uid("workflow-done"),
               at: Date.now(),
               text: "工作流已完成",
+            },
+          ]);
+          break;
+        case "workflow.failed":
+          if (runId && get().activeRunId === runId) set({ activeRunId: null });
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("workflow-failed"),
+              at: Date.now(),
+              text: "工作流未完成，请查看失败节点和质询卡。",
+              tone: "warn",
             },
           ]);
           break;

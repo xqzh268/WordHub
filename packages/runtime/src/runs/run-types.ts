@@ -59,6 +59,7 @@ export type HostState = {
   text: string;
   lastUsage: unknown;
   hasSideEffects: boolean;
+  hasCommittedWrite?: boolean;
   activeModelForSnapshot: { provider: string; id: string };
   activeRefForSnapshot: ModelRef;
 };

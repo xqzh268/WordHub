@@ -52,6 +52,89 @@ export async function waitFor(predicate: () => boolean) {
   }
 }
 describe("产品工作流入口", () => {
+  it("协调器驱动固执写手两轮回应，阻塞待裁决并在裁决后返工", async () => {
+    const f = await fixture((context) => {
+      const prompt = JSON.stringify(context.messages);
+      const calls = context.messages
+        .filter((message) => message.role === "assistant")
+        .flatMap((message) => message.content)
+        .filter((block) => block.type === "toolCall");
+      if (calls.length)
+        return fauxAssistantMessage("本节点完成。", { stopReason: "stop" });
+      if (prompt.includes("任务角色：rework"))
+        return fauxAssistantMessage(
+          fauxToolCall("doc_write", {
+            path: "chapters/第三章.md",
+            content: "裴照用左手按刀。",
+          }),
+          { stopReason: "toolUse" },
+        );
+      if (prompt.includes("任务角色：challenge.reply")) {
+        expect(prompt).toContain("left-hand");
+        expect(prompt).toContain("右手与左撇子设定冲突");
+        return fauxAssistantMessage(
+          fauxToolCall("challenge_reply", {
+            threadId: "left-hand",
+            disposition: "refute",
+            text: "坚持原文，需要用户裁决。",
+          }),
+          { stopReason: "toolUse" },
+        );
+      }
+      return fauxAssistantMessage(
+        fauxToolCall("challenge_raise", {
+          threadId: "left-hand",
+          target: "writer",
+          claim: "右手与左撇子设定冲突",
+          path: "chapters/第三章.md",
+          severity: "blocking",
+        }),
+        { stopReason: "toolUse" },
+      );
+    });
+    try {
+      await f.executor.handle({
+        type: "run",
+        runId: "stubborn-flow",
+        prompt: "请评审第三章",
+        projectPath: f.project,
+        mode: "mock",
+      });
+      await waitFor(() =>
+        f.messages.some((message) => message.type === "escalation.created"),
+      );
+      expect(
+        f.messages.some((message) => message.type === "workflow.finished"),
+      ).toBe(false);
+      expect(
+        f.messages.filter((message) => message.type === "challenge.raise"),
+      ).toHaveLength(2);
+      const starts = f.messages.filter(
+        (message) => message.type === "run.started" && message.nodeId,
+      );
+      expect(starts.map((message) => message.nodeId)).toEqual([
+        "reviewer",
+        "challenge-reply-1",
+        "challenge-review-2",
+        "challenge-reply-2",
+      ]);
+      await f.executor.handle({
+        type: "challenge.decide",
+        workflowId: "stubborn-flow",
+        threadId: "left-hand",
+        decision: "accept",
+        requestId: "decide-stubborn",
+      });
+      await waitFor(() =>
+        f.messages.some((message) => message.type === "workflow.finished"),
+      );
+      expect(
+        await readFile(path.join(f.project, "chapters/第三章.md"), "utf8"),
+      ).toBe("裴照用左手按刀。");
+    } finally {
+      f.executor.close();
+    }
+  });
   it("写手与编辑各运行一次，传递产物且用户消息仅记一次", async () => {
     const f = await fixture((context) => {
       const edit = JSON.stringify(context.messages).includes("任务角色：edit");

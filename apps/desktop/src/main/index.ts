@@ -29,6 +29,10 @@ const worker = new PiWorkerHost((event) =>
   mainWindow?.webContents.send("wordhub:event", event),
 );
 const credentials = new ElectronCredentialStore();
+const inheritedDeepSeekKey = (): string | undefined =>
+  process.env.DEEPSEEK_API_KEY ?? process.env.WORDHUB_DEEPSEEK_API_KEY;
+const resolveDeepSeekKey = async (): Promise<string | undefined> =>
+  (await credentials.resolve("deepseek")) ?? inheritedDeepSeekKey();
 
 // 自绘标题栏：窗口控制按钮由系统叠加绘制，颜色需与渲染进程的主题 token 保持一致。
 const TITLEBAR_HEIGHT = 44;
@@ -168,7 +172,7 @@ function registerIpc(): void {
           rawPrompt: payload.rawPrompt,
           agentId: payload.agentId,
           mentions: payload.mentions,
-          apiKey: await credentials.resolve("deepseek"),
+          apiKey: await resolveDeepSeekKey(),
           mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
           projectPath: payload.projectPath ?? linkedFolder ?? undefined,
           projectId: payload.projectId ?? projectId,
@@ -200,7 +204,7 @@ function registerIpc(): void {
         return await worker.request<CommandResults["run.resume"]>({
           type: "run.resume",
           runId: payload.runId,
-          apiKey: await credentials.resolve("deepseek"),
+          apiKey: await resolveDeepSeekKey(),
         });
       }
       if (command === "run.approve") {
@@ -209,7 +213,7 @@ function registerIpc(): void {
           type: "run.approve",
           runId: payload.runId,
           approved: payload.approved,
-          apiKey: await credentials.resolve("deepseek"),
+          apiKey: await resolveDeepSeekKey(),
         });
       }
       if (command === "challenge.decide") {
@@ -219,7 +223,7 @@ function registerIpc(): void {
           workflowId: payload.workflowId,
           threadId: payload.threadId,
           decision: payload.decision,
-          apiKey: await credentials.resolve("deepseek"),
+          apiKey: await resolveDeepSeekKey(),
         });
       }
       if (command === "settings.credentialStatus") {
@@ -270,7 +274,10 @@ function registerIpc(): void {
         return await worker.request<CommandResults["settings.testConnection"]>({
           type: "settings.testConnection",
           provider: payload.provider,
-          apiKey: await credentials.resolve(payload.provider),
+          apiKey:
+            payload.provider === "deepseek"
+              ? await resolveDeepSeekKey()
+              : await credentials.resolve(payload.provider),
         });
       }
       if (command === "app.setTheme") {

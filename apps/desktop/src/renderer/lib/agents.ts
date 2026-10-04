@@ -25,8 +25,8 @@ export const AGENTS: AgentMeta[] = [
     glyph: "写",
     color: "var(--agent-writer)",
     role: "按章撰写正文",
-    model: "deepseek-flash",
-    reasoning: "low",
+    model: "deepseek-v4-pro",
+    reasoning: "high",
   },
   {
     id: "editor",
@@ -44,7 +44,7 @@ export const AGENTS: AgentMeta[] = [
     color: "var(--agent-reviewer)",
     role: "核验设定，纠正偏离大纲",
     model: "deepseek-v4-pro",
-    reasoning: "high",
+    reasoning: "max",
   },
   {
     id: "observer",

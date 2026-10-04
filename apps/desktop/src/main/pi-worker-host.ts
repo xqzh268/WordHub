@@ -63,6 +63,13 @@ export class PiWorkerHost {
       cwd: process.env.WORDHUB_WORKSPACE_ROOT ?? process.cwd(),
       env: {
         ...process.env,
+        ...(process.env.DEEPSEEK_API_KEY || process.env.WORDHUB_DEEPSEEK_API_KEY
+          ? {
+              DEEPSEEK_API_KEY:
+                process.env.DEEPSEEK_API_KEY ??
+                process.env.WORDHUB_DEEPSEEK_API_KEY,
+            }
+          : {}),
         ...(this.storageRoot ? { WORDHUB_STORAGE_ROOT: this.storageRoot } : {}),
       },
     });

@@ -105,14 +105,18 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
   const docRead: AgentTool<typeof pathParameters> = {
     name: "doc.read",
     label: "读取文档",
-    description: "读取项目文件夹内的一个文档。路径必须是相对路径。",
+    description:
+      "读取项目文件夹内的文档；传入目录时返回目录清单。路径必须是相对路径。",
     parameters: pathParameters,
     execute: async (_id: string, params: Static<typeof pathParameters>) => {
       const result = await runtime.readDocument(params.path);
-      return textResult(result.text, {
-        path: params.path,
-        contentHash: result.contentHash,
-      });
+      return textResult(
+        `内容哈希：${result.contentHash ?? "无（目录）"}\n${result.text}`,
+        {
+          path: params.path,
+          contentHash: result.contentHash,
+        },
+      );
     },
   };
   const bibleRead: AgentTool<typeof pathParameters> = {
@@ -122,10 +126,13 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
     parameters: pathParameters,
     execute: async (_id: string, params: Static<typeof pathParameters>) => {
       const result = await runtime.readBible(params.path);
-      return textResult(result.text, {
-        path: params.path,
-        contentHash: result.contentHash,
-      });
+      return textResult(
+        `内容哈希：${result.contentHash ?? "无（目录）"}\n${result.text}`,
+        {
+          path: params.path,
+          contentHash: result.contentHash,
+        },
+      );
     },
   };
   const docWrite: AgentTool<typeof writeParameters> = {

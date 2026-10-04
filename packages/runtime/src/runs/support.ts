@@ -116,6 +116,7 @@ export function createRunSupport(deps: SupportDeps) {
       runId: request.runId,
       workflowId: request.workflowId,
       sessionId: request.sessionId,
+      actorId: actor.id,
       event,
       ...eventPayload,
     });
