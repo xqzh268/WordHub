@@ -1,0 +1,67 @@
+{
+  "runs": 3,
+  "valid": 3,
+  "detected": 3,
+  "falsePositives": 0,
+  "detectionRate": 1,
+  "falsePositiveRate": 0,
+  "results": [
+    {
+      "run": 1,
+      "contradiction": {
+        "finished": true,
+        "terminal": "workflow.finished",
+        "challenges": 1,
+        "blocking": 1,
+        "mentionsHand": true,
+        "claim": "正文写裴照\"右手按住刀柄\"，与设定\"裴照是不良人，左撇子，惯用横刀\"矛盾。左撇子惯用横刀，按刀柄这一持械动作应出自左手；写右手直接违反人物核心设定。"
+      },
+      "clean": {
+        "finished": true,
+        "terminal": "workflow.finished",
+        "challenges": 0,
+        "blocking": 0,
+        "mentionsHand": false,
+        "claim": ""
+      }
+    },
+    {
+      "run": 2,
+      "contradiction": {
+        "finished": true,
+        "terminal": "workflow.finished",
+        "challenges": 1,
+        "blocking": 0,
+        "mentionsHand": true,
+        "claim": "正文写裴照“右手按住刀柄”，与设定中“裴照是左撇子、惯用横刀”相矛盾。左撇子使横刀者佩刀与拔刀、按柄均应以左手为主，右手按柄不符合其惯用手设定。"
+      },
+      "clean": {
+        "finished": true,
+        "terminal": "workflow.finished",
+        "challenges": 0,
+        "blocking": 0,
+        "mentionsHand": false,
+        "claim": ""
+      }
+    },
+    {
+      "run": 3,
+      "contradiction": {
+        "finished": true,
+        "terminal": "workflow.finished",
+        "challenges": 1,
+        "blocking": 1,
+        "mentionsHand": true,
+        "claim": "正文写“裴照……右手按住刀柄”，与设定“裴照是左撇子，惯用横刀”相矛盾。左撇子且惯用横刀的人，按刀、握刀的习惯手应为左手，正文却用右手按刀柄，与设定的核心人物特征冲突，需改为左手或"
+      },
+      "clean": {
+        "finished": true,
+        "terminal": "workflow.finished",
+        "challenges": 0,
+        "blocking": 0,
+        "mentionsHand": false,
+        "claim": ""
+      }
+    }
+  ]
+}
