@@ -92,6 +92,8 @@ export type ContextLayer = {
   kind: "bible" | "outline" | "recent" | "document" | "memory" | "custom";
   text: string;
   sourcePath?: string;
+  /** 该层最多占用的估算token数；总预算仍由ContextBuilder统一控制。 */
+  tokenBudget?: number;
 };
 
 export type ContextManifestItem = ContextLayer & { estimatedTokens: number };

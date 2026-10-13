@@ -11,6 +11,7 @@ import type {
   RunLoopDeps,
 } from "./run-types.js";
 import { echoTool } from "./echo-tool.js";
+import { hasPendingEscalation } from "./escalation.js";
 export function createRunLoop(deps: RunLoopDeps) {
   async function runLive(request: RunRequest): Promise<void> {
     if (
@@ -233,13 +234,15 @@ export function createRunLoop(deps: RunLoopDeps) {
       }
       const context = deps.runContexts.get(request.runId);
       if (!context || context.cancelled) return;
-      const escalated = store
-        .listEvents(request.projectId!, request.sessionId)
-        .some(
-          (event) =>
-            event.runId === request.runId &&
-            event.type === "escalation.created",
-        );
+      const workflowIds = new Set(
+        [request.runId, request.workflowId].filter((id): id is string =>
+          Boolean(id),
+        ),
+      );
+      const escalated = hasPendingEscalation(
+        store.listEvents(request.projectId!, request.sessionId),
+        workflowIds,
+      );
       if (escalated) {
         store.updateTask(taskId, { status: "waiting_approval" });
         store.finishRun(request.runId, "waiting_approval");

@@ -14,6 +14,7 @@ export async function fixture(
   response: Parameters<
     ReturnType<typeof fauxProvider>["setResponses"]
   >[0][number],
+  options: { tokensPerSecond?: number } = {},
 ) {
   const root = await mkdtemp(path.join(os.tmpdir(), "wordhub-m3-"));
   const project = path.join(root, "长安夜");
@@ -30,6 +31,7 @@ export async function fixture(
       { id: "deepseek-flash", reasoning: true },
       { id: "deepseek-v4-pro", reasoning: true },
     ],
+    ...options,
   });
   faux.setResponses(Array.from({ length: 100 }, () => response));
   const models = createModels();
@@ -170,6 +172,11 @@ describe("产品工作流入口", () => {
       expect(
         await readFile(path.join(f.project, "chapters/第三章.md"), "utf8"),
       ).toBe("写手稿。编辑润色。");
+      const editorCheck = f.messages.find(
+        (message) => message.type === "editor.check",
+      ) as { ok?: boolean; metrics?: { wordCount?: number } } | undefined;
+      expect(editorCheck?.ok).toBe(true);
+      expect(editorCheck?.metrics?.wordCount).toBe(7);
       const projectMessage = f.messages.find(
         (m) => m.type === "workflow.started",
       )!;
@@ -287,4 +294,82 @@ maxTurns: 8
       f.executor.close();
     }
   });
+
+  it("裁决先于节点暂停时不遗留waiting_approval任务", async () => {
+    const f = await fixture(
+      (context) => {
+        const prompt = JSON.stringify(context.messages);
+        const calls = context.messages
+          .filter((message) => message.role === "assistant")
+          .flatMap((message) => message.content)
+          .filter((block) => block.type === "toolCall");
+        if (prompt.includes("任务角色：challenge.reply")) {
+          if (calls.length === 0)
+            return fauxAssistantMessage(
+              fauxToolCall("challenge_reply", {
+                threadId: "early-decision",
+                disposition: "refute",
+                text: "仍有分歧。",
+              }),
+              { stopReason: "toolUse" },
+            );
+          return fauxAssistantMessage("裁决已在本回合到达。".repeat(12), {
+            stopReason: "stop",
+          });
+        }
+        if (prompt.includes("任务角色：review") && calls.length === 0)
+          return fauxAssistantMessage(
+            fauxToolCall("challenge_raise", {
+              threadId: "early-decision",
+              target: "writer",
+              claim: "仍有冲突",
+              severity: "blocking",
+            }),
+            { stopReason: "toolUse" },
+          );
+        if (prompt.includes("任务角色：rework") && calls.length === 0)
+          return fauxAssistantMessage(
+            fauxToolCall("doc_write", {
+              path: "chapters/第三章.md",
+              content: "裁决后的修订。",
+            }),
+            { stopReason: "toolUse" },
+          );
+        return fauxAssistantMessage("本节点完成。", { stopReason: "stop" });
+      },
+      { tokensPerSecond: 20 },
+    );
+    try {
+      const running = f.executor.handle({
+        type: "run",
+        runId: "early-decision-flow",
+        prompt: "请评审第三章",
+        projectPath: f.project,
+        mode: "mock",
+      });
+      await waitFor(() =>
+        f.messages.some((message) => message.type === "escalation.created"),
+      );
+      await f.executor.handle({
+        type: "challenge.decide",
+        workflowId: "early-decision-flow",
+        threadId: "early-decision",
+        decision: "accept",
+        requestId: "early-decision-request",
+      });
+      await waitFor(() =>
+        f.messages.some((message) => message.type === "workflow.finished"),
+      );
+      await running;
+      const workflow = f.messages.find(
+        (message) => message.type === "workflow.finished",
+      );
+      expect(workflow).toBeTruthy();
+      expect(
+        f.messages.filter((message) => message.type === "run.waiting_approval"),
+      ).toHaveLength(0);
+    } finally {
+      f.executor.close();
+    }
+  }, 30000);
 });

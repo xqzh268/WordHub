@@ -321,6 +321,26 @@ describe("WordHub M1 store", () => {
     );
   });
 
+  it("编辑检查事件投影为可见提示", () => {
+    const state = createChatProjectionState();
+    applyChatEvent(
+      state,
+      event("p1", "s1", 1, "editor.check", {
+        ok: false,
+        metrics: { wordCount: 12, dialogueRatio: 0.8 },
+        violations: [{ message: "对话占比超过上限。" }],
+      }),
+    );
+
+    expect(state.items).toEqual([
+      expect.objectContaining({
+        kind: "notice",
+        tone: "warn",
+        text: "编辑检查发现1项：对话占比超过上限。",
+      }),
+    ]);
+  });
+
   it("受控写盘使用原子替换，撤销会产生新的修订", async () => {
     const { store, project, session, folder } = await makeProject();
     const writer = new ControlledFileWriter(store, project.id, folder);

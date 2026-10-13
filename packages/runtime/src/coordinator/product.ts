@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { createId, type WordHubStore } from "@wordhub/store";
 import type { RunRequest, AppendRunEvent } from "../runs/run-types.js";
 import type { ProjectService } from "../projects/service.js";
@@ -6,6 +7,9 @@ import { estimateRun } from "../budget/estimate.js";
 import { decideNext } from "./graph.js";
 import { definitionFor, workflowRoute } from "./routing.js";
 import type { WorkflowDefinition } from "./workflow.js";
+import { hasPendingEscalation } from "../runs/escalation.js";
+import { isNovelIntakePrompt } from "../novel/intake.js";
+import { checkEditorText, DEFAULT_EDITOR_RULES } from "../editor/checks.js";
 
 export function createWorkflowService(deps: {
   workspaceRoot: string;
@@ -13,6 +17,7 @@ export function createWorkflowService(deps: {
   settings: ModelSettings;
   run: (request: RunRequest) => Promise<void>;
   append: AppendRunEvent;
+  intake?: { start(request: RunRequest): Promise<void> };
 }) {
   const driving = new Set<string>();
   const stopped = new Set<string>();
@@ -94,6 +99,61 @@ export function createWorkflowService(deps: {
       { type: "system", id: "coordinator" },
       { taskId },
     );
+  const checkEditorRevision = async (
+    store: WordHubStore,
+    request: RunRequest,
+    taskId: string,
+  ) => {
+    const task = store.getTask(taskId);
+    const childRunId =
+      task?.checkpoint && typeof task.checkpoint.runId === "string"
+        ? task.checkpoint.runId
+        : undefined;
+    const updatedPath = childRunId
+      ? store
+          .listEvents(request.projectId!, request.sessionId)
+          .reverse()
+          .find((event) => {
+            if (event.runId !== childRunId || event.type !== "file.updated")
+              return false;
+            const path = (event.payload as Record<string, unknown>).path;
+            return typeof path === "string" && path.startsWith("chapters/");
+          })
+      : undefined;
+    const pathFromEvent = updatedPath
+      ? (updatedPath.payload as Record<string, unknown>).path
+      : undefined;
+    const candidates = store
+      .listAllRevisions(request.projectId!)
+      .filter(
+        (candidate) =>
+          candidate.status === "current" &&
+          candidate.artifactId.startsWith("file:chapters/") &&
+          (typeof pathFromEvent !== "string" ||
+            candidate.artifactId === `file:${pathFromEvent}`),
+      )
+      .sort((left, right) => right.revisionNo - left.revisionNo);
+    const revision = candidates[0];
+    if (!revision) return;
+    const text = await readFile(revision.snapshotPath, "utf8");
+    const result = checkEditorText(text, DEFAULT_EDITOR_RULES);
+    deps.append(
+      store,
+      request,
+      "editor.check",
+      { type: "system", id: "editor-check" },
+      {
+        workflowId: request.runId,
+        taskId,
+        path: revision.artifactId.slice("file:".length),
+        revisionId: revision.id,
+        ok: result.ok,
+        metrics: result.metrics,
+        violations: result.violations,
+      },
+      `editor-check:${taskId}:${revision.id}`,
+    );
+  };
   const expandChallenge = (
     store: WordHubStore,
     request: RunRequest,
@@ -330,18 +390,54 @@ export function createWorkflowService(deps: {
             { taskId: blockedId, reason: "上游任务未成功完成" },
           );
         }
+        const workflowEvents = store.listEvents(
+          request.projectId!,
+          request.sessionId,
+        );
+        const pendingEscalation = hasPendingEscalation(
+          workflowEvents,
+          new Set([request.runId]),
+        );
+        const hasRunningTask = tasks.some(
+          (task) =>
+            task.status === "running" || task.status === "waiting_approval",
+        );
+        const finish = (current: typeof tasks) => {
+          const success = current.every((task) => task.status === "succeeded");
+          store.finishRun(request.runId, success ? "succeeded" : "failed");
+          deps.append(
+            store,
+            request,
+            success ? "workflow.finished" : "workflow.failed",
+            { type: "system", id: "coordinator" },
+            {
+              tasks: current.map((task) => ({
+                id: task.id,
+                status: task.status,
+              })),
+            },
+          );
+        };
         if (!ready.length) {
           if (next.blocked.length) continue;
           if (next.terminal) {
-            const success = tasks.every((t) => t.status === "succeeded");
-            store.finishRun(request.runId, success ? "succeeded" : "failed");
-            deps.append(
-              store,
-              request,
-              success ? "workflow.finished" : "workflow.failed",
-              { type: "system", id: "coordinator" },
-              { tasks: tasks.map((t) => ({ id: t.id, status: t.status })) },
-            );
+            finish(tasks);
+          } else if (!hasRunningTask && !pendingEscalation) {
+            // 兜底收口：没有任何执行中的任务，也没有待决裁决时，不能让父运行永久 running。
+            // 若仍有悬空节点，将其标记为 blocked，并以失败终态结束，保持任务与运行状态一致。
+            for (const task of tasks) {
+              if (task.status !== "pending" && task.status !== "ready")
+                continue;
+              store.updateTask(task.id, { status: "blocked" });
+              deps.append(
+                store,
+                request,
+                "task.blocked",
+                { type: "system", id: "coordinator" },
+                { taskId: task.id, reason: "没有可执行任务且没有待决裁决" },
+              );
+            }
+            finish(store.listTasks(request.runId));
           }
           return;
         }
@@ -396,6 +492,11 @@ export function createWorkflowService(deps: {
             } catch {
               /* Agent运行已持久化错误与任务失败。 */
             }
+            if (
+              node.kind === "edit" &&
+              store.getTask(task.id)?.status === "succeeded"
+            )
+              await checkEditorRevision(store, request, task.id);
             ensureEscalations(store, request, node.id);
             expandChallenge(store, request, definition);
             const allEvents = challengeEvents(store, request);
@@ -423,7 +524,15 @@ export function createWorkflowService(deps: {
   }
   async function start(request: RunRequest) {
     const route = workflowRoute(request);
-    if (!route) return deps.run(request);
+    if (!route) {
+      if (
+        deps.intake &&
+        request.agentId === "planner" &&
+        isNovelIntakePrompt(request.prompt)
+      )
+        return deps.intake.start(request);
+      return deps.run(request);
+    }
     const linked = await deps.projects.ensure(request);
     Object.assign(request, {
       projectId: linked.projectId,

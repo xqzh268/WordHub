@@ -66,11 +66,11 @@ export function PaperPane() {
             <article className="sheet grain" data-testid="paper-sheet">
               <div className="sheet-head">
                 <span>{project}</span>
-                <span>{paper.no}</span>
+                <span>{paper.page}页</span>
               </div>
               <header className="chapter">
                 <span className="chapter-no">{paper.no}</span>
-                <h2>{paper.title}</h2>
+                {paper.title !== paper.no && <h2>{paper.title}</h2>}
                 <i className="ornament" aria-hidden="true" />
               </header>
               <div className="prose">

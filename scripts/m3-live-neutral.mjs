@@ -13,6 +13,10 @@ import { _electron } from "playwright";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
+  if (process.env.WORDHUB_REQUIRE_LIVE === "1") {
+    console.error("失败：M3中立评测要求DEEPSEEK_API_KEY。");
+    process.exit(2);
+  }
   console.log("跳过：未设置 DEEPSEEK_API_KEY");
   process.exit(0);
 }
@@ -47,12 +51,25 @@ async function oneRun(index) {
     "裴照左手按住刀柄，缓步走过崇仁坊的石桥，桥下水声很轻。\n",
     "utf8",
   );
-  const app = await _electron.launch({
-    executablePath: electron,
-    args: [path.join(root, "out/main/index.js"), `--user-data-dir=${userData}`],
-    cwd: root,
-    env: { ...cleanEnv(), DEEPSEEK_API_KEY: KEY, WORDHUB_WORKSPACE_ROOT: root },
-  });
+  let app;
+  try {
+    app = await _electron.launch({
+      executablePath: electron,
+      args: [
+        path.join(root, "out/main/index.js"),
+        `--user-data-dir=${userData}`,
+      ],
+      cwd: root,
+      env: {
+        ...cleanEnv(),
+        DEEPSEEK_API_KEY: KEY,
+        WORDHUB_WORKSPACE_ROOT: root,
+      },
+    });
+  } catch (error) {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    throw error;
+  }
   const events = () => {
     const dir = path.join(userData, "projects");
     const id = fs
@@ -64,6 +81,20 @@ async function oneRun(index) {
     const rows = db.prepare("SELECT * FROM events ORDER BY seq").all();
     db.close();
     return rows.map((r) => ({ ...r, payload: JSON.parse(r.payload_json) }));
+  };
+  const tasks = (runId) => {
+    const dir = path.join(userData, "projects");
+    const id = fs
+      .readdirSync(dir)
+      .find((n) => fs.existsSync(path.join(dir, n, "wordhub.sqlite")));
+    const db = new DatabaseSync(path.join(dir, id, "wordhub.sqlite"), {
+      readOnly: true,
+    });
+    const rows = db
+      .prepare("SELECT id, status FROM tasks WHERE run_id=? ORDER BY id")
+      .all(runId);
+    db.close();
+    return rows;
   };
   const outcome = { run: index };
   try {
@@ -106,8 +137,37 @@ async function oneRun(index) {
         );
         if (!terminal) await new Promise((r) => setTimeout(r, 500));
       }
+      const paperText = await page
+        .locator('[data-testid="paper-sheet"]')
+        .innerText();
+      if (!paperText.includes("裴照"))
+        throw new Error(`${chapter}纸面没有显示章节正文`);
       const slice = events().filter((e) => e.seq > before);
       const raised = slice.filter((e) => e.type === "challenge.raise");
+      const workflowId = terminal?.run_id;
+      if (terminal?.type === "escalation.created" && workflowId) {
+        await page
+          .locator(".approval:not(.resolved) .btn-primary")
+          .last()
+          .click();
+        const end = Date.now() + 420000;
+        while (Date.now() < end) {
+          if (
+            events().some(
+              (e) => e.run_id === workflowId && e.type === "workflow.finished",
+            )
+          )
+            break;
+          await new Promise((r) => setTimeout(r, 500));
+        }
+        terminal =
+          events().find(
+            (e) => e.run_id === workflowId && e.type === "workflow.finished",
+          ) ?? terminal;
+      }
+      const waiting = workflowId
+        ? tasks(workflowId).filter((task) => task.status === "waiting_approval")
+        : [];
       outcome[label] = {
         finished: Boolean(terminal),
         terminal: terminal?.type,
@@ -118,7 +178,12 @@ async function oneRun(index) {
           /左|右/u.test(String(e.payload.claim ?? "")),
         ),
         claim: String(raised[0]?.payload.claim ?? "").slice(0, 90),
+        paperContainsChapter: paperText.includes("裴照"),
+        waitingApprovals: waiting.length,
       };
+      if (terminal?.type !== "workflow.finished")
+        throw new Error(`${chapter}工作流没有正常收尾`);
+      if (waiting.length) throw new Error(`${chapter}工作流有遗留待审批任务`);
       // 两个场景之间等工作流彻底结束，避免互相干扰。
       await page
         .waitForSelector('[data-testid="stop"]', {
@@ -130,9 +195,10 @@ async function oneRun(index) {
   } catch (error) {
     outcome.error = String(error?.message ?? error).slice(0, 160);
   } finally {
-    spawnSync("taskkill", ["/PID", String(app.process().pid), "/T", "/F"], {
-      stdio: "ignore",
-    });
+    if (app)
+      spawnSync("taskkill", ["/PID", String(app.process().pid), "/T", "/F"], {
+        stdio: "ignore",
+      });
     try {
       fs.rmSync(tmp, {
         recursive: true,
@@ -153,7 +219,12 @@ for (let i = 1; i <= RUNS; i += 1) {
   results.push(result);
   console.log(JSON.stringify(result));
 }
-const valid = results.filter((r) => r.contradiction && r.clean);
+const valid = results.filter(
+  (r) =>
+    !r.error &&
+    r.contradiction?.terminal === "workflow.finished" &&
+    r.clean?.terminal === "workflow.finished",
+);
 const detected = valid.filter(
   (r) => r.contradiction.challenges > 0 && r.contradiction.mentionsHand,
 ).length;

@@ -8,25 +8,8 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 
-const readWindowsEnvironmentKey = () => {
-  if (process.platform !== "win32") return undefined;
-  const command =
-    "$p=[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','Process');$u=[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','User');$m=[Environment]::GetEnvironmentVariable('DEEPSEEK_API_KEY','Machine');if($p){$p}elseif($u){$u}else{$m}";
-  for (const executable of ["powershell.exe", "pwsh.exe"]) {
-    const result = spawnSync(
-      executable,
-      ["-NoProfile", "-NonInteractive", "-Command", command],
-      { encoding: "utf8", windowsHide: true },
-    );
-    const value = result.stdout?.trim();
-    if (result.status === 0 && value) return value;
-  }
-  return undefined;
-};
 const key =
-  process.env.DEEPSEEK_API_KEY ??
-  process.env.WORDHUB_DEEPSEEK_API_KEY ??
-  readWindowsEnvironmentKey();
+  process.env.DEEPSEEK_API_KEY ?? process.env.WORDHUB_DEEPSEEK_API_KEY;
 if (!key) {
   if (process.env.WORDHUB_REQUIRE_LIVE === "1") {
     console.error("失败：M3真实回归要求DEEPSEEK_API_KEY。");
@@ -44,7 +27,7 @@ fs.mkdirSync(path.join(folder, ".wordhub", "bible"), { recursive: true });
 fs.mkdirSync(path.join(folder, "chapters"), { recursive: true });
 fs.writeFileSync(
   path.join(folder, ".wordhub", "bible", "bible.md"),
-  "裴照是左撇子，惯用横刀。评审必须检查左右手矛盾。",
+  "裴照是左撇子，惯用横刀。故事发生在唐代长安崇仁坊。",
   "utf8",
 );
 fs.writeFileSync(
@@ -85,17 +68,17 @@ const events = () => {
   db.close();
   return rows.map((row) => ({ ...row, payload: JSON.parse(row.payload_json) }));
 };
-const waitEvent = async (runId, type, timeout = 300000) => {
-  const end = Date.now() + timeout;
-  while (Date.now() < end) {
-    if (events().some((event) => event.run_id === runId && event.type === type))
-      return;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`等待${type}超时`);
+const tasks = (runId) => {
+  const db = database();
+  const rows = db
+    .prepare("SELECT id, status FROM tasks WHERE run_id=? ORDER BY id")
+    .all(runId);
+  db.close();
+  return rows;
 };
-const app = await launch();
+let app;
 try {
+  app = await launch();
   const page = await app.firstWindow();
   await page.waitForSelector(".app");
   await page.waitForFunction(
@@ -147,9 +130,7 @@ try {
   };
 
   const firstBefore = events().length;
-  await send(
-    "全流程写第三章。请保留现有正文中‘右手按住刀柄’这一动作，不要自行改成左手，让评审核验设定与正文的左右手矛盾。",
-  );
+  await send("全流程写第三章。");
   const firstWorkflow = await waitForWorkflow(firstBefore);
   const workflowId = firstWorkflow.run_id;
   const firstPhase = await waitForWorkflowEvent(workflowId, [
@@ -163,6 +144,11 @@ try {
     );
   await page.waitForSelector(".entry-agent", { timeout: 300000 });
   await page.waitForSelector("[data-testid=paper-sheet]", { timeout: 300000 });
+  const firstPaper = await page
+    .locator("[data-testid=paper-sheet]")
+    .innerText();
+  if (!firstPaper.includes("裴照"))
+    throw new Error("纸面没有显示写入的章节正文");
   await page.waitForSelector(".usage-summary", { timeout: 300000 });
   await page.waitForSelector(".entry-thread", { timeout: 300000 });
   const challenged = firstPhase;
@@ -208,6 +194,13 @@ try {
   );
   if (chapter === beforeDecision && !/左手/u.test(chapter))
     throw new Error("质询处理后章节没有产生修订结果");
+  const waitingTasks = tasks(workflowId).filter(
+    (task) => task.status === "waiting_approval",
+  );
+  if (waitingTasks.length)
+    throw new Error(
+      `工作流结束后仍有待审批任务：${waitingTasks.map((task) => task.id).join(",")}`,
+    );
 
   const cleanStart = events().length;
   fs.writeFileSync(
@@ -215,20 +208,27 @@ try {
     "裴照用左手按住刀柄，设定与正文一致。",
     "utf8",
   );
-  await send(
-    "请只评审第四章的一致性。第四章写的是：裴照是左撇子，本章明确写他用左手按住刀柄。不要依据第三章、历史对话或其他章节提出质询；若本章与设定一致，请直接说明无矛盾，不要调用challenge.raise。",
-  );
+  await send("请评审第四章。");
   const cleanWorkflow = await waitForWorkflow(cleanStart);
   const cleanTerminal = await waitForWorkflowEvent(cleanWorkflow.run_id, [
     "workflow.finished",
     "workflow.failed",
-    "escalation.created",
   ]);
   const cleanEvents = events().filter((event) => event.seq > cleanStart);
   if (cleanTerminal.type !== "workflow.finished")
     throw new Error("无矛盾章节被错误升级或失败");
   if (cleanEvents.some((event) => event.type === "challenge.raise"))
     throw new Error("无矛盾章节出现误报质询");
+  if (
+    tasks(cleanWorkflow.run_id).some(
+      (task) => task.status === "waiting_approval",
+    )
+  )
+    throw new Error("无矛盾章节工作流有遗留待审批任务");
+  const cleanPaper = await page
+    .locator("[data-testid=paper-sheet]")
+    .innerText();
+  if (!cleanPaper.includes("裴照")) throw new Error("纸面没有显示第四章正文");
 
   const allStart = events().length;
   await send("@all 请分别给出当前项目的协作意见");
@@ -266,7 +266,18 @@ try {
   );
   console.log("M3真实回归通过", JSON.stringify(result));
 } finally {
-  spawnSync("taskkill", ["/PID", String(app.process().pid), "/T", "/F"], {
-    stdio: "ignore",
-  });
+  if (app)
+    spawnSync("taskkill", ["/PID", String(app.process().pid), "/T", "/F"], {
+      stdio: "ignore",
+    });
+  try {
+    fs.rmSync(tmp, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 400,
+    });
+  } catch {
+    /* Windows 句柄尚未释放，留给系统清理 */
+  }
 }

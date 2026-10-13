@@ -45,10 +45,11 @@ export function createRunSupport(deps: SupportDeps) {
       { type: "system", id: "context" },
       {
         manifest: context.manifest.map(
-          ({ id, kind, sourcePath, estimatedTokens }) => ({
+          ({ id, kind, sourcePath, tokenBudget, estimatedTokens }) => ({
             id,
             kind,
             sourcePath,
+            tokenBudget,
             estimatedTokens,
           }),
         ),

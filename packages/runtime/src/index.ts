@@ -13,6 +13,7 @@ export * from "./coordinator/graph.js";
 export * from "./coordinator/workflow.js";
 export * from "./coordinator/workflow-runner.js";
 export * from "./budget/estimate.js";
+export * from "./editor/checks.js";
 export * from "./types.js";
 
 export * from "./runs/executor.js";

@@ -44,6 +44,12 @@ type DispatcherDeps = {
   decideChallenge: (
     request: Extract<RuntimeRequest, { type: "challenge.decide" }>,
   ) => Promise<void>;
+  intakeAnswer: (
+    request: Extract<RuntimeRequest, { type: "intake.answer" }>,
+  ) => Promise<void>;
+  intakeConfirm: (
+    request: Extract<RuntimeRequest, { type: "intake.confirm" }>,
+  ) => Promise<void>;
   resumeRun: (runId: string, apiKey?: string) => Promise<void>;
 };
 
@@ -67,6 +73,8 @@ export function createRequestHandler(deps: DispatcherDeps) {
     runLive,
     estimate,
     decideChallenge,
+    intakeAnswer,
+    intakeConfirm,
     resumeRun,
   } = deps;
   const options = { storageRoot };
@@ -143,6 +151,22 @@ export function createRequestHandler(deps: DispatcherDeps) {
           workflowId: request.workflowId,
           threadId: request.threadId,
           decision: request.decision,
+        });
+        return;
+      }
+      if (request.type === "intake.answer") {
+        await intakeAnswer(request);
+        sendResponse(request.requestId, {
+          intakeId: request.intakeId,
+          questionId: request.questionId,
+        });
+        return;
+      }
+      if (request.type === "intake.confirm") {
+        await intakeConfirm(request);
+        sendResponse(request.requestId, {
+          intakeId: request.intakeId,
+          confirmed: true,
         });
         return;
       }

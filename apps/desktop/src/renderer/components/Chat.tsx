@@ -25,6 +25,7 @@ import { Seal } from "./Seal";
 type AgentItem = Extract<ChatItem, { kind: "agent" }>;
 type ThreadItem = Extract<ChatItem, { kind: "thread" }>;
 type ApprovalItem = Extract<ChatItem, { kind: "approval" }>;
+type QuestionItem = Extract<ChatItem, { kind: "question" }>;
 
 const fmtTime = (at: number): string =>
   new Date(at).toLocaleTimeString("zh-CN", {
@@ -131,6 +132,8 @@ function Entry({ item }: { item: ChatItem }) {
       return <ThreadCard item={item} />;
     case "approval":
       return <ApprovalCard item={item} />;
+    case "question":
+      return <QuestionCard item={item} />;
     case "notice":
       return <p className={`notice ${item.tone ?? ""}`}>{item.text}</p>;
     case "task":
@@ -372,7 +375,13 @@ function AgentMessage({ item }: { item: AgentItem }) {
                   <li key={layer.id}>
                     <span>{layer.kind}</span>
                     <span className="mono">{layer.sourcePath ?? layer.id}</span>
-                    <small>{layer.estimatedTokens} token</small>
+                    <small>
+                      {layer.estimatedTokens}
+                      {layer.tokenBudget !== undefined
+                        ? `/${layer.tokenBudget}`
+                        : ""}{" "}
+                      token
+                    </small>
                   </li>
                 ))}
               </ul>
@@ -575,6 +584,81 @@ function ApprovalCard({ item }: { item: ApprovalItem }) {
               </button>
             ))}
           </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function QuestionCard({ item }: { item: QuestionItem }) {
+  const answer = useWorkbench((s) => s.answerQuestion);
+  const confirm = useWorkbench((s) => s.confirmIntake);
+  const [value, setValue] = useState(item.value ?? "");
+  const [editing, setEditing] = useState(!item.resolved);
+  useEffect(() => {
+    setValue(item.value ?? "");
+    setEditing(!item.resolved);
+  }, [item.value, item.resolved]);
+  const submit = (next: string) => {
+    if (item.key === "confirm" && next === "确认并写入") void confirm(item);
+    else if (next === "继续修改") setEditing(true);
+    else void answer(item, next);
+  };
+  return (
+    <>
+      <span className="approval-mark" aria-hidden="true">
+        问
+      </span>
+      <div
+        className={`approval question-card ${item.resolved && !editing ? "resolved" : ""}`}
+      >
+        <h3>{item.level === 1 ? "纲领 · 必答" : "纲领 · 可选"}</h3>
+        <p>{item.prompt}</p>
+        {item.resolved && !editing ? (
+          <div className="approval-actions">
+            <p className="question-answer">{item.value || "已跳过"}</p>
+            <button className="btn" onClick={() => setEditing(true)}>
+              修改
+            </button>
+          </div>
+        ) : item.key === "confirm" ? (
+          <div className="approval-actions">
+            {item.options.map((option, index) => (
+              <button
+                key={option}
+                className={index === 0 ? "btn btn-primary" : "btn"}
+                onClick={() => submit(option)}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <textarea
+              className="question-input"
+              value={value}
+              rows={2}
+              placeholder={
+                item.required ? "请填写后继续" : "可以填写，也可以跳过"
+              }
+              onChange={(event) => setValue(event.target.value)}
+            />
+            <div className="approval-actions">
+              <button
+                className="btn btn-primary"
+                disabled={item.required && !value.trim()}
+                onClick={() => submit(value)}
+              >
+                继续
+              </button>
+              {item.options.map((option) => (
+                <button key={option} className="btn" onClick={() => submit("")}>
+                  {option}
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </>

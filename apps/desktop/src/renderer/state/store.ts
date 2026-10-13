@@ -116,6 +116,11 @@ type State = Prefs & {
   abort(): Promise<void>;
   resumeRun(runId: string): Promise<void>;
   resolveApproval(itemId: string, choice: string): void;
+  answerQuestion(
+    item: Extract<ChatItem, { kind: "question" }>,
+    value: string,
+  ): Promise<void>;
+  confirmIntake(item: Extract<ChatItem, { kind: "question" }>): Promise<void>;
   handleEvent(event: AppEvent): void;
 };
 
@@ -181,6 +186,25 @@ function restoreItems(raw: unknown): ChatItem[] {
           at: Number(value.at),
           text: value.text,
           tone: value.tone === "warn" ? "warn" : undefined,
+        } satisfies ChatItem,
+      ];
+    if (value.kind === "question" && typeof value.prompt === "string")
+      return [
+        {
+          kind: "question",
+          id: String(value.id),
+          at: Number(value.at),
+          intakeId: String(value.intakeId),
+          questionId: String(value.questionId),
+          key: String(value.key),
+          level: Number(value.level) === 1 ? 1 : 2,
+          prompt: value.prompt,
+          required: value.required !== false,
+          options: Array.isArray(value.options)
+            ? value.options.map(String)
+            : [],
+          value: typeof value.value === "string" ? value.value : undefined,
+          resolved: value.resolved === true,
         } satisfies ChatItem,
       ];
     if (value.kind === "task" && typeof value.taskId === "string")
@@ -313,6 +337,10 @@ function restoreItems(raw: unknown): ChatItem[] {
                       ? context.sourcePath
                       : undefined,
                   estimatedTokens: Number(context.estimatedTokens ?? 0),
+                  tokenBudget:
+                    typeof context.tokenBudget === "number"
+                      ? context.tokenBudget
+                      : undefined,
                 },
               ];
             })
@@ -577,6 +605,54 @@ export const useWorkbench = create<State>((set, get) => {
       }
     },
 
+    async answerQuestion(item, value) {
+      const projectId = get().project.id;
+      if (!projectId) return;
+      try {
+        await window.wordhub?.invoke("intake.answer", {
+          projectId,
+          sessionId: get().activeSessionId,
+          intakeId: item.intakeId,
+          questionId: item.questionId,
+          value,
+        });
+      } catch (error) {
+        patchItems(get().activeSessionId, (items) => [
+          ...items,
+          {
+            kind: "notice",
+            id: uid("intake-error"),
+            at: Date.now(),
+            text: error instanceof Error ? error.message : String(error),
+            tone: "warn",
+          },
+        ]);
+      }
+    },
+
+    async confirmIntake(item) {
+      const projectId = get().project.id;
+      if (!projectId) return;
+      try {
+        await window.wordhub?.invoke("intake.confirm", {
+          projectId,
+          sessionId: get().activeSessionId,
+          intakeId: item.intakeId,
+        });
+      } catch (error) {
+        patchItems(get().activeSessionId, (items) => [
+          ...items,
+          {
+            kind: "notice",
+            id: uid("intake-error"),
+            at: Date.now(),
+            text: error instanceof Error ? error.message : String(error),
+            tone: "warn",
+          },
+        ]);
+      }
+    },
+
     handleEvent(event) {
       if (event.type === "workspace.snapshot") {
         const snapshot = event.payload as WorkspaceSnapshot;
@@ -663,16 +739,144 @@ export const useWorkbench = create<State>((set, get) => {
         actorId?: string;
         label?: string;
         content?: string;
+        intakeId?: string;
+        questionId?: string;
+        key?: string;
+        level?: number;
+        prompt?: string;
+        required?: boolean;
+        options?: string[];
+        value?: string;
+        fromKey?: string;
         estimate?: { costUsd?: number };
+        ok?: boolean;
+        metrics?: { wordCount?: number; dialogueRatio?: number };
+        violations?: { message?: string }[];
         manifest?: Array<{
           id: string;
           kind: string;
           sourcePath?: string;
           estimatedTokens: number;
+          tokenBudget?: number;
         }>;
       };
       const runId = message.runId;
       switch (message.type) {
+        case "intake.question":
+          if (message.intakeId && message.questionId && message.key) {
+            patchItems(get().activeSessionId, (items) => {
+              const existing = items.find(
+                (item): item is Extract<ChatItem, { kind: "question" }> =>
+                  item.kind === "question" &&
+                  item.questionId === message.questionId,
+              );
+              const next: Extract<ChatItem, { kind: "question" }> = {
+                kind: "question",
+                id: message.questionId!,
+                at: Date.now(),
+                intakeId: message.intakeId!,
+                questionId: message.questionId!,
+                key: message.key!,
+                level: message.level === 1 ? 1 : 2,
+                prompt: message.prompt ?? "请补充纲领信息。",
+                required: message.required !== false,
+                options: Array.isArray(message.options) ? message.options : [],
+                ...(existing?.value !== undefined
+                  ? { value: existing.value }
+                  : {}),
+                resolved: existing?.resolved ?? false,
+              };
+              if (existing)
+                return items.map((item) =>
+                  item.id === existing.id ? next : item,
+                );
+              return [...items, next];
+            });
+          }
+          break;
+        case "intake.answer":
+          if (message.questionId)
+            patchItems(get().activeSessionId, (items) =>
+              items.map((item) =>
+                item.kind === "question" &&
+                item.questionId === message.questionId
+                  ? { ...item, value: message.value ?? "", resolved: true }
+                  : item,
+              ),
+            );
+          break;
+        case "intake.reset":
+          if (message.intakeId && (message.fromKey ?? message.key))
+            patchItems(get().activeSessionId, (items) =>
+              items.map((item) => {
+                const order = [
+                  "premise",
+                  "protagonist",
+                  "conflict",
+                  "world",
+                  "viewpointTone",
+                  "theme",
+                  "audience",
+                  "chapterCount",
+                  "mustInclude",
+                  "forbidden",
+                  "confirm",
+                ];
+                const fromIndex = order.indexOf(
+                  message.fromKey ?? message.key!,
+                );
+                return item.kind === "question" &&
+                  item.intakeId === message.intakeId &&
+                  fromIndex >= 0 &&
+                  order.indexOf(item.key) >= fromIndex
+                  ? { ...item, value: undefined, resolved: false }
+                  : item;
+              }),
+            );
+          break;
+        case "intake.confirmed":
+          if (message.intakeId)
+            patchItems(get().activeSessionId, (items) =>
+              items.map((item) =>
+                item.kind === "question" && item.intakeId === message.intakeId
+                  ? { ...item, resolved: true }
+                  : item,
+              ),
+            );
+          break;
+        case "intake.artifacts.created":
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("intake-artifacts"),
+              at: Date.now(),
+              text: "纲领已确认，人物档案、大纲、设定词典、文风基准和写作计划已写入项目。",
+            },
+          ]);
+          break;
+        case "editor.check": {
+          const metrics = message.metrics ?? {};
+          const violations = Array.isArray(message.violations)
+            ? message.violations.flatMap((item) =>
+                typeof item.message === "string" ? [item.message] : [],
+              )
+            : [];
+          patchItems(get().activeSessionId, (items) => [
+            ...items,
+            {
+              kind: "notice",
+              id: uid("editor-check"),
+              at: Date.now(),
+              text:
+                message.ok === true
+                  ? `编辑检查通过：${Number(metrics.wordCount ?? 0)}字，对话占比${(Number(metrics.dialogueRatio ?? 0) * 100).toFixed(1)}%。`
+                  : `编辑检查发现${violations.length}项：${violations.join("；")}`,
+              ...(message.ok === true ? {} : { tone: "warn" as const }),
+            },
+          ]);
+          break;
+        }
         case "approval.requested":
           if (runId)
             patchItems(get().activeSessionId, (items) => [

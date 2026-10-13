@@ -41,6 +41,7 @@ export type ChatItem =
         kind: string;
         sourcePath?: string;
         estimatedTokens: number;
+        tokenBudget?: number;
       }[];
       /** 编辑类改动的摘要，显示「查看差异 / 撤销」 */
       edit?: { label: string };
@@ -74,6 +75,20 @@ export type ChatItem =
       workflowId?: string;
     }
   | { kind: "notice"; id: string; at: number; text: string; tone?: "warn" }
+  | {
+      kind: "question";
+      id: string;
+      at: number;
+      intakeId: string;
+      questionId: string;
+      key: string;
+      level: 1 | 2;
+      prompt: string;
+      required: boolean;
+      options: string[];
+      value?: string;
+      resolved?: boolean;
+    }
   | {
       kind: "task";
       id: string;

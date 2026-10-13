@@ -89,6 +89,10 @@
 .approval-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .approval.resolved { box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }
 .approval-done { display: flex; align-items: center; gap: 6px; margin: 0 !important; color: var(--ok) !important; font-weight: 500; }
+.entry-question { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 12px; align-items: start; }
+.question-card textarea { box-sizing: border-box; width: 100%; resize: vertical; margin: 0 0 10px; padding: 9px 10px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--bg-canvas); color: var(--ink-1); font: inherit; line-height: 1.6; }
+.question-card textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); }
+.question-answer { flex: 1; margin: 0 !important; white-space: pre-wrap; }
 
 /* ── 空状态 ─────────────────────────────────────────── */
 .empty-chat { max-width: 440px; min-height: 100%; margin: 0 auto; padding: 0 8px 6vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; }

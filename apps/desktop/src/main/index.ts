@@ -226,6 +226,26 @@ function registerIpc(): void {
           apiKey: await resolveDeepSeekKey(),
         });
       }
+      if (command === "intake.answer") {
+        const payload = request.payload as CommandPayloads["intake.answer"];
+        return await worker.request<CommandResults["intake.answer"]>({
+          type: "intake.answer",
+          projectId: payload.projectId,
+          sessionId: payload.sessionId,
+          intakeId: payload.intakeId,
+          questionId: payload.questionId,
+          value: payload.value,
+        });
+      }
+      if (command === "intake.confirm") {
+        const payload = request.payload as CommandPayloads["intake.confirm"];
+        return await worker.request<CommandResults["intake.confirm"]>({
+          type: "intake.confirm",
+          projectId: payload.projectId,
+          sessionId: payload.sessionId,
+          intakeId: payload.intakeId,
+        });
+      }
       if (command === "settings.credentialStatus") {
         return {
           provider: "deepseek",

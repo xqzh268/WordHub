@@ -17,6 +17,7 @@ export type { ExecutorOptions, RuntimeRequest } from "./executor-types.js";
 import { createRequestHandler } from "./dispatcher.js";
 import { createRunSupport } from "./support.js";
 import { createWorkflowService } from "../coordinator/product.js";
+import { createNovelIntakeService } from "../novel/intake.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
   const post = options.post;
@@ -108,6 +109,10 @@ export function createRunExecutor(options: ExecutorOptions) {
   ) => projectService.create(request);
   const { resolveAgent, buildRunContext, createAgentTools, appendRunEvent } =
     createRunSupport({ post, modelSettings, runContexts });
+  const intake = createNovelIntakeService({
+    projects: projectService,
+    append: appendRunEvent,
+  });
   function sendResponse(requestId: string, result: unknown): void {
     post({ type: "response", requestId, ok: true, result });
   }
@@ -159,6 +164,7 @@ export function createRunExecutor(options: ExecutorOptions) {
     settings: modelSettings,
     run: runLive,
     append: appendRunEvent,
+    intake,
   });
   const decideChallenge = async (
     request: Extract<RuntimeRequest, { type: "challenge.decide" }>,
@@ -183,6 +189,12 @@ export function createRunExecutor(options: ExecutorOptions) {
     );
     await workflows.continueWorkflow(request.workflowId, request.apiKey);
   };
+  const intakeAnswer = async (
+    request: Extract<RuntimeRequest, { type: "intake.answer" }>,
+  ) => intake.answer(request);
+  const intakeConfirm = async (
+    request: Extract<RuntimeRequest, { type: "intake.confirm" }>,
+  ) => intake.confirm(request);
   const resumeRun = async (runId: string, apiKey?: string) => {
     for (const project of projectService.recent()) {
       const store = await projectService.store(project.id);
@@ -361,6 +373,8 @@ export function createRunExecutor(options: ExecutorOptions) {
     runLive: workflows.start,
     estimate: workflows.estimate,
     decideChallenge,
+    intakeAnswer,
+    intakeConfirm,
     resumeRun,
   });
   return {

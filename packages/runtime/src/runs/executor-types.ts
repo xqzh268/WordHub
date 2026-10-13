@@ -96,6 +96,22 @@ export type RuntimeRequest =
       apiKey?: string;
       requestId: string;
     }
+  | {
+      type: "intake.answer";
+      projectId: string;
+      sessionId: string;
+      intakeId: string;
+      questionId: string;
+      value: string;
+      requestId: string;
+    }
+  | {
+      type: "intake.confirm";
+      projectId: string;
+      sessionId: string;
+      intakeId: string;
+      requestId: string;
+    }
   | { type: "abort"; runId: string };
 
 export type ExecutorOptions = {

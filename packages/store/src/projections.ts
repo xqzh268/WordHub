@@ -10,6 +10,7 @@ export type ProjectedContext = {
   kind: string;
   sourcePath?: string;
   estimatedTokens: number;
+  tokenBudget?: number;
 };
 export type ProjectedChatItem =
   | { kind: "user"; id: string; at: number; text: string; eventId: string }
@@ -83,6 +84,21 @@ export type ProjectedChatItem =
       at: number;
       text: string;
       tone?: "warn";
+      eventId: string;
+    }
+  | {
+      kind: "question";
+      id: string;
+      at: number;
+      intakeId: string;
+      questionId: string;
+      key: string;
+      level: 1 | 2;
+      prompt: string;
+      required: boolean;
+      options: string[];
+      value?: string;
+      resolved?: boolean;
       eventId: string;
     };
 
@@ -173,6 +189,125 @@ export function applyChatEvent(
       tone: "warn",
       eventId: event.id,
     });
+    return state;
+  }
+  if (event.type === "editor.check") {
+    const metrics =
+      payload.metrics && typeof payload.metrics === "object"
+        ? (payload.metrics as Record<string, unknown>)
+        : {};
+    const violations = Array.isArray(payload.violations)
+      ? payload.violations.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const message = (item as Record<string, unknown>).message;
+          return typeof message === "string" ? [message] : [];
+        })
+      : [];
+    const ok = payload.ok === true;
+    state.items.push({
+      kind: "notice",
+      id: event.id,
+      at: timestamp(event.occurredAt),
+      text: ok
+        ? `编辑检查通过：${Number(metrics.wordCount ?? 0)}字，对话占比${(Number(metrics.dialogueRatio ?? 0) * 100).toFixed(1)}%。`
+        : `编辑检查发现${violations.length}项：${violations.join("；")}`,
+      ...(ok ? {} : { tone: "warn" as const }),
+      eventId: event.id,
+    });
+    return state;
+  }
+  if (event.type === "intake.question") {
+    const intakeId =
+      typeof payload.intakeId === "string" ? payload.intakeId : undefined;
+    const questionId =
+      typeof payload.questionId === "string" ? payload.questionId : undefined;
+    const key = typeof payload.key === "string" ? payload.key : undefined;
+    if (!intakeId || !questionId || !key) return state;
+    const existing = state.items.find(
+      (item): item is Extract<ProjectedChatItem, { kind: "question" }> =>
+        item.kind === "question" && item.questionId === questionId,
+    );
+    const next = {
+      kind: "question" as const,
+      id: questionId,
+      at: timestamp(event.occurredAt),
+      intakeId,
+      questionId,
+      key,
+      level: (Number(payload.level ?? 2) === 1 ? 1 : 2) as 1 | 2,
+      prompt:
+        typeof payload.prompt === "string"
+          ? payload.prompt
+          : "请补充纲领信息。",
+      required: payload.required !== false,
+      options: Array.isArray(payload.options)
+        ? payload.options.map(String)
+        : [],
+      value: undefined,
+      resolved: false,
+      eventId: event.id,
+    };
+    if (existing) Object.assign(existing, next);
+    else state.items.push(next);
+    return state;
+  }
+  if (event.type === "intake.answer") {
+    const questionId =
+      typeof payload.questionId === "string" ? payload.questionId : undefined;
+    if (!questionId) return state;
+    const question = state.items.find(
+      (item): item is Extract<ProjectedChatItem, { kind: "question" }> =>
+        item.kind === "question" && item.questionId === questionId,
+    );
+    if (question) {
+      question.value = typeof payload.value === "string" ? payload.value : "";
+      question.resolved = true;
+      question.eventId = event.id;
+    }
+    return state;
+  }
+  if (event.type === "intake.reset") {
+    const intakeId =
+      typeof payload.intakeId === "string" ? payload.intakeId : undefined;
+    const fromKey =
+      typeof payload.fromKey === "string" ? payload.fromKey : undefined;
+    if (!intakeId || !fromKey) return state;
+    const order = [
+      "premise",
+      "protagonist",
+      "conflict",
+      "world",
+      "viewpointTone",
+      "theme",
+      "audience",
+      "chapterCount",
+      "mustInclude",
+      "forbidden",
+      "confirm",
+    ];
+    const fromIndex = order.indexOf(fromKey);
+    const reset = new Set(fromIndex >= 0 ? order.slice(fromIndex) : [fromKey]);
+    for (const item of state.items)
+      if (
+        item.kind === "question" &&
+        item.intakeId === intakeId &&
+        reset.has(item.key)
+      ) {
+        item.value = undefined;
+        item.resolved = false;
+        item.eventId = event.id;
+      }
+    return state;
+  }
+  if (event.type === "intake.confirmed") {
+    const intakeId =
+      typeof payload.intakeId === "string" ? payload.intakeId : undefined;
+    if (!intakeId) return state;
+    for (const item of state.items)
+      if (item.kind === "question" && item.intakeId === intakeId) {
+        item.resolved = true;
+        item.eventId = event.id;
+      }
     return state;
   }
   if (event.type === "challenge.raise") {
@@ -398,6 +533,10 @@ export function applyChatEvent(
           sourcePath:
             typeof value.sourcePath === "string" ? value.sourcePath : undefined,
           estimatedTokens: Number(value.estimatedTokens ?? 0),
+          tokenBudget:
+            typeof value.tokenBudget === "number"
+              ? value.tokenBudget
+              : undefined,
         },
       ];
     });

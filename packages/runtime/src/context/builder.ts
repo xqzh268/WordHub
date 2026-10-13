@@ -10,7 +10,11 @@ export class ContextBuilder {
     const manifest = layers.map((layer) => ({
       ...layer,
       text: (() => {
-        const maxChars = Math.max(0, remaining * 2);
+        const layerBudget =
+          layer.tokenBudget === undefined
+            ? remaining
+            : Math.min(remaining, Math.max(0, layer.tokenBudget));
+        const maxChars = Math.max(0, layerBudget * 2);
         const text = layer.text.slice(0, maxChars);
         remaining -= estimateTokens(text);
         return text;

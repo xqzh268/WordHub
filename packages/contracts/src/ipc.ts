@@ -12,6 +12,8 @@ export type WorkspaceCommand =
   | "run.resume"
   | "run.approve"
   | "challenge.decide"
+  | "intake.answer"
+  | "intake.confirm"
   | "run.restartWorker"
   | "settings.credentialStatus"
   | "settings.setCredential"
@@ -45,6 +47,8 @@ export interface CommandPayloads {
   "run.resume": { runId: string };
   "run.approve": { runId: string; approved: boolean };
   "challenge.decide": { workflowId: string; threadId: string; decision: "accept" | "keep" };
+  "intake.answer": { projectId: string; sessionId: string; intakeId: string; questionId: string; value: string };
+  "intake.confirm": { projectId: string; sessionId: string; intakeId: string };
   "run.restartWorker": undefined;
   "settings.credentialStatus": undefined;
   "settings.setCredential": { provider: string; secret: string };
@@ -68,6 +72,8 @@ export interface CommandResults {
   "run.resume": { runId: string; resumed: boolean };
   "run.approve": { runId: string; approved: boolean };
   "challenge.decide": { workflowId: string; threadId: string; decision: "accept" | "keep" };
+  "intake.answer": { intakeId: string; questionId: string };
+  "intake.confirm": { intakeId: string; confirmed: boolean };
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
   "settings.credentialStatus": { provider: string; configured: boolean; source?: "saved" | "environment" | "none"; encryptionAvailable: boolean };
   "settings.setCredential": { saved: boolean };
