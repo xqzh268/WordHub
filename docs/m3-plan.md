@@ -2,6 +2,8 @@
 
 **日期：2026-10-04**　依据：[m2-1-acceptance.md](m2-1-acceptance.md)（遗留项 R1–R9）；上位文档 [p1-plan.md](p1-plan.md)、[research/multi-agent-orchestration.md](research/multi-agent-orchestration.md)。
 
+> 本文为当时的开发计划。当前实现状态见[M3进度](m3-progress.md)和[M4进展](m4-progress.md)；模型默认分配、回归调度及验收状态以当前进展记录为准。
+
 M3 把“一个 Agent 一次回复”升级为“一组 Agent 完成一件事”：任务图、质询、写入串行化、可恢复的审批与中断、费用预估。预计 **约 13 个工作日**（含 M3.0 的 1.5 天）。
 
 ## 一、现状与起点
