@@ -1,9 +1,24 @@
 name: M3 neutral review nightly
 
+# 夜间评审评测。通知策略：连续 2 晚失败才让任务失败（GitHub 才会发邮件）；
+# 首次失败以“成功 + 警告”收尾，结果记录在构件 nightly-status，由 scripts/nightly-gate.mjs 读取。
 on:
   schedule:
     - cron: "30 18 * * *"
   workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "演练：直接模拟评测失败，不调用模型（用于验证通知闸门）"
+        type: boolean
+        default: false
+      dry_run:
+        description: "演练：判定应当通知时只打印，不让任务失败（不会发邮件）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
 
 concurrency:
   group: m3-neutral-nightly
@@ -20,7 +35,40 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:desktop
-      - run: npm run test:m3:neutral
+        if: ${{ !inputs.simulate_failure }}
+      - name: Run neutral review eval
+        id: eval
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ "${{ inputs.simulate_failure }}" = "true" ]; then
+            echo "演练：模拟评测失败"
+            exit 1
+          fi
+          npm run test:m3:neutral
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           WORDHUB_REQUIRE_LIVE: "1"
+      - name: Notification gate (2 consecutive failures)
+        shell: bash
+        run: node scripts/nightly-gate.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVAL_OUTCOME: ${{ steps.eval.outcome }}
+          WORKFLOW_FILE: m3-neutral-nightly.yml
+          DRY_RUN: ${{ inputs.dry_run }}
+      - name: Upload status for the next night
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-status
+          path: status/result.txt
+          retention-days: 30
+      - name: Upload eval details
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-eval-detail
+          path: artifacts/m3-neutral-result.json
+          if-no-files-found: ignore
+          retention-days: 30
