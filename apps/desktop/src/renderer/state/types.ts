@@ -56,6 +56,8 @@ export type ChatItem =
       maxRounds: number;
       severity: "blocking" | "minor";
       claim: string;
+      category?: string;
+      citations?: { source: string; quote: string }[];
       replies: { agentId: string; text: string }[];
     }
   | {

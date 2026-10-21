@@ -40,6 +40,15 @@ export function SettingsView() {
   const reading = useWorkbench((s) => s.reading);
   const setTheme = useWorkbench((s) => s.setTheme);
   const setReading = useWorkbench((s) => s.setReading);
+  const projectId = useWorkbench((s) => s.project.id);
+  const [autoReview, setAutoReview] = useState(false);
+  useEffect(() => {
+    if (!projectId) return;
+    void window.wordhub
+      ?.invoke("project.prefs.get", { projectId })
+      .then((prefs) => setAutoReview(prefs.autoReviewOnFinalize))
+      .catch(() => undefined);
+  }, [projectId]);
   const [secret, setSecret] = useState("");
   const [credentialState, setCredentialState] = useState<{
     configured: boolean;
@@ -136,6 +145,31 @@ export function SettingsView() {
               <p className="section-note">{connectionMessage}</p>
             )}
           </div>
+        </section>
+
+        <section className="panel-section">
+          <h2>写作流程</h2>
+          <label className="toggle-row" data-testid="auto-review-toggle">
+            <input
+              type="checkbox"
+              checked={autoReview}
+              disabled={!projectId}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setAutoReview(next);
+                void window.wordhub?.invoke("project.prefs.set", {
+                  projectId: projectId!,
+                  autoReviewOnFinalize: next,
+                });
+              }}
+            />
+            <span>定稿后自动评审</span>
+          </label>
+          <p className="section-note">
+            {projectId
+              ? "章节定稿（观察者抽取事实、写摘要）之后，自动再跑一轮评审。默认关闭。"
+              : "先链接一个项目文件夹，才能设置项目级的写作流程。"}
+          </p>
         </section>
 
         <section className="panel-section">

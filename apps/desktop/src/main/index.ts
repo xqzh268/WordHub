@@ -157,6 +157,37 @@ function registerIpc(): void {
           ...(command === "chapter.read" ? { path: payload.path } : {}),
         });
       }
+      if (command === "project.prefs.get") {
+        const payload = request.payload as CommandPayloads["project.prefs.get"];
+        return await worker.request<CommandResults["project.prefs.get"]>({
+          type: "project.prefs.get",
+          projectId: payload.projectId,
+        });
+      }
+      if (command === "project.prefs.set") {
+        const payload = request.payload as CommandPayloads["project.prefs.set"];
+        return await worker.request<CommandResults["project.prefs.set"]>({
+          type: "project.prefs.set",
+          projectId: payload.projectId,
+          autoReviewOnFinalize: payload.autoReviewOnFinalize,
+        });
+      }
+      if (command === "fact.list") {
+        const payload = request.payload as CommandPayloads["fact.list"];
+        return await worker.request<CommandResults["fact.list"]>({
+          type: "fact.list",
+          projectId: payload.projectId,
+        });
+      }
+      if (command === "fact.decide") {
+        const payload = request.payload as CommandPayloads["fact.decide"];
+        return await worker.request<CommandResults["fact.decide"]>({
+          type: "fact.decide",
+          projectId: payload.projectId,
+          factId: payload.factId,
+          decision: payload.decision,
+        });
+      }
       if (command === "run.start") {
         const payload = request.payload as CommandPayloads["run.start"];
         const runId = payload.runId ?? `run_${Date.now().toString(36)}`;

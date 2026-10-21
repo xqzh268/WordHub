@@ -1,0 +1,7 @@
+{
+  "id": "finalize-chapter",
+  "label": "定稿本章",
+  "nodes": [
+    { "id": "observer", "kind": "observe", "agent": "observer", "dependencies": [], "status": "pending", "maxAttempts": 2 }
+  ]
+}

@@ -472,6 +472,14 @@ function ToolRow({ tool }: { tool: ToolStep }) {
   );
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  timeline: "时间线",
+  character: "人物塑造",
+  fact: "基本事实",
+  commonsense: "常识",
+  style: "风格",
+};
+
 function ThreadCard({ item }: { item: ThreadItem }) {
   const [open, setOpen] = useState(false);
   const from = agentById(item.from);
@@ -498,6 +506,11 @@ function ThreadCard({ item }: { item: ThreadItem }) {
           <span className="tag">
             第 {item.round}/{item.maxRounds} 轮
           </span>
+          {item.category && (
+            <span className="tag">
+              {CATEGORY_LABELS[item.category] ?? item.category}
+            </span>
+          )}
           {item.severity === "blocking" && (
             <span className="tag tag-danger">阻塞</span>
           )}
@@ -509,6 +522,18 @@ function ThreadCard({ item }: { item: ThreadItem }) {
           />
         </button>
         <blockquote className="thread-claim">{item.claim}</blockquote>
+        {item.citations && item.citations.length > 0 && (
+          <ul className="thread-cites" data-testid="thread-cites">
+            {item.citations.map((cite) => (
+              <li key={`${cite.source}:${cite.quote}`}>
+                <q>{cite.quote}</q>
+                <span>
+                  {cite.source.replace(/^\.wordhub\/bible\//u, "设定/")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
         <AnimatePresence initial={false}>
           {open && (
             <motion.ol

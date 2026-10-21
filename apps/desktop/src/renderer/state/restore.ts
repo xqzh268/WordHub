@@ -154,6 +154,18 @@ export function restoreItems(raw: unknown): ChatItem[] {
           maxRounds: Number(value.maxRounds ?? 2),
           severity: value.severity === "minor" ? "minor" : "blocking",
           claim: value.claim,
+          category:
+            typeof value.category === "string" ? value.category : undefined,
+          citations: Array.isArray(value.citations)
+            ? value.citations.flatMap((entry) => {
+                if (!entry || typeof entry !== "object") return [];
+                const item = entry as Record<string, unknown>;
+                return typeof item.source === "string" &&
+                  typeof item.quote === "string"
+                  ? [{ source: item.source, quote: item.quote }]
+                  : [];
+              })
+            : undefined,
           replies: Array.isArray(value.replies)
             ? value.replies.flatMap((reply) => {
                 if (!reply || typeof reply !== "object") return [];

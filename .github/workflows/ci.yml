@@ -25,3 +25,4 @@ jobs:
       - run: npm run test:layout
       - run: npm run test:m1:e2e
       - run: npm run test:chapters:e2e
+      - run: npm run test:facts:e2e

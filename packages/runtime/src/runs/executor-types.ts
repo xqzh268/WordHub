@@ -41,6 +41,21 @@ export type RuntimeRequest =
       requestId: string;
     }
   | { type: "chapter.watch"; projectId: string; requestId: string }
+  | { type: "fact.list"; projectId: string; requestId: string }
+  | { type: "project.prefs.get"; projectId: string; requestId: string }
+  | {
+      type: "project.prefs.set";
+      projectId: string;
+      autoReviewOnFinalize?: boolean;
+      requestId: string;
+    }
+  | {
+      type: "fact.decide";
+      projectId: string;
+      factId: string;
+      decision: "confirm" | "reject";
+      requestId: string;
+    }
   | {
       type: "file.write";
       projectId: string;

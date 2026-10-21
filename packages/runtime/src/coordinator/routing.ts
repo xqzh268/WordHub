@@ -12,6 +12,7 @@ export function workflowRoute(
     (input.agentId && input.agentId !== "planner")
   )
     return undefined;
+  if (/^定稿/u.test(input.prompt.trim())) return "finalize-chapter";
   if (/全流程/u.test(input.prompt)) return "write-chapter-full";
   if (/(写|撰写|生成).{0,8}第?[一二三四五六七八九十\d]+章/u.test(input.prompt))
     return "write-chapter";

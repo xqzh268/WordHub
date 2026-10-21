@@ -6,9 +6,10 @@ import {
   ListTree,
   Quote,
 } from "lucide-react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import { agentById } from "../lib/agents";
 import { formatUpdated, neighborChapter } from "../state/chapters";
+import { FACT_KIND_LABELS, type NovelFact } from "@wordhub/contracts";
 import { useWorkbench } from "../state/store";
 import type { PaperTab } from "../state/types";
 
@@ -30,6 +31,13 @@ export function PaperPane() {
   const chapters = useWorkbench((s) => s.chapters);
   const activeChapter = useWorkbench((s) => s.activeChapter);
   const selectChapter = useWorkbench((s) => s.selectChapter);
+  const proposedCount = useWorkbench(
+    (s) => s.facts.filter((fact) => fact.status === "proposed").length,
+  );
+  const finalized = useWorkbench((s) => s.finalized);
+  const busy = useWorkbench((s) => s.activeRunId !== null);
+  const send = useWorkbench((s) => s.send);
+  const isFinalized = activeChapter ? finalized.includes(activeChapter) : false;
   const prev = neighborChapter(chapters, activeChapter, -1);
   const next = neighborChapter(chapters, activeChapter, 1);
   const words = paper
@@ -56,6 +64,11 @@ export function PaperPane() {
                 />
               )}
               <span>{item.label}</span>
+              {item.id === "facts" && proposedCount > 0 && (
+                <span className="tab-badge" data-testid="facts-badge">
+                  {proposedCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -107,6 +120,16 @@ export function PaperPane() {
             onClick={() => next && void selectChapter(next)}
           >
             <ChevronRight size={15} strokeWidth={1.5} />
+          </button>
+          <button
+            type="button"
+            className={`btn finalize-btn ${isFinalized ? "done" : ""}`}
+            data-testid="finalize"
+            disabled={busy || !activeChapter}
+            title="观察者会抽取待确认的事实并写章节摘要"
+            onClick={() => activeChapter && void send(`定稿 ${activeChapter}`)}
+          >
+            {isFinalized ? "重新定稿" : "定稿"}
           </button>
         </nav>
       )}
@@ -180,15 +203,109 @@ export function PaperPane() {
             text="纲领完成问询后，章节大纲、悬念线与设定词典会列在这里。"
           />
         )}
-        {tab === "facts" && (
-          <Soft
-            icon={<BookOpenText size={22} strokeWidth={1.25} />}
-            title="还没有事实"
-            text="观察者每写完一章，会把人物状态、新名词与伏笔整理成待确认的候选事实。"
-          />
-        )}
+        {tab === "facts" && <FactsPanel />}
       </div>
     </section>
+  );
+}
+
+const STATUS_LABELS: Record<NovelFact["status"], string> = {
+  proposed: "待确认",
+  confirmed: "已确认",
+  rejected: "已驳回",
+};
+
+function FactsPanel() {
+  const facts = useWorkbench((s) => s.facts);
+  const summaries = useWorkbench((s) => s.summaries);
+  const decide = useWorkbench((s) => s.decideFact);
+  const [onlyPending, setOnlyPending] = useState(false);
+  const visible = facts.filter(
+    (fact) => !onlyPending || fact.status === "proposed",
+  );
+  if (facts.length === 0 && summaries.length === 0)
+    return (
+      <Soft
+        icon={<BookOpenText size={22} strokeWidth={1.25} />}
+        title="还没有事实"
+        text="章节定稿时，观察者会把人物状态、新名词与伏笔整理成待确认的候选事实，由你确认或驳回。"
+      />
+    );
+  const chapters = [
+    ...new Set([
+      ...visible.map((fact) => fact.chapter),
+      ...(onlyPending ? [] : summaries.map((item) => item.chapter)),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, "zh-CN", { numeric: true }));
+  return (
+    <div className="facts-panel" data-testid="facts-panel">
+      <div className="facts-toolbar">
+        <label>
+          <input
+            type="checkbox"
+            checked={onlyPending}
+            onChange={(event) => setOnlyPending(event.target.checked)}
+          />
+          只看待确认
+        </label>
+        <span className="facts-hint">
+          只有“已确认”的事实会作为评审的硬校验依据。
+        </span>
+      </div>
+      {chapters.map((chapter) => {
+        const summary = summaries.find((item) => item.chapter === chapter);
+        return (
+          <section key={chapter} className="facts-chapter">
+            <h4>
+              {chapter.replace(/^chapters\//u, "").replace(/\.[^.]+$/u, "")}
+            </h4>
+            {summary && <p className="facts-summary">{summary.text}</p>}
+            <ul>
+              {visible
+                .filter((fact) => fact.chapter === chapter)
+                .map((fact) => (
+                  <li
+                    key={fact.id}
+                    className={`fact fact-${fact.status}`}
+                    data-testid="fact"
+                  >
+                    <div className="fact-head">
+                      <span className="tag">{FACT_KIND_LABELS[fact.kind]}</span>
+                      <strong>{fact.subject}</strong>
+                      <span className="fact-status">
+                        {STATUS_LABELS[fact.status]}
+                      </span>
+                    </div>
+                    <p>{fact.statement}</p>
+                    <q className="fact-quote">{fact.quote}</q>
+                    {fact.note && <p className="fact-note">{fact.note}</p>}
+                    <div className="fact-actions">
+                      {fact.status !== "confirmed" && (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => void decide(fact.id, "confirm")}
+                        >
+                          确认
+                        </button>
+                      )}
+                      {fact.status !== "rejected" && (
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => void decide(fact.id, "reject")}
+                        >
+                          驳回
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 

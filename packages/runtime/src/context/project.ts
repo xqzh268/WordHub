@@ -1,4 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
+import {
+  FACT_KIND_LABELS,
+  chapterNumberFromName,
+  projectFacts,
+  projectSummaries,
+} from "@wordhub/contracts";
 import { safeProjectTarget, type WordHubStore } from "@wordhub/store";
 import { ContextBuilder } from "./builder.js";
 import type { AgentDefinition, ContextLayer } from "../types.js";
@@ -62,12 +68,52 @@ async function readBibleFile(
   return text === undefined ? undefined : { path: relativePath, text };
 }
 
-function outlineForChapter(text: string, number: number | undefined): string {
+const headingLevel = (line: string): number =>
+  line.match(/^(#{1,6})\s/u)?.[1]?.length ?? 0;
+
+const stripMarker = (line: string): string =>
+  line.replace(/^(?:#{1,6}\s+|[-*+]\s+|\d+[.)、]\s*)/u, "").trim();
+
+/**
+ * 取出大纲里属于第 N 章的段落：从该章标题行开始，到下一个同级或更高级标题、
+ * 或另一章的标题行为止（模型生成的大纲把目标、事件、悬念写在标题下面的列表里）。
+ * 找不到标题式的章节段落时，退回到逐行匹配含“第N章”的行。
+ */
+export function outlineForChapter(
+  text: string,
+  number: number | undefined,
+): string {
   if (number === undefined) return text;
-  return text
-    .split(/\r?\n/u)
-    .filter((line) => chapterNameMatches(line, number))
-    .join("\n");
+  const lines = text.split(/\r?\n/u);
+  const isChapterLine = (line: string) =>
+    /^第/u.test(stripMarker(line)) &&
+    chapterNumber(stripMarker(line)) !== undefined;
+  const start = lines.findIndex(
+    (line) =>
+      isChapterLine(line) && chapterNameMatches(stripMarker(line), number),
+  );
+  if (start < 0)
+    return lines.filter((line) => chapterNameMatches(line, number)).join("\n");
+  const level = headingLevel(lines[start] ?? "");
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const otherLevel = headingLevel(line);
+    const otherChapter =
+      isChapterLine(line) && !chapterNameMatches(stripMarker(line), number);
+    const closesSection =
+      level > 0
+        ? otherLevel > 0 && otherLevel <= level
+        : otherChapter && otherLevel === 0;
+    if (
+      closesSection ||
+      (otherChapter && otherLevel > 0 && otherLevel <= (level || 6))
+    ) {
+      end = index;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n").trim();
 }
 
 async function previousChapter(
@@ -156,6 +202,50 @@ export async function collectProjectContextLayers(input: {
         sourcePath: characters.path,
         text: characters.text,
         tokenBudget: 1800,
+      });
+  }
+
+  if (scopes.has("bible") || scopes.has("chapters")) {
+    const events = input.store.listEvents(input.projectId);
+    // 只给“当前章之前”的章节：写第 3 章不该看到第 5 章的事实。
+    const before = (chapter: string) => {
+      const chapterNo = chapterNumberFromName(
+        chapter.split("/").at(-1) ?? chapter,
+      );
+      return number === undefined || chapterNo === undefined
+        ? true
+        : chapterNo < number;
+    };
+    const order = (chapter: string) =>
+      chapterNumberFromName(chapter.split("/").at(-1) ?? chapter) ?? 0;
+    const summaries = projectSummaries(events)
+      .filter((item) => before(item.chapter))
+      .sort((a, b) => order(a.chapter) - order(b.chapter));
+    if (summaries.length)
+      layers.push({
+        id: "summaries",
+        kind: "memory",
+        sourcePath: "章节摘要",
+        text: summaries
+          .map((item) => `${item.chapter}：${item.text}`)
+          .join("\n"),
+        tokenBudget: 1000,
+      });
+    const facts = projectFacts(events)
+      .filter((fact) => fact.status === "confirmed" && before(fact.chapter))
+      .sort((a, b) => order(a.chapter) - order(b.chapter));
+    if (facts.length)
+      layers.push({
+        id: "facts",
+        kind: "memory",
+        sourcePath: "已确认事实",
+        text: facts
+          .map(
+            (fact) =>
+              `- [${fact.chapter}·${FACT_KIND_LABELS[fact.kind]}] ${fact.subject}：${fact.statement}（原文：“${fact.quote}”）`,
+          )
+          .join("\n"),
+        tokenBudget: 1200,
       });
   }
 

@@ -388,6 +388,102 @@ describe("纲领草稿", () => {
   });
 });
 
+describe("质询分类", () => {
+  it("challenge.raise 把分类与引文带到质询卡，再次提出时保留", () => {
+    emit({
+      type: "challenge.raise",
+      threadId: "t1",
+      actorId: "reviewer",
+      claim: "右手与左撇子冲突",
+      category: "character",
+      citations: [{ source: "chapters/第三章.md", quote: "右手按住刀柄" }],
+      round: 1,
+    });
+    emit({
+      type: "challenge.raise",
+      threadId: "t1",
+      claim: "仍冲突",
+      round: 2,
+    });
+    expect(ofKind("thread")[0]).toMatchObject({
+      category: "character",
+      citations: [{ source: "chapters/第三章.md", quote: "右手按住刀柄" }],
+      round: 2,
+    });
+  });
+});
+
+describe("事实", () => {
+  const fact = (id: string, status: string) => ({
+    id,
+    kind: "character_state",
+    subject: "老周",
+    statement: "老周死亡",
+    chapter: "chapters/第五章.md",
+    quote: "老周倒在质库后墙下",
+    status,
+    proposedAt: "2026-10-22T00:00:00.000Z",
+  });
+
+  it("refreshFacts 载入事实、摘要与定稿章节", async () => {
+    invoke.mockResolvedValue({
+      facts: [fact("f1", "proposed")],
+      summaries: [{ chapter: "chapters/第五章.md", text: "老周死了", at: "x" }],
+      finalized: ["chapters/第五章.md"],
+    });
+    await state().refreshFacts();
+    expect(state().facts).toHaveLength(1);
+    expect(state().summaries[0]?.text).toBe("老周死了");
+    expect(state().finalized).toEqual(["chapters/第五章.md"]);
+  });
+
+  it("decideFact 先乐观更新，再通知后台", async () => {
+    useWorkbench.setState({ facts: [fact("f1", "proposed")] as never });
+    invoke.mockResolvedValue({ factId: "f1", status: "confirmed" });
+    const pending = state().decideFact("f1", "confirm");
+    expect(state().facts[0]?.status).toBe("confirmed");
+    await pending;
+    expect(invoke).toHaveBeenCalledWith("fact.decide", {
+      projectId: "p1",
+      factId: "f1",
+      decision: "confirm",
+    });
+  });
+
+  it("决定失败时以事件日志为准刷新回来", async () => {
+    useWorkbench.setState({ facts: [fact("f1", "proposed")] as never });
+    invoke.mockImplementation(async (command) => {
+      if (command === "fact.decide") throw new Error("busy");
+      return { facts: [fact("f1", "proposed")], summaries: [], finalized: [] };
+    });
+    await state().decideFact("f1", "reject");
+    expect(state().facts[0]?.status).toBe("proposed");
+  });
+
+  it("事实 / 摘要 / 定稿事件触发刷新", async () => {
+    invoke.mockResolvedValue({ facts: [], summaries: [], finalized: [] });
+    for (const type of [
+      "fact.proposed",
+      "fact.confirmed",
+      "fact.rejected",
+      "chapter.summary",
+      "chapter.finalized",
+    ]) {
+      invoke.mockClear();
+      emit({ type });
+      await vi.waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith("fact.list", { projectId: "p1" }),
+      );
+    }
+  });
+
+  it("没有项目时不请求", async () => {
+    useWorkbench.setState({ project: { name: "未命名项目", folder: null } });
+    await state().refreshFacts();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
 describe("纸面与章节", () => {
   const info = (
     name: string,

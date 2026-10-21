@@ -135,6 +135,8 @@ export function handleApproval(
                       typeof (message as { claim?: unknown }).claim === "string"
                         ? (message as { claim: string }).claim
                         : item.claim,
+                    category: message.category ?? item.category,
+                    citations: message.citations ?? item.citations,
                   }
                 : item,
             );
@@ -159,6 +161,8 @@ export function handleApproval(
                 typeof (message as { claim?: unknown }).claim === "string"
                   ? (message as { claim: string }).claim
                   : "",
+              category: message.category,
+              citations: message.citations,
               replies: [],
             },
           ];

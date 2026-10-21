@@ -92,10 +92,12 @@ function validateFrontmatter(
 }
 
 export function parseAgentMarkdown(
-  markdown: string,
+  rawMarkdown: string,
   sourcePath: string,
   source: AgentSource,
 ): AgentDefinition {
+  // Windows 编辑器常存成 CRLF：行尾的回车符会让 YAML 把最后一个数字读成字符串。
+  const markdown = rawMarkdown.replace(/\r\n/gu, "\n");
   if (!markdown.startsWith("---"))
     throw new AgentConfigError("缺少YAML frontmatter", sourcePath);
   const end = markdown.indexOf("\n---", 3);

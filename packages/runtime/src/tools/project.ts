@@ -1,5 +1,5 @@
 import { readdir, readFile, stat } from "node:fs/promises";
-import type { Actor, Hash } from "@wordhub/contracts";
+import { type Actor, type Hash, projectFacts } from "@wordhub/contracts";
 import {
   ControlledFileWriter,
   FileConflictError,
@@ -9,6 +9,7 @@ import {
 } from "@wordhub/store";
 import { createBuiltinTools, type WriteToolInput } from "./builtin.js";
 import type { AgentDefinition } from "../types.js";
+import { verifyCitations } from "./citations.js";
 
 export const bibleRelative = (input: string): string =>
   input
@@ -132,6 +133,7 @@ export function projectTools(input: {
       return event ? summary(event) : undefined;
     },
     challengeRaise: async (value) => {
+      await verifyCitations(input.projectPath, value.category, value.citations);
       const threadId =
         value.threadId ?? `thread_${input.runId}_${Date.now().toString(36)}`;
       const alreadyEscalated = input.store
@@ -199,6 +201,33 @@ export function projectTools(input: {
           resolution: "accepted",
         });
       return { threadId: value.threadId, round };
+    },
+    factPropose: async (value) => {
+      const chapter = value.chapter.replaceAll("\\", "/");
+      if (!/^chapters\//u.test(chapter))
+        throw new Error("事实的出处必须是 chapters/ 下的章节文件。");
+      await verifyCitations(input.projectPath, "style", [
+        { source: chapter, quote: value.quote },
+      ]);
+      const existing = projectFacts(input.store.listEvents(input.projectId));
+      const same = existing.find(
+        (fact) =>
+          fact.status !== "rejected" &&
+          fact.chapter === chapter &&
+          fact.subject === value.subject &&
+          fact.statement === value.statement,
+      );
+      if (same) return { factId: same.id, duplicate: true };
+      const factId = `fact_${input.runId}_${Date.now().toString(36)}_${existing.length}`;
+      input.event("fact.proposed", { factId, ...value, chapter });
+      return { factId };
+    },
+    chapterSummarize: async (value) => {
+      const chapter = value.chapter.replaceAll("\\", "/");
+      if (!/^chapters\//u.test(chapter))
+        throw new Error("摘要的章节必须是 chapters/ 下的文件。");
+      input.event("chapter.summary", { chapter, text: value.summary });
+      return { chapter };
     },
     questionAsk: async (value) => {
       const questionId = `question_${input.runId}_${Date.now().toString(36)}`;

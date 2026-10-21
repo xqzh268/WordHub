@@ -2,6 +2,8 @@ import { create } from "zustand";
 import type {
   AppEvent,
   ChapterInfo,
+  ChapterSummary,
+  NovelFact,
   ThemePreference,
   WorkspaceSnapshot,
 } from "@wordhub/contracts";
@@ -61,6 +63,10 @@ export type State = Prefs & {
   /** 项目 chapters/ 目录下的章节（磁盘为准），按章号排序 */
   chapters: ChapterInfo[];
   activeChapter: string | null;
+  /** 观察者抽取的事实（待确认 / 已确认 / 已驳回），来自事件日志投影 */
+  facts: NovelFact[];
+  summaries: ChapterSummary[];
+  finalized: string[];
   activeRunId: string | null;
   composer: string;
 
@@ -68,6 +74,8 @@ export type State = Prefs & {
   setReading(reading: ReadingFont): void;
   setView(view: View): void;
   setPaperTab(tab: PaperTab): void;
+  refreshFacts(): Promise<void>;
+  decideFact(factId: string, decision: "confirm" | "reject"): Promise<void>;
   selectChapter(path: string): Promise<void>;
   syncChapters(preferred?: string): Promise<void>;
   watchChapters(): Promise<void>;
@@ -133,6 +141,9 @@ export const useWorkbench = create<State>((set, get) => {
     paper: isDemo ? DEMO_CHAPTER : null,
     chapters: [],
     activeChapter: null,
+    facts: [],
+    summaries: [],
+    finalized: [],
     activeRunId: null,
     composer: "",
 
@@ -152,6 +163,47 @@ export const useWorkbench = create<State>((set, get) => {
     },
     setView: (view) => set({ view }),
     setPaperTab: (paperTab) => set({ paperTab }),
+
+    async refreshFacts() {
+      const projectId = get().project.id;
+      if (!projectId || !window.wordhub || get().demo) return;
+      try {
+        const result = await window.wordhub.invoke("fact.list", { projectId });
+        if (get().project.id !== projectId) return;
+        set({
+          facts: result.facts,
+          summaries: result.summaries,
+          finalized: result.finalized,
+        });
+      } catch {
+        // 下一次事件会再刷新
+      }
+    },
+
+    async decideFact(factId, decision) {
+      const projectId = get().project.id;
+      if (!projectId || !window.wordhub) return;
+      // 先乐观更新，失败再以磁盘（事件日志）为准刷新回来
+      set((state) => ({
+        facts: state.facts.map((fact) =>
+          fact.id === factId
+            ? {
+                ...fact,
+                status: decision === "confirm" ? "confirmed" : "rejected",
+              }
+            : fact,
+        ),
+      }));
+      try {
+        await window.wordhub.invoke("fact.decide", {
+          projectId,
+          factId,
+          decision,
+        });
+      } catch {
+        await get().refreshFacts();
+      }
+    },
 
     async selectChapter(path) {
       await get().syncChapters(path);
@@ -202,6 +254,7 @@ export const useWorkbench = create<State>((set, get) => {
       await window.wordhub
         .invoke("chapter.watch", { projectId })
         .catch(() => undefined);
+      void get().refreshFacts();
       await get().syncChapters();
     },
     setComposer: (composer) => set({ composer }),
@@ -262,6 +315,7 @@ export const useWorkbench = create<State>((set, get) => {
           activeChapter: null,
         });
         void get().watchChapters();
+        void get().refreshFacts();
       } else if (folder)
         set({
           project: { name: folder.split(/[\\/]/).pop() || folder, folder },
@@ -549,6 +603,13 @@ export const useWorkbench = create<State>((set, get) => {
             });
             void get().syncChapters(path);
           }
+          break;
+        case "fact.proposed":
+        case "fact.confirmed":
+        case "fact.rejected":
+        case "chapter.summary":
+        case "chapter.finalized":
+          void get().refreshFacts();
           break;
         case "chapters.changed":
           if (message.projectId === get().project.id) void get().syncChapters();

@@ -26,6 +26,8 @@ export type RunMessage = {
   label?: string;
   content?: string;
   intakeId?: string;
+  category?: string;
+  citations?: { source: string; quote: string }[];
   source?: string;
   documents?: Record<string, string>;
   questionId?: string;

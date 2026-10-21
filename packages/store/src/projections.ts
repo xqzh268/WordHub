@@ -64,6 +64,9 @@ export type ProjectedChatItem =
       maxRounds: number;
       severity: "blocking" | "minor";
       claim: string;
+      /** timeline / character / fact / commonsense / style */
+      category?: string;
+      citations?: { source: string; quote: string }[];
       replies: { agentId: string; text: string }[];
       eventId: string;
     }
@@ -394,6 +397,26 @@ export function applyChatEvent(
       maxRounds: 2,
       severity: payload.severity === "minor" ? "minor" : "blocking",
       claim: typeof payload.claim === "string" ? payload.claim : "",
+      ...(typeof payload.category === "string"
+        ? { category: payload.category }
+        : {}),
+      ...(Array.isArray(payload.citations)
+        ? {
+            citations: payload.citations.flatMap((entry) =>
+              entry &&
+              typeof entry === "object" &&
+              typeof (entry as Record<string, unknown>).source === "string" &&
+              typeof (entry as Record<string, unknown>).quote === "string"
+                ? [
+                    {
+                      source: (entry as { source: string }).source,
+                      quote: (entry as { quote: string }).quote,
+                    },
+                  ]
+                : [],
+            ),
+          }
+        : {}),
       replies: [],
       eventId: event.id,
     });

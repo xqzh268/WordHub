@@ -1,3 +1,9 @@
+import { FACT_KINDS, type FactKind } from "@wordhub/contracts";
+import {
+  CHALLENGE_CATEGORIES,
+  type ChallengeCategory,
+  type Citation,
+} from "./citations.js";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type Static, Type } from "typebox";
 
@@ -41,6 +47,8 @@ export type BuiltinToolRuntime = {
     path?: string;
     range?: string;
     evidence?: string[];
+    category: ChallengeCategory;
+    citations: Citation[];
     severity: "blocking" | "minor";
   }): Promise<{ threadId: string; round: number }>;
   challengeReply?(input: {
@@ -49,6 +57,18 @@ export type BuiltinToolRuntime = {
     text: string;
     patchRef?: string;
   }): Promise<{ threadId: string; round: number }>;
+  factPropose?(input: {
+    kind: FactKind;
+    subject: string;
+    statement: string;
+    chapter: string;
+    quote: string;
+    note?: string;
+  }): Promise<{ factId: string; duplicate?: boolean }>;
+  chapterSummarize?(input: {
+    chapter: string;
+    summary: string;
+  }): Promise<{ chapter: string }>;
   questionAsk?(input: {
     target: string;
     question: string;
@@ -78,6 +98,29 @@ const challengeParameters = Type.Object({
   evidence: Type.Optional(
     Type.Array(Type.String({ maxLength: 500 }), { maxItems: 8 }),
   ),
+  category: Type.Union(
+    CHALLENGE_CATEGORIES.map((item) => Type.Literal(item)),
+    {
+      description:
+        "一致性分类：timeline时间线 / character人物塑造 / fact基本事实 / commonsense常识 / style风格",
+    },
+  ),
+  citations: Type.Array(
+    Type.Object({
+      source: Type.String({
+        minLength: 1,
+        maxLength: 300,
+        description:
+          "出处文件的相对路径，如 chapters/第三章.md 或 .wordhub/bible/characters.md",
+      }),
+      quote: Type.String({
+        minLength: 1,
+        maxLength: 400,
+        description: "逐字复制的原文片段（可用……连接两段）",
+      }),
+    }),
+    { minItems: 1, maxItems: 6 },
+  ),
   severity: Type.Union([Type.Literal("blocking"), Type.Literal("minor")]),
 });
 const replyParameters = Type.Object({
@@ -89,6 +132,46 @@ const replyParameters = Type.Object({
   ]),
   text: Type.String({ minLength: 1, maxLength: 2000 }),
   patchRef: Type.Optional(Type.String({ maxLength: 200 })),
+});
+const factParameters = Type.Object({
+  kind: Type.Union(
+    FACT_KINDS.map((item) => Type.Literal(item)),
+    {
+      description:
+        "character_state人物状态（死亡/受伤/身份变化/位置等） / term新名词 / foreshadow伏笔 / event关键事件",
+    },
+  ),
+  subject: Type.String({
+    minLength: 1,
+    maxLength: 80,
+    description: "事实的主体：人物名、名词本身、伏笔的称呼",
+  }),
+  statement: Type.String({
+    minLength: 1,
+    maxLength: 300,
+    description: "一句话陈述事实，只写正文里确实发生或说明的内容",
+  }),
+  chapter: Type.String({
+    minLength: 1,
+    maxLength: 300,
+    description: "出处章节的相对路径，如 chapters/第五章.md",
+  }),
+  quote: Type.String({
+    minLength: 1,
+    maxLength: 400,
+    description: "逐字复制的正文原文，作为这条事实的锚点",
+  }),
+  note: Type.Optional(
+    Type.String({ maxLength: 200, description: "不确定之处的备注" }),
+  ),
+});
+const summaryParameters = Type.Object({
+  chapter: Type.String({ minLength: 1, maxLength: 300 }),
+  summary: Type.String({
+    minLength: 1,
+    maxLength: 800,
+    description: "本章摘要：发生了什么、人物状态变化、留下的悬念，300字以内",
+  }),
 });
 const questionParameters = Type.Object({
   target: Type.String({ minLength: 1, maxLength: 64 }),
@@ -208,7 +291,8 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
   const challengeRaise: AgentTool<typeof challengeParameters> = {
     name: "challenge.raise",
     label: "发起质询",
-    description: "针对正文或设定提出带证据的质询。",
+    description:
+      "针对正文或设定提出质询。必须选择分类，并用 citations 逐字引用出处原文（时间线/人物/基本事实类要引用矛盾的两端）；引文不是逐字原文时会被拒绝。",
     parameters: challengeParameters,
     execute: async (_id, params) =>
       runtime.challengeRaise
@@ -224,6 +308,27 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
       runtime.challengeReply
         ? textResult(JSON.stringify(await runtime.challengeReply(params)))
         : textResult("当前运行时未提供质询能力", { isError: true }),
+  };
+  const factPropose: AgentTool<typeof factParameters> = {
+    name: "fact.propose",
+    label: "提出待确认事实",
+    description:
+      "把正文中的一条事实记为“待确认”，等用户确认后才会成为硬校验依据。必须逐字引用正文原文作为锚点，引文不是逐字原文会被拒绝。",
+    parameters: factParameters,
+    execute: async (_id, params) =>
+      runtime.factPropose
+        ? textResult(JSON.stringify(await runtime.factPropose(params)))
+        : textResult("当前运行时未提供事实能力", { isError: true }),
+  };
+  const chapterSummarize: AgentTool<typeof summaryParameters> = {
+    name: "chapter.summarize",
+    label: "记录章节摘要",
+    description: "为定稿章节写一段摘要，供后续章节的上下文使用。",
+    parameters: summaryParameters,
+    execute: async (_id, params) =>
+      runtime.chapterSummarize
+        ? textResult(JSON.stringify(await runtime.chapterSummarize(params)))
+        : textResult("当前运行时未提供摘要能力", { isError: true }),
   };
   const questionAsk: AgentTool<typeof questionParameters> = {
     name: "question.ask",
@@ -246,5 +351,7 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
     ...(runtime.challengeRaise ? [challengeRaise] : []),
     ...(runtime.challengeReply ? [challengeReply] : []),
     ...(runtime.questionAsk ? [questionAsk] : []),
+    ...(runtime.factPropose ? [factPropose] : []),
+    ...(runtime.chapterSummarize ? [chapterSummarize] : []),
   ];
 }

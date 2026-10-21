@@ -4,10 +4,16 @@ import {
   projectChat,
 } from "@wordhub/store";
 import {
+  projectFacts,
+  projectFinalized,
+  projectSummaries,
+} from "@wordhub/contracts";
+import {
   listChapters,
   readChapter,
   watchChapters,
 } from "../chapters/service.js";
+import { loadProjectPrefs, saveProjectPrefs } from "../projects/prefs.js";
 import type { RuntimeRequest } from "./executor-types.js";
 import type {
   RunContext,
@@ -176,6 +182,67 @@ export function createRequestHandler(deps: DispatcherDeps) {
           ),
         );
         sendResponse(request.requestId, { watching: true });
+        return;
+      }
+      if (request.type === "project.prefs.get") {
+        sendResponse(
+          request.requestId,
+          await loadProjectPrefs(chapterFolder(request.projectId)),
+        );
+        return;
+      }
+      if (request.type === "project.prefs.set") {
+        sendResponse(
+          request.requestId,
+          await saveProjectPrefs(chapterFolder(request.projectId), {
+            ...(request.autoReviewOnFinalize === undefined
+              ? {}
+              : { autoReviewOnFinalize: request.autoReviewOnFinalize }),
+          }),
+        );
+        return;
+      }
+      if (request.type === "fact.list") {
+        const store = await recoverProjectFiles(request.projectId);
+        const events = store.listEvents(request.projectId);
+        sendResponse(request.requestId, {
+          facts: projectFacts(events),
+          summaries: projectSummaries(events),
+          finalized: [...projectFinalized(events)],
+        });
+        return;
+      }
+      if (request.type === "fact.decide") {
+        const store = await recoverProjectFiles(request.projectId);
+        const events = store.listEvents(request.projectId);
+        const fact = projectFacts(events).find(
+          (item) => item.id === request.factId,
+        );
+        const origin = events.find(
+          (event) =>
+            event.type === "fact.proposed" &&
+            (event.payload as Record<string, unknown>).factId ===
+              request.factId,
+        );
+        if (!fact || !origin) throw new Error("事实不存在");
+        const confirmed = request.decision === "confirm";
+        appendRunEvent(
+          store,
+          {
+            type: "run",
+            runId: origin.runId,
+            projectId: request.projectId,
+            sessionId: origin.sessionId,
+            prompt: "",
+          },
+          confirmed ? "fact.confirmed" : "fact.rejected",
+          { type: "user", id: "user" },
+          { factId: request.factId },
+        );
+        sendResponse(request.requestId, {
+          factId: request.factId,
+          status: confirmed ? "confirmed" : "rejected",
+        });
         return;
       }
       if (request.type === "settings.models") {

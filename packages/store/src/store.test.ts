@@ -529,4 +529,38 @@ describe("WordHub M1 store", () => {
       documents: [],
     });
   });
+
+  it("质询线程带上分类与逐字引文", () => {
+    const items = projectChat([
+      {
+        id: "e1",
+        seq: 1,
+        schemaVersion: 1 as const,
+        projectId: "p",
+        sessionId: "s",
+        runId: "r",
+        type: "challenge.raise",
+        actor: { type: "agent" as const, id: "reviewer" },
+        occurredAt: new Date().toISOString(),
+        visibility: "room" as const,
+        payload: {
+          threadId: "t1",
+          target: "writer",
+          claim: "右手与左撇子冲突",
+          severity: "blocking",
+          category: "character",
+          citations: [
+            { source: "chapters/第三章.md", quote: "右手按住刀柄" },
+            { source: 3 },
+            null,
+          ],
+        },
+      },
+    ]);
+    expect(items[0]).toMatchObject({
+      kind: "thread",
+      category: "character",
+      citations: [{ source: "chapters/第三章.md", quote: "右手按住刀柄" }],
+    });
+  });
 });

@@ -254,4 +254,21 @@ describe("restoreItems", () => {
     ]);
     expect(draft).toMatchObject({ status: "generating", documents: [] });
   });
+
+  it("质询线程：分类与有效引文被恢复", () => {
+    const [thread] = restoreItems([
+      {
+        kind: "thread",
+        id: "t1",
+        at: 1,
+        claim: "x",
+        category: "timeline",
+        citations: [{ source: "a.md", quote: "原文" }, { source: 1 }],
+      },
+    ]);
+    expect(thread).toMatchObject({
+      category: "timeline",
+      citations: [{ source: "a.md", quote: "原文" }],
+    });
+  });
 });

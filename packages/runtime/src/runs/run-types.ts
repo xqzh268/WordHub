@@ -21,7 +21,12 @@ export type RunRequest = {
   projectId?: string;
   sessionId?: string;
   resume?: boolean;
-  workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "all";
+  workflow?:
+    | "write-chapter"
+    | "write-chapter-full"
+    | "review-only"
+    | "finalize-chapter"
+    | "all";
   workflowId?: string;
   taskId?: string;
   taskKind?: string;

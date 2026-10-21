@@ -16,6 +16,8 @@ export const BUILTIN_TOOLS: ToolDescriptor[] = [
   { name: "challenge.raise", kind: "system" },
   { name: "challenge.reply", kind: "system" },
   { name: "question.ask", kind: "system" },
+  { name: "fact.propose", kind: "system" },
+  { name: "chapter.summarize", kind: "system" },
 ];
 
 export class PermissionDeniedError extends Error {
@@ -57,7 +59,10 @@ export class PermissionGuard {
   }
 
   requiresApproval(agent: AgentDefinition, toolName: string): boolean {
+    // 只有真正写文件的工具需要审批；fact.propose 这类“系统记录”工具只写事件日志，不审批。
+    const tool = this.tools.find((item) => item.name === toolName);
     return (
+      tool?.kind === "write" &&
       (toolName.endsWith(".write") || toolName.endsWith(".propose")) &&
       agent.confirmBeforeWrite === true
     );

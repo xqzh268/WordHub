@@ -1,3 +1,4 @@
+import type { ChapterSummary, NovelFact } from "./facts.js";
 export type WorkspaceCommand =
   | "workspace.getSnapshot"
   | "workspace.chooseFolder"
@@ -9,6 +10,10 @@ export type WorkspaceCommand =
   | "chapter.list"
   | "chapter.read"
   | "chapter.watch"
+  | "fact.list"
+  | "fact.decide"
+  | "project.prefs.get"
+  | "project.prefs.set"
   | "run.start"
   | "run.estimate"
   | "run.abort"
@@ -62,8 +67,12 @@ export interface CommandPayloads {
   "chapter.list": { projectId: string };
   "chapter.read": { projectId: string; path: string };
   "chapter.watch": { projectId: string };
+  "fact.list": { projectId: string };
+  "fact.decide": { projectId: string; factId: string; decision: "confirm" | "reject" };
+  "project.prefs.get": { projectId: string };
+  "project.prefs.set": { projectId: string; autoReviewOnFinalize?: boolean };
   "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
-  "run.estimate": { prompt: string; rawPrompt?: string; agentId?: string; projectPath?: string; workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "all" };
+  "run.estimate": { prompt: string; rawPrompt?: string; agentId?: string; projectPath?: string; workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "finalize-chapter" | "all" };
   "run.abort": { runId: string };
   "run.resume": { runId: string };
   "run.approve": { runId: string; approved: boolean };
@@ -90,6 +99,10 @@ export interface CommandResults {
   "chapter.list": { chapters: ChapterInfo[] };
   "chapter.read": ChapterContent;
   "chapter.watch": { watching: boolean };
+  "fact.list": { facts: NovelFact[]; summaries: ChapterSummary[]; finalized: string[] };
+  "fact.decide": { factId: string; status: "confirmed" | "rejected" };
+  "project.prefs.get": { autoReviewOnFinalize: boolean };
+  "project.prefs.set": { autoReviewOnFinalize: boolean };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
   "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; tasks: unknown[]; workflow?: string; label?: string };
   "run.abort": { runId: string; aborted: boolean };

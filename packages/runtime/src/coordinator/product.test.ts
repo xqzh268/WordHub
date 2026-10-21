@@ -1,58 +1,20 @@
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { createModels } from "@earendil-works/pi-ai";
 import {
-  fauxProvider,
   fauxAssistantMessage,
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
-import { createRunExecutor } from "../runs/executor.js";
+import { fixture, waitFor } from "./test-helpers.js";
 
-export async function fixture(
-  response: Parameters<
-    ReturnType<typeof fauxProvider>["setResponses"]
-  >[0][number],
-  options: { tokensPerSecond?: number } = {},
-) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "wordhub-m3-"));
-  const project = path.join(root, "长安夜");
-  await mkdir(path.join(project, ".wordhub/bible"), { recursive: true });
-  await mkdir(path.join(project, "chapters"), { recursive: true });
-  await writeFile(
-    path.join(project, ".wordhub/bible/bible.md"),
-    "裴照是左撇子。",
-    "utf8",
-  );
-  const faux = fauxProvider({
-    provider: "deepseek",
-    models: [
-      { id: "deepseek-flash", reasoning: true },
-      { id: "deepseek-v4-pro", reasoning: true },
-    ],
-    ...options,
-  });
-  faux.setResponses(Array.from({ length: 100 }, () => response));
-  const models = createModels();
-  models.setProvider(faux.provider);
-  const messages: Record<string, unknown>[] = [];
-  const executor = createRunExecutor({
-    storageRoot: path.join(root, "store"),
-    workspaceRoot: process.cwd(),
-    mockModels: models,
-    post: (message) => messages.push(message),
-  });
-  await executor.ready;
-  return { root, project, messages, executor };
-}
-export async function waitFor(predicate: () => boolean) {
-  const deadline = Date.now() + 10000;
-  while (!predicate()) {
-    if (Date.now() > deadline) throw new Error("M3运行超时");
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-}
+/** 通过引文核验的质询公共字段（章节文件由写手工作流产生，这里引设定里的两处原文）。 */
+const RAISE = {
+  category: "character" as const,
+  citations: [
+    { source: ".wordhub/bible/bible.md", quote: "裴照是左撇子" },
+    { source: ".wordhub/bible/bible.md", quote: "他惯用横刀" },
+  ],
+};
 describe("产品工作流入口", () => {
   it("协调器驱动固执写手两轮回应，阻塞待裁决并在裁决后返工", async () => {
     const f = await fixture((context) => {
@@ -87,6 +49,7 @@ describe("产品工作流入口", () => {
         fauxToolCall("challenge_raise", {
           threadId: "left-hand",
           target: "writer",
+          ...RAISE,
           claim: "右手与左撇子设定冲突",
           path: "chapters/第三章.md",
           severity: "blocking",
@@ -137,9 +100,13 @@ describe("产品工作流入口", () => {
       f.executor.close();
     }
   });
-  it("写手与编辑各运行一次，传递产物且用户消息仅记一次", async () => {
+  it("写手、编辑、评审各运行一次，传递产物且用户消息仅记一次", async () => {
     const f = await fixture((context) => {
       const edit = JSON.stringify(context.messages).includes("任务角色：edit");
+      if (JSON.stringify(context.messages).includes("任务角色：review"))
+        return fauxAssistantMessage("五类核验均无矛盾。", {
+          stopReason: "stop",
+        });
       if (
         context.messages.some(
           (m) => m.role === "toolResult" && m.toolName === "doc_write",
@@ -168,7 +135,11 @@ describe("产品工作流入口", () => {
       const starts = f.messages.filter(
         (m) => m.type === "run.started" && m.agentId,
       );
-      expect(starts.map((m) => m.agentId)).toEqual(["writer", "editor"]);
+      expect(starts.map((m) => m.agentId)).toEqual([
+        "writer",
+        "editor",
+        "reviewer",
+      ]);
       expect(
         await readFile(path.join(f.project, "chapters/第三章.md"), "utf8"),
       ).toBe("写手稿。编辑润色。");
@@ -193,7 +164,7 @@ describe("产品工作流入口", () => {
       expect(
         result.events.filter((e) => e.type === "chat.user_message"),
       ).toHaveLength(1);
-      expect(result.items.filter((i) => i.kind === "task")).toHaveLength(2);
+      expect(result.items.filter((i) => i.kind === "task")).toHaveLength(3);
       expect(
         result.events.filter((e) => e.type === "run.usage").length,
       ).toBeGreaterThanOrEqual(4);
@@ -213,6 +184,7 @@ describe("产品工作流入口", () => {
           fauxToolCall("challenge_raise", {
             threadId: "left-hand",
             target: "writer",
+            ...RAISE,
             claim: "设定与正文冲突",
             severity: "blocking",
           }),
@@ -223,6 +195,7 @@ describe("产品工作流入口", () => {
           fauxToolCall("challenge_raise", {
             threadId: "left-hand",
             target: "writer",
+            ...RAISE,
             claim: "仍有冲突",
             severity: "blocking",
           }),
@@ -322,6 +295,7 @@ maxTurns: 8
             fauxToolCall("challenge_raise", {
               threadId: "early-decision",
               target: "writer",
+              ...RAISE,
               claim: "仍有冲突",
               severity: "blocking",
             }),
