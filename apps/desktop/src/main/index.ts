@@ -145,6 +145,18 @@ function registerIpc(): void {
           sessionId: payload.sessionId,
         });
       }
+      if (
+        command === "chapter.list" ||
+        command === "chapter.read" ||
+        command === "chapter.watch"
+      ) {
+        const payload = request.payload as { projectId: string; path?: string };
+        return await worker.request({
+          type: command,
+          projectId: payload.projectId,
+          ...(command === "chapter.read" ? { path: payload.path } : {}),
+        });
+      }
       if (command === "run.start") {
         const payload = request.payload as CommandPayloads["run.start"];
         const runId = payload.runId ?? `run_${Date.now().toString(36)}`;

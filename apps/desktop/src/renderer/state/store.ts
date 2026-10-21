@@ -1,71 +1,35 @@
 import { create } from "zustand";
 import type {
   AppEvent,
-  ResolvedTheme,
+  ChapterInfo,
   ThemePreference,
   WorkspaceSnapshot,
 } from "@wordhub/contracts";
-import { routeMessage, toolLabel, taskLabel } from "../lib/agents";
+import { routeMessage } from "../lib/agents";
 import { DEMO_CHAPTER, DEMO_PROJECT, demoSessions } from "../lib/demo";
-import type {
-  ChatItem,
-  PaperParagraph,
-  PaperTab,
-  Session,
-  View,
-  WorkerState,
-} from "./types";
+import { handleApproval } from "./approvalHandlers";
+import { handleIntake } from "./intakeHandlers";
+import { PREFS_KEY, type Prefs, type ReadingFont, loadPrefs } from "./prefs";
+import { restoreItems } from "./restore";
+import { handleRun } from "./runHandlers";
+import { uid } from "./util";
+import { handleWorkflow } from "./workflowHandlers";
+import type { RunMessage } from "./messages";
+import {
+  type PaperDoc,
+  chapterFromPrompt,
+  needsReload,
+  paperFromText,
+  pickActiveChapter,
+} from "./chapters";
+export { resolveTheme, type ReadingFont } from "./prefs";
+import type { ChatItem, PaperTab, Session, View, WorkerState } from "./types";
 
-export type ReadingFont = "serif" | "literary";
-type Prefs = { theme: ThemePreference; reading: ReadingFont };
-
-const PREFS_KEY = "wordhub.prefs";
-const isDemo = new URLSearchParams(window.location.search).get("demo") === "1";
-
-function loadPrefs(): Prefs {
-  try {
-    const raw = JSON.parse(
-      localStorage.getItem(PREFS_KEY) ?? "{}",
-    ) as Partial<Prefs>;
-    return {
-      theme:
-        raw.theme === "light" || raw.theme === "dark" || raw.theme === "system"
-          ? raw.theme
-          : "system",
-      reading: raw.reading === "literary" ? "literary" : "serif",
-    };
-  } catch {
-    return { theme: "system", reading: "serif" };
-  }
-}
-
-const uid = (prefix: string): string =>
-  `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const emptySession = (title: string): Session => ({
   id: uid("s"),
   title,
   items: [],
 });
-
-function paperFromText(filePath: string, text: string) {
-  const name = filePath.split(/[\\/]/u).at(-1) ?? filePath;
-  const title = name.replace(/\.(?:md|markdown|txt)$/iu, "") || "当前章节";
-  const paragraphs = text
-    .split(/\r?\n\s*\r?\n/u)
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value, index) => ({
-      id: `paper-${index}`,
-      text: value.replace(/^#{1,6}\s+/u, ""),
-    }));
-  const chapter = title.match(/[一二三四五六七八九十百千万\d]+/u)?.[0];
-  return {
-    no: chapter ? `第${chapter}章` : "当前章节",
-    page: 1,
-    title,
-    paragraphs,
-  };
-}
 
 function latestPaperFromEvents(events: unknown[]) {
   for (const event of [...events].reverse()) {
@@ -85,7 +49,7 @@ function latestPaperFromEvents(events: unknown[]) {
   return undefined;
 }
 
-type State = Prefs & {
+export type State = Prefs & {
   demo: boolean;
   view: View;
   paperTab: PaperTab;
@@ -93,12 +57,10 @@ type State = Prefs & {
   worker: WorkerState;
   sessions: Session[];
   activeSessionId: string;
-  paper: {
-    no: string;
-    page: number;
-    title: string;
-    paragraphs: PaperParagraph[];
-  } | null;
+  paper: PaperDoc | null;
+  /** 项目 chapters/ 目录下的章节（磁盘为准），按章号排序 */
+  chapters: ChapterInfo[];
+  activeChapter: string | null;
   activeRunId: string | null;
   composer: string;
 
@@ -106,6 +68,9 @@ type State = Prefs & {
   setReading(reading: ReadingFont): void;
   setView(view: View): void;
   setPaperTab(tab: PaperTab): void;
+  selectChapter(path: string): Promise<void>;
+  syncChapters(preferred?: string): Promise<void>;
+  watchChapters(): Promise<void>;
   setComposer(text: string): void;
   mention(agentName: string): void;
   newSession(): Promise<void>;
@@ -124,231 +89,9 @@ type State = Prefs & {
   handleEvent(event: AppEvent): void;
 };
 
-const initialSessions = isDemo ? demoSessions() : [emptySession("新会话")];
+const isDemo = new URLSearchParams(window.location.search).get("demo") === "1";
 
-function restoreItems(raw: unknown): ChatItem[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const value = item as Record<string, unknown>;
-    if (value.kind === "user" && typeof value.text === "string")
-      return [
-        {
-          kind: "user",
-          id: String(value.id),
-          at: Number(value.at),
-          text: value.text,
-        } satisfies ChatItem,
-      ];
-    if (value.kind === "approval" && typeof value.title === "string")
-      return [
-        {
-          kind: "approval",
-          id: String(value.id),
-          at: Number(value.at),
-          title: value.title,
-          body: String(value.body ?? ""),
-          options: Array.isArray(value.options)
-            ? value.options.map(String)
-            : ["批准", "拒绝"],
-          runId: typeof value.runId === "string" ? value.runId : undefined,
-          resolved:
-            typeof value.resolved === "string" ? value.resolved : undefined,
-          preview:
-            typeof value.preview === "string" ? value.preview : undefined,
-          path: typeof value.path === "string" ? value.path : undefined,
-          contentLength:
-            typeof value.contentLength === "number"
-              ? value.contentLength
-              : undefined,
-          diff:
-            value.diff && typeof value.diff === "object"
-              ? {
-                  addedLines: Number(
-                    (value.diff as Record<string, unknown>).addedLines ?? 0,
-                  ),
-                  removedLines: Number(
-                    (value.diff as Record<string, unknown>).removedLines ?? 0,
-                  ),
-                }
-              : undefined,
-          threadId:
-            typeof value.threadId === "string" ? value.threadId : undefined,
-          workflowId:
-            typeof value.workflowId === "string" ? value.workflowId : undefined,
-        } satisfies ChatItem,
-      ];
-    if (value.kind === "notice" && typeof value.text === "string")
-      return [
-        {
-          kind: "notice",
-          id: String(value.id),
-          at: Number(value.at),
-          text: value.text,
-          tone: value.tone === "warn" ? "warn" : undefined,
-        } satisfies ChatItem,
-      ];
-    if (value.kind === "question" && typeof value.prompt === "string")
-      return [
-        {
-          kind: "question",
-          id: String(value.id),
-          at: Number(value.at),
-          intakeId: String(value.intakeId),
-          questionId: String(value.questionId),
-          key: String(value.key),
-          level: Number(value.level) === 1 ? 1 : 2,
-          prompt: value.prompt,
-          required: value.required !== false,
-          options: Array.isArray(value.options)
-            ? value.options.map(String)
-            : [],
-          value: typeof value.value === "string" ? value.value : undefined,
-          resolved: value.resolved === true,
-        } satisfies ChatItem,
-      ];
-    if (value.kind === "task" && typeof value.taskId === "string")
-      return [
-        {
-          kind: "task",
-          id: String(value.id),
-          at: Number(value.at),
-          taskId: value.taskId,
-          label: taskLabel(
-            typeof value.agentId === "string" ? value.agentId : undefined,
-            typeof value.taskKind === "string" ? value.taskKind : undefined,
-          ),
-          agentId:
-            typeof value.agentId === "string" ? value.agentId : undefined,
-          taskKind:
-            typeof value.taskKind === "string" ? value.taskKind : undefined,
-          status:
-            value.status === "running" ||
-            value.status === "succeeded" ||
-            value.status === "failed" ||
-            value.status === "blocked"
-              ? value.status
-              : "ready",
-        } satisfies ChatItem,
-      ];
-    if (value.kind === "thread" && typeof value.claim === "string")
-      return [
-        {
-          kind: "thread",
-          id: String(value.id),
-          at: Number(value.at),
-          from: String(value.from ?? "reviewer"),
-          to: String(value.to ?? "writer"),
-          round: Number(value.round ?? 1),
-          maxRounds: Number(value.maxRounds ?? 2),
-          severity: value.severity === "minor" ? "minor" : "blocking",
-          claim: value.claim,
-          replies: Array.isArray(value.replies)
-            ? value.replies.flatMap((reply) => {
-                if (!reply || typeof reply !== "object") return [];
-                const item = reply as Record<string, unknown>;
-                return typeof item.text === "string"
-                  ? [
-                      {
-                        agentId: String(item.agentId ?? "writer"),
-                        text: item.text,
-                      },
-                    ]
-                  : [];
-              })
-            : [],
-        } satisfies ChatItem,
-      ];
-    if (value.kind !== "agent") return [];
-    const tools = Array.isArray(value.tools)
-      ? value.tools.flatMap((tool) => {
-          if (!tool || typeof tool !== "object") return [];
-          const current = tool as Record<string, unknown>;
-          return [
-            {
-              id: String(current.id),
-              name: String(current.name),
-              label: toolLabel(String(current.name)),
-              status: (current.status === "error"
-                ? "error"
-                : current.status === "running"
-                  ? "running"
-                  : "done") as "running" | "done" | "error",
-            },
-          ];
-        })
-      : [];
-    const status =
-      value.status === "streaming" ||
-      value.status === "done" ||
-      value.status === "aborted" ||
-      value.status === "interrupted" ||
-      value.status === "waiting_approval" ||
-      value.status === "error"
-        ? value.status
-        : "thinking";
-    return [
-      {
-        kind: "agent",
-        id: String(value.id),
-        at: Number(value.at),
-        agentId: String(value.agentId),
-        status,
-        text: String(value.text ?? ""),
-        tools,
-        runId: String(value.runId),
-        model: typeof value.model === "string" ? value.model : undefined,
-        reasoningLevel:
-          typeof value.reasoning === "string" ? value.reasoning : undefined,
-        usage:
-          value.usage && typeof value.usage === "object"
-            ? {
-                input: Number(
-                  (value.usage as Record<string, unknown>).input ?? 0,
-                ),
-                output: Number(
-                  (value.usage as Record<string, unknown>).output ?? 0,
-                ),
-                total: Number(
-                  (value.usage as Record<string, unknown>).total ?? 0,
-                ),
-                cost:
-                  typeof (value.usage as Record<string, unknown>).cost ===
-                  "number"
-                    ? ((value.usage as Record<string, unknown>).cost as number)
-                    : undefined,
-              }
-            : undefined,
-        context: Array.isArray(value.context)
-          ? value.context.flatMap((entry) => {
-              if (!entry || typeof entry !== "object") return [];
-              const context = entry as Record<string, unknown>;
-              if (
-                typeof context.id !== "string" ||
-                typeof context.kind !== "string"
-              )
-                return [];
-              return [
-                {
-                  id: context.id,
-                  kind: context.kind,
-                  sourcePath:
-                    typeof context.sourcePath === "string"
-                      ? context.sourcePath
-                      : undefined,
-                  estimatedTokens: Number(context.estimatedTokens ?? 0),
-                  tokenBudget:
-                    typeof context.tokenBudget === "number"
-                      ? context.tokenBudget
-                      : undefined,
-                },
-              ];
-            })
-          : undefined,
-      } as ChatItem,
-    ];
-  });
-}
+const initialSessions = isDemo ? demoSessions() : [emptySession("新会话")];
 
 export const useWorkbench = create<State>((set, get) => {
   const patchItems = (
@@ -388,6 +131,8 @@ export const useWorkbench = create<State>((set, get) => {
     sessions: initialSessions,
     activeSessionId: initialSessions[0]!.id,
     paper: isDemo ? DEMO_CHAPTER : null,
+    chapters: [],
+    activeChapter: null,
     activeRunId: null,
     composer: "",
 
@@ -407,6 +152,58 @@ export const useWorkbench = create<State>((set, get) => {
     },
     setView: (view) => set({ view }),
     setPaperTab: (paperTab) => set({ paperTab }),
+
+    async selectChapter(path) {
+      await get().syncChapters(path);
+    },
+
+    // 以磁盘为准：刷新章节列表，决定显示哪一章，必要时重读正文。
+    async syncChapters(preferred) {
+      const projectId = get().project.id;
+      if (!projectId || !window.wordhub || get().demo) return;
+      try {
+        const { chapters } = await window.wordhub.invoke("chapter.list", {
+          projectId,
+        });
+        if (get().project.id !== projectId) return;
+        const target = pickActiveChapter(
+          chapters,
+          preferred,
+          get().activeChapter,
+        );
+        set({ chapters, activeChapter: target });
+        if (!target) {
+          // 没有任何章节文件：不再保留来自磁盘的旧纸面
+          if (get().paper?.path) set({ paper: null });
+          return;
+        }
+        const info = chapters.find((chapter) => chapter.path === target);
+        if (!needsReload(info, get().paper)) return;
+        const file = await window.wordhub.invoke("chapter.read", {
+          projectId,
+          path: target,
+        });
+        // 读取期间用户可能又切换了章节
+        if (get().activeChapter !== target || get().project.id !== projectId)
+          return;
+        set({
+          paper: paperFromText(file.path, file.content, {
+            mtimeMs: file.mtimeMs,
+          }),
+        });
+      } catch {
+        // 读取失败（文件正在被替换等）时保持当前纸面，下一次变化会再同步
+      }
+    },
+
+    async watchChapters() {
+      const projectId = get().project.id;
+      if (!projectId || !window.wordhub || get().demo) return;
+      await window.wordhub
+        .invoke("chapter.watch", { projectId })
+        .catch(() => undefined);
+      await get().syncChapters();
+    },
     setComposer: (composer) => set({ composer }),
 
     mention(agentName) {
@@ -461,7 +258,10 @@ export const useWorkbench = create<State>((set, get) => {
           })),
           activeSessionId: result.sessionId,
           paper: latestPaperFromEvents(chat?.events ?? []) ?? null,
+          chapters: [],
+          activeChapter: null,
         });
+        void get().watchChapters();
       } else if (folder)
         set({
           project: { name: folder.split(/[\\/]/).pop() || folder, folder },
@@ -494,6 +294,10 @@ export const useWorkbench = create<State>((set, get) => {
         },
       ]);
       set({ composer: "", activeRunId: runId });
+      // 提到“第三章”就把纸面切到那一章
+      const mentioned = chapterFromPrompt(trimmed, state.chapters);
+      if (mentioned && mentioned !== state.activeChapter)
+        void get().selectChapter(mentioned);
       if (!window.wordhub) return;
       try {
         const estimate = await window.wordhub
@@ -673,19 +477,21 @@ export const useWorkbench = create<State>((set, get) => {
               projectId: snapshot.projectId,
               sessionId: snapshot.activeSessionId,
             }),
-          ]).then(([sessions, chat]) =>
-            set((state) => ({
-              sessions: sessions.sessions.map((session) => ({
-                id: session.id,
-                title: session.title,
-                items:
-                  session.id === snapshot.activeSessionId
-                    ? restoreItems(chat.items)
-                    : [],
+          ])
+            .then(([sessions, chat]) =>
+              set((state) => ({
+                sessions: sessions.sessions.map((session) => ({
+                  id: session.id,
+                  title: session.title,
+                  items:
+                    session.id === snapshot.activeSessionId
+                      ? restoreItems(chat.items)
+                      : [],
+                })),
+                paper: latestPaperFromEvents(chat.events) ?? state.paper,
               })),
-              paper: latestPaperFromEvents(chat.events) ?? state.paper,
-            })),
-          );
+            )
+            .then(() => get().watchChapters());
         }
         return;
       }
@@ -699,7 +505,11 @@ export const useWorkbench = create<State>((set, get) => {
           next === "stopped" ||
           next === "crashed"
         ) {
+          const previous = get().worker;
           set({ worker: next });
+          // 后台进程重启后监听会丢失，回到就绪状态时重新建立
+          if (next === "ready" && previous !== "ready" && previous !== "busy")
+            void get().watchChapters();
           if (next === "crashed") {
             const runId = get().activeRunId;
             if (runId)
@@ -714,640 +524,37 @@ export const useWorkbench = create<State>((set, get) => {
         return;
       }
       if (event.type !== "run.event") return;
-      const message = event.payload as {
-        type?: string;
-        runId?: string;
-        delta?: string;
-        tool?: string;
-        error?: string;
-        reason?: string;
-        text?: string;
-        model?: string;
-        reasoning?: string;
-        usage?: {
-          input: number;
-          output: number;
-          totalTokens: number;
-          cost?: { total?: number };
-        };
-        path?: string;
-        contentLength?: number;
-        diff?: { addedLines?: number; removedLines?: number };
-        threadId?: string;
-        workflowId?: string;
-        agentId?: string;
-        actorId?: string;
-        label?: string;
-        content?: string;
-        intakeId?: string;
-        questionId?: string;
-        key?: string;
-        level?: number;
-        prompt?: string;
-        required?: boolean;
-        options?: string[];
-        value?: string;
-        fromKey?: string;
-        estimate?: { costUsd?: number };
-        ok?: boolean;
-        metrics?: { wordCount?: number; dialogueRatio?: number };
-        violations?: { message?: string }[];
-        manifest?: Array<{
-          id: string;
-          kind: string;
-          sourcePath?: string;
-          estimatedTokens: number;
-          tokenBudget?: number;
-        }>;
-      };
+      const message = event.payload as RunMessage;
       const runId = message.runId;
+      const ctx = { set, get, patchItems, patchRun };
+      if (
+        handleIntake(ctx, message) ||
+        handleApproval(ctx, message) ||
+        handleRun(ctx, message) ||
+        handleWorkflow(ctx, message)
+      )
+        return;
       switch (message.type) {
-        case "intake.question":
-          if (message.intakeId && message.questionId && message.key) {
-            patchItems(get().activeSessionId, (items) => {
-              const existing = items.find(
-                (item): item is Extract<ChatItem, { kind: "question" }> =>
-                  item.kind === "question" &&
-                  item.questionId === message.questionId,
-              );
-              const next: Extract<ChatItem, { kind: "question" }> = {
-                kind: "question",
-                id: message.questionId!,
-                at: Date.now(),
-                intakeId: message.intakeId!,
-                questionId: message.questionId!,
-                key: message.key!,
-                level: message.level === 1 ? 1 : 2,
-                prompt: message.prompt ?? "请补充纲领信息。",
-                required: message.required !== false,
-                options: Array.isArray(message.options) ? message.options : [],
-                ...(existing?.value !== undefined
-                  ? { value: existing.value }
-                  : {}),
-                resolved: existing?.resolved ?? false,
-              };
-              if (existing)
-                return items.map((item) =>
-                  item.id === existing.id ? next : item,
-                );
-              return [...items, next];
-            });
-          }
-          break;
-        case "intake.answer":
-          if (message.questionId)
-            patchItems(get().activeSessionId, (items) =>
-              items.map((item) =>
-                item.kind === "question" &&
-                item.questionId === message.questionId
-                  ? { ...item, value: message.value ?? "", resolved: true }
-                  : item,
-              ),
-            );
-          break;
-        case "intake.reset":
-          if (message.intakeId && (message.fromKey ?? message.key))
-            patchItems(get().activeSessionId, (items) =>
-              items.map((item) => {
-                const order = [
-                  "premise",
-                  "protagonist",
-                  "conflict",
-                  "world",
-                  "viewpointTone",
-                  "theme",
-                  "audience",
-                  "chapterCount",
-                  "mustInclude",
-                  "forbidden",
-                  "confirm",
-                ];
-                const fromIndex = order.indexOf(
-                  message.fromKey ?? message.key!,
-                );
-                return item.kind === "question" &&
-                  item.intakeId === message.intakeId &&
-                  fromIndex >= 0 &&
-                  order.indexOf(item.key) >= fromIndex
-                  ? { ...item, value: undefined, resolved: false }
-                  : item;
-              }),
-            );
-          break;
-        case "intake.confirmed":
-          if (message.intakeId)
-            patchItems(get().activeSessionId, (items) =>
-              items.map((item) =>
-                item.kind === "question" && item.intakeId === message.intakeId
-                  ? { ...item, resolved: true }
-                  : item,
-              ),
-            );
-          break;
-        case "intake.artifacts.created":
-          patchItems(get().activeSessionId, (items) => [
-            ...items,
-            {
-              kind: "notice",
-              id: uid("intake-artifacts"),
-              at: Date.now(),
-              text: "纲领已确认，人物档案、大纲、设定词典、文风基准和写作计划已写入项目。",
-            },
-          ]);
-          break;
-        case "editor.check": {
-          const metrics = message.metrics ?? {};
-          const violations = Array.isArray(message.violations)
-            ? message.violations.flatMap((item) =>
-                typeof item.message === "string" ? [item.message] : [],
-              )
-            : [];
-          patchItems(get().activeSessionId, (items) => [
-            ...items,
-            {
-              kind: "notice",
-              id: uid("editor-check"),
-              at: Date.now(),
-              text:
-                message.ok === true
-                  ? `编辑检查通过：${Number(metrics.wordCount ?? 0)}字，对话占比${(Number(metrics.dialogueRatio ?? 0) * 100).toFixed(1)}%。`
-                  : `编辑检查发现${violations.length}项：${violations.join("；")}`,
-              ...(message.ok === true ? {} : { tone: "warn" as const }),
-            },
-          ]);
-          break;
-        }
-        case "approval.requested":
-          if (runId)
-            patchItems(get().activeSessionId, (items) => [
-              ...items,
-              {
-                kind: "approval",
-                id: `approval_${runId}`,
-                at: Date.now(),
-                title: "Agent请求写入",
-                body: `${message.tool ?? "写入工具"}需要你的确认后才能继续。`,
-                preview:
-                  typeof (message as { contentPreview?: unknown })
-                    .contentPreview === "string"
-                    ? (message as { contentPreview: string }).contentPreview
-                    : undefined,
-                path:
-                  typeof (message as { path?: unknown }).path === "string"
-                    ? (message as { path: string }).path
-                    : undefined,
-                contentLength:
-                  typeof (message as { contentLength?: unknown })
-                    .contentLength === "number"
-                    ? (message as { contentLength: number }).contentLength
-                    : undefined,
-                diff:
-                  message.diff && typeof message.diff === "object"
-                    ? {
-                        addedLines: Number(message.diff.addedLines ?? 0),
-                        removedLines: Number(message.diff.removedLines ?? 0),
-                      }
-                    : undefined,
-                options: ["批准", "拒绝"],
-                runId,
-                threadId:
-                  typeof (message as { threadId?: unknown }).threadId ===
-                  "string"
-                    ? (message as { threadId: string }).threadId
-                    : undefined,
-                workflowId:
-                  typeof (message as { workflowId?: unknown }).workflowId ===
-                  "string"
-                    ? (message as { workflowId: string }).workflowId
-                    : undefined,
-              },
-            ]);
-          break;
-        case "escalation.created":
-          if (runId)
-            patchItems(get().activeSessionId, (items) => [
-              ...items,
-              {
-                kind: "approval",
-                id: uid("escalation"),
-                at: Date.now(),
-                title: "质询需要你的裁决",
-                body:
-                  message.reason ??
-                  "两个Agent仍未达成一致，请选择后继续工作流。",
-                options: ["接受修改", "保留原文"],
-                runId,
-                threadId: message.threadId,
-                workflowId: message.workflowId ?? runId,
-              },
-            ]);
-          break;
-        case "approval.granted":
-        case "approval.rejected":
-          if (runId)
-            patchItems(get().activeSessionId, (items) =>
-              items.map((item) =>
-                item.kind === "approval" && item.runId === runId
-                  ? {
-                      ...item,
-                      resolved:
-                        message.type === "approval.granted" ? "批准" : "拒绝",
-                    }
-                  : item,
-              ),
-            );
-          break;
-        case "approval.expired":
-          if (runId)
-            patchItems(get().activeSessionId, (items) =>
-              items.map((item) =>
-                item.kind === "approval" && item.runId === runId
-                  ? { ...item, resolved: "已过期，可重新发起" }
-                  : item,
-              ),
-            );
-          break;
-        case "escalation.resolved":
-          patchItems(get().activeSessionId, (items) =>
-            items.map((item) =>
-              item.kind === "approval" &&
-              item.threadId === message.threadId &&
-              (!runId || item.workflowId === runId || item.runId === runId)
-                ? {
-                    ...item,
-                    resolved:
-                      (message as { decision?: string }).decision === "accept"
-                        ? "接受修改"
-                        : "保留原文",
-                  }
-                : item,
-            ),
-          );
-          break;
-        case "challenge.raise":
-          if (message.threadId) {
-            const threadId = message.threadId;
-            patchItems(get().activeSessionId, (items) => {
-              const existing = items.find(
-                (item): item is Extract<ChatItem, { kind: "thread" }> =>
-                  item.kind === "thread" && item.id === threadId,
-              );
-              if (existing)
-                return items.map((item) =>
-                  item.kind === "thread" && item.id === threadId
-                    ? {
-                        ...item,
-                        round: Number(
-                          (message as { round?: number }).round ?? item.round,
-                        ),
-                        claim:
-                          typeof (message as { claim?: unknown }).claim ===
-                          "string"
-                            ? (message as { claim: string }).claim
-                            : item.claim,
-                      }
-                    : item,
-                );
-              return [
-                ...items,
-                {
-                  kind: "thread",
-                  id: threadId,
-                  at: Date.now(),
-                  from: message.actorId ?? "reviewer",
-                  to:
-                    typeof (message as { target?: unknown }).target === "string"
-                      ? (message as { target: string }).target
-                      : "writer",
-                  round: Number((message as { round?: number }).round ?? 1),
-                  maxRounds: 2,
-                  severity:
-                    (message as { severity?: string }).severity === "minor"
-                      ? "minor"
-                      : "blocking",
-                  claim:
-                    typeof (message as { claim?: unknown }).claim === "string"
-                      ? (message as { claim: string }).claim
-                      : "",
-                  replies: [],
-                },
-              ];
-            });
-          }
-          break;
-        case "challenge.reply":
-          if (message.threadId)
-            patchItems(get().activeSessionId, (items) =>
-              items.map((item) =>
-                item.kind === "thread" && item.id === message.threadId
-                  ? {
-                      ...item,
-                      round: Number(
-                        (message as { round?: number }).round ?? item.round,
-                      ),
-                      replies: [
-                        ...item.replies,
-                        {
-                          agentId: message.actorId ?? "writer",
-                          text:
-                            typeof (message as { text?: unknown }).text ===
-                            "string"
-                              ? (message as { text: string }).text
-                              : "",
-                        },
-                      ],
-                    }
-                  : item,
-              ),
-            );
-          break;
         case "file.updated":
           if (
             typeof message.path === "string" &&
             typeof message.content === "string" &&
             /^chapters[\\/]/u.test(message.path)
-          )
-            set({ paper: paperFromText(message.path, message.content) });
-          break;
-        case "run.started":
-          if (runId) {
-            const sessionId = get().activeSessionId;
-            const exists = get().sessions.some(
-              (session) =>
-                session.id === sessionId &&
-                session.items.some(
-                  (item) => item.kind === "agent" && item.runId === runId,
-                ),
-            );
-            if (!exists)
-              patchItems(sessionId, (items) => [
-                ...items,
-                {
-                  kind: "agent",
-                  id: uid("agent"),
-                  at: Date.now(),
-                  agentId: message.agentId ?? "writer",
-                  status: "thinking",
-                  text: "",
-                  tools: [],
-                  runId,
-                },
-              ]);
-            patchRun(runId, (item) => ({
-              ...item,
-              status: "thinking",
-              model: message.model,
-              reasoningLevel: message.reasoning,
-            }));
-            set({ activeRunId: message.workflowId ?? runId });
-          }
-          break;
-        case "context.injected":
-          if (runId && message.manifest)
-            patchRun(runId, (item) => ({ ...item, context: message.manifest }));
-          break;
-        case "run.text":
-          if (runId && message.delta)
-            patchRun(runId, (item) => ({
-              ...item,
-              status: "streaming",
-              text: item.text + message.delta,
-            }));
-          break;
-        case "run.tool_execution_start":
-          if (runId) {
-            patchRun(runId, (item) => ({
-              ...item,
-              tools: [
-                ...item.tools,
-                {
-                  id: uid("t"),
-                  name: message.tool ?? "tool",
-                  label: toolLabel(message.tool ?? "tool"),
-                  status: "running",
-                },
-              ],
-            }));
-          }
-          break;
-        case "run.reasoning_delta":
-          if (runId && message.delta)
-            patchRun(runId, (item) => ({
-              ...item,
-              reasoning: `${item.reasoning ?? ""}${message.delta}`,
-              reasoningOpen: true,
-            }));
-          break;
-        case "run.usage":
-          if (runId && message.usage)
-            patchRun(runId, (item) => ({
-              ...item,
-              usage: {
-                input: message.usage!.input,
-                output: message.usage!.output,
-                total: message.usage!.totalTokens,
-                cost: message.usage!.cost?.total,
-              },
-            }));
-          break;
-        case "run.tool_execution_end":
-          if (runId) {
-            patchRun(runId, (item) => {
-              const index = item.tools.findLastIndex(
-                (tool) =>
-                  tool.name === message.tool && tool.status === "running",
-              );
-              if (index < 0) return item;
-              return {
-                ...item,
-                tools: item.tools.map((tool, i) =>
-                  i === index ? { ...tool, status: "done" } : tool,
-                ),
-              };
+          ) {
+            // Agent 刚写完的章节：先用事件内容即时显示，再以磁盘为准对齐
+            const path = message.path.replaceAll("\\", "/");
+            set({
+              paper: paperFromText(path, message.content),
+              activeChapter: path,
             });
+            void get().syncChapters(path);
           }
           break;
-        case "run.finished":
-          if (runId) {
-            patchRun(runId, (item) => ({
-              ...item,
-              status: "done",
-              text: item.text || message.text || "",
-              usage: message.usage
-                ? {
-                    input: message.usage.input,
-                    output: message.usage.output,
-                    total: message.usage.totalTokens,
-                    cost: message.usage.cost?.total,
-                  }
-                : item.usage,
-            }));
-            if (get().activeRunId === runId)
-              set({ activeRunId: message.workflowId ?? null });
-          }
-          break;
-        case "run.aborted":
-          if (runId) {
-            patchRun(runId, (item) => ({ ...item, status: "aborted" }));
-            if (get().activeRunId === runId) set({ activeRunId: null });
-          }
-          break;
-        case "run.interrupted":
-          if (runId) {
-            patchRun(runId, (item) => ({ ...item, status: "interrupted" }));
-            if (get().activeRunId === runId) set({ activeRunId: null });
-          }
-          break;
-        case "run.waiting_approval":
-          if (runId) {
-            patchRun(runId, (item) => ({
-              ...item,
-              status: "waiting_approval",
-            }));
-          }
-          break;
-        case "permission.denied":
-          patchItems(get().activeSessionId, (items) => [
-            ...items,
-            {
-              kind: "notice",
-              id: uid("permission"),
-              at: Date.now(),
-              tone: "warn",
-              text:
-                typeof message.reason === "string"
-                  ? `权限被拒：${message.reason}`
-                  : "权限被拒：该工具或路径不在Agent授权范围内。",
-            },
-          ]);
-          break;
-        case "workflow.started":
-          if (runId) set({ activeRunId: runId });
-          patchItems(get().activeSessionId, (items) => [
-            // 发送时放的“正在构思”占位气泡属于父运行；工作流由各节点任务承担，不再需要它。
-            ...items.filter(
-              (item) =>
-                !(
-                  item.kind === "agent" &&
-                  item.runId === runId &&
-                  item.status === "thinking" &&
-                  !item.text &&
-                  item.tools.length === 0
-                ),
-            ),
-            {
-              kind: "notice",
-              id: uid("workflow"),
-              at: Date.now(),
-              text: `${message.label ?? "工作流"}已启动 · 预估${Number((message.estimate as { costUsd?: number } | undefined)?.costUsd ?? 0).toFixed(4)}美元`,
-            },
-          ]);
-          break;
-        case "workflow.finished":
-          if (runId && get().activeRunId === runId) set({ activeRunId: null });
-          patchItems(get().activeSessionId, (items) => [
-            ...items,
-            {
-              kind: "notice",
-              id: uid("workflow-done"),
-              at: Date.now(),
-              text: "工作流已完成",
-            },
-          ]);
-          break;
-        case "workflow.failed":
-          if (runId && get().activeRunId === runId) set({ activeRunId: null });
-          patchItems(get().activeSessionId, (items) => [
-            ...items,
-            {
-              kind: "notice",
-              id: uid("workflow-failed"),
-              at: Date.now(),
-              text: "工作流未完成，请查看失败节点和质询卡。",
-              tone: "warn",
-            },
-          ]);
-          break;
-        case "task.created":
-        case "task.ready":
-        case "task.started":
-        case "task.succeeded":
-        case "task.failed":
-        case "task.blocked": {
-          const taskId =
-            typeof (message as { taskId?: unknown }).taskId === "string"
-              ? (message as { taskId: string }).taskId
-              : undefined;
-          if (!taskId) break;
-          const status =
-            message.type === "task.succeeded"
-              ? "succeeded"
-              : message.type === "task.failed"
-                ? "failed"
-                : message.type === "task.blocked"
-                  ? "blocked"
-                  : message.type === "task.started"
-                    ? "running"
-                    : "ready";
-          patchItems(get().activeSessionId, (items) => {
-            const existing = items.find(
-              (item): item is Extract<ChatItem, { kind: "task" }> =>
-                item.kind === "task" && item.taskId === taskId,
-            );
-            if (!existing)
-              return [
-                ...items,
-                {
-                  kind: "task",
-                  id: uid("task"),
-                  at: Date.now(),
-                  taskId,
-                  label: taskLabel(
-                    typeof (message as { assignedAgent?: unknown })
-                      .assignedAgent === "string"
-                      ? (message as { assignedAgent: string }).assignedAgent
-                      : undefined,
-                    typeof (message as { kind?: unknown }).kind === "string"
-                      ? (message as { kind: string }).kind
-                      : undefined,
-                  ),
-                  agentId:
-                    typeof (message as { assignedAgent?: unknown })
-                      .assignedAgent === "string"
-                      ? (message as { assignedAgent: string }).assignedAgent
-                      : undefined,
-                  status,
-                },
-              ];
-            return items.map((item) =>
-              item.kind === "task" && item.taskId === taskId
-                ? { ...item, status }
-                : item,
-            );
-          });
-          break;
-        }
-        case "error":
-          if (runId) {
-            patchRun(runId, (item) => ({
-              ...item,
-              status: "error",
-              error: message.error ?? "未知错误",
-            }));
-            if (get().activeRunId === runId) set({ activeRunId: null });
-          }
+        case "chapters.changed":
+          if (message.projectId === get().project.id) void get().syncChapters();
           break;
         default:
       }
     },
   };
 });
-
-/** 解析主题偏好为实际主题，并同步窗口标题栏。 */
-export function resolveTheme(preference: ThemePreference): ResolvedTheme {
-  if (preference === "system")
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  return preference;
-}

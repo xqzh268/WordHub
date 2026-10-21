@@ -33,6 +33,14 @@ export type RuntimeRequest =
       sessionId: string;
       requestId: string;
     }
+  | { type: "chapter.list"; projectId: string; requestId: string }
+  | {
+      type: "chapter.read";
+      projectId: string;
+      path: string;
+      requestId: string;
+    }
+  | { type: "chapter.watch"; projectId: string; requestId: string }
   | {
       type: "file.write";
       projectId: string;

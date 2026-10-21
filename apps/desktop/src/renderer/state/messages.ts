@@ -1,0 +1,48 @@
+// worker 经 run.event 转发给渲染端的消息体（按 type 区分，字段按需出现）。
+export type RunMessage = {
+  type?: string;
+  projectId?: string;
+  runId?: string;
+  delta?: string;
+  tool?: string;
+  error?: string;
+  reason?: string;
+  text?: string;
+  model?: string;
+  reasoning?: string;
+  usage?: {
+    input: number;
+    output: number;
+    totalTokens: number;
+    cost?: { total?: number };
+  };
+  path?: string;
+  contentLength?: number;
+  diff?: { addedLines?: number; removedLines?: number };
+  threadId?: string;
+  workflowId?: string;
+  agentId?: string;
+  actorId?: string;
+  label?: string;
+  content?: string;
+  intakeId?: string;
+  questionId?: string;
+  key?: string;
+  level?: number;
+  prompt?: string;
+  required?: boolean;
+  options?: string[];
+  value?: string;
+  fromKey?: string;
+  estimate?: { costUsd?: number };
+  ok?: boolean;
+  metrics?: { wordCount?: number; dialogueRatio?: number };
+  violations?: { message?: string }[];
+  manifest?: Array<{
+    id: string;
+    kind: string;
+    sourcePath?: string;
+    estimatedTokens: number;
+    tokenBudget?: number;
+  }>;
+};

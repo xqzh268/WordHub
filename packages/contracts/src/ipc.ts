@@ -6,6 +6,9 @@ export type WorkspaceCommand =
   | "session.create"
   | "session.rename"
   | "chat.list"
+  | "chapter.list"
+  | "chapter.read"
+  | "chapter.watch"
   | "run.start"
   | "run.estimate"
   | "run.abort"
@@ -30,6 +33,21 @@ export interface WorkspaceSnapshot {
   worker: "offline" | "starting" | "ready" | "busy" | "stopped" | "crashed";
 }
 
+export interface ChapterInfo {
+  /** 相对项目根目录，统一用 `/` */
+  path: string;
+  name: string;
+  number?: number;
+  size: number;
+  mtimeMs: number;
+}
+export interface ChapterContent {
+  path: string;
+  content: string;
+  contentHash: string;
+  mtimeMs: number;
+}
+
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
@@ -41,6 +59,9 @@ export interface CommandPayloads {
   "session.create": { projectId: string; title: string; sessionId?: string };
   "session.rename": { projectId?: string; sessionId: string; title: string };
   "chat.list": { projectId: string; sessionId: string };
+  "chapter.list": { projectId: string };
+  "chapter.read": { projectId: string; path: string };
+  "chapter.watch": { projectId: string };
   "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
   "run.estimate": { prompt: string; rawPrompt?: string; agentId?: string; projectPath?: string; workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "all" };
   "run.abort": { runId: string };
@@ -66,6 +87,9 @@ export interface CommandResults {
   "session.create": { session: { id: string; projectId: string; title: string; createdAt: string; updatedAt: string } };
   "session.rename": { sessionId: string };
   "chat.list": { events: unknown[]; items: unknown[] };
+  "chapter.list": { chapters: ChapterInfo[] };
+  "chapter.read": ChapterContent;
+  "chapter.watch": { watching: boolean };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
   "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; tasks: unknown[]; workflow?: string; label?: string };
   "run.abort": { runId: string; aborted: boolean };

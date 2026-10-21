@@ -1,7 +1,14 @@
 import { motion } from "motion/react";
-import { BookOpenText, ListTree, Quote } from "lucide-react";
+import {
+  BookOpenText,
+  ChevronLeft,
+  ChevronRight,
+  ListTree,
+  Quote,
+} from "lucide-react";
 import type { CSSProperties } from "react";
 import { agentById } from "../lib/agents";
+import { formatUpdated, neighborChapter } from "../state/chapters";
 import { useWorkbench } from "../state/store";
 import type { PaperTab } from "../state/types";
 
@@ -20,6 +27,11 @@ export function PaperPane() {
   const paper = useWorkbench((s) => s.paper);
   const project = useWorkbench((s) => s.project.name);
   const demo = useWorkbench((s) => s.demo);
+  const chapters = useWorkbench((s) => s.chapters);
+  const activeChapter = useWorkbench((s) => s.activeChapter);
+  const selectChapter = useWorkbench((s) => s.selectChapter);
+  const prev = neighborChapter(chapters, activeChapter, -1);
+  const next = neighborChapter(chapters, activeChapter, 1);
   const words = paper
     ? paper.paragraphs.reduce((sum, p) => sum + countChars(p.text), 0)
     : 0;
@@ -52,13 +64,52 @@ export function PaperPane() {
             <>
               <span>{words.toLocaleString("zh-CN")} 字</span>
               <i aria-hidden="true" />
-              <span>{demo ? "示例稿" : "已保存"}</span>
+              <span>
+                {demo
+                  ? "示例稿"
+                  : paper.mtimeMs !== undefined
+                    ? formatUpdated(paper.mtimeMs)
+                    : "已保存"}
+              </span>
             </>
           ) : (
             <span>尚无章节</span>
           )}
         </div>
       </header>
+
+      {chapters.length > 0 && tab === "paper" && (
+        <nav className="chapter-nav" aria-label="章节">
+          <button
+            type="button"
+            aria-label="上一章"
+            disabled={!prev}
+            onClick={() => prev && void selectChapter(prev)}
+          >
+            <ChevronLeft size={15} strokeWidth={1.5} />
+          </button>
+          <select
+            aria-label="选择章节"
+            data-testid="chapter-select"
+            value={activeChapter ?? ""}
+            onChange={(event) => void selectChapter(event.target.value)}
+          >
+            {chapters.map((chapter) => (
+              <option key={chapter.path} value={chapter.path}>
+                {chapter.name.replace(/\.(?:md|markdown|txt)$/iu, "")}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            aria-label="下一章"
+            disabled={!next}
+            onClick={() => next && void selectChapter(next)}
+          >
+            <ChevronRight size={15} strokeWidth={1.5} />
+          </button>
+        </nav>
+      )}
 
       <div className="paper-stage selectable">
         {tab === "paper" &&
@@ -113,9 +164,9 @@ export function PaperPane() {
               </div>
               <div className="blank-note">
                 <Quote size={20} strokeWidth={1.25} aria-hidden="true" />
-                <p>你的第一章会在确认写作计划后出现在这里。</p>
+                <p>项目的 chapters/ 文件夹里还没有章节。</p>
                 <p className="sub">
-                  Agent 的每一次改动都会成为一个修订，随时可以撤销。
+                  写好的章节，或你在别的编辑器里放进去的稿子，都会显示在这里（纸面只读）。
                 </p>
               </div>
               <footer className="sheet-foot">· 1 ·</footer>

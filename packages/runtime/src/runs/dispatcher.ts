@@ -3,6 +3,11 @@ import {
   WordHubStore,
   projectChat,
 } from "@wordhub/store";
+import {
+  listChapters,
+  readChapter,
+  watchChapters,
+} from "../chapters/service.js";
 import type { RuntimeRequest } from "./executor-types.js";
 import type {
   RunContext,
@@ -54,6 +59,8 @@ type DispatcherDeps = {
 };
 
 export function createRequestHandler(deps: DispatcherDeps) {
+  // 同一时间只监听当前打开项目的 chapters/ 目录。
+  const chapterWatchers = new Map<string, () => void>();
   const {
     ready,
     storageRoot,
@@ -77,6 +84,13 @@ export function createRequestHandler(deps: DispatcherDeps) {
     intakeConfirm,
     resumeRun,
   } = deps;
+  const chapterFolder = (projectId: string): string => {
+    const project = projectService
+      .recent()
+      .find((item) => item.id === projectId);
+    if (!project) throw new Error("项目不存在");
+    return project.folderPath;
+  };
   const options = { storageRoot };
   async function handle(request: RuntimeRequest): Promise<void> {
     await ready;
@@ -130,6 +144,38 @@ export function createRequestHandler(deps: DispatcherDeps) {
         const store = await recoverProjectFiles(request.projectId);
         const events = store.listEvents(request.projectId, request.sessionId);
         sendResponse(request.requestId, { events, items: projectChat(events) });
+        return;
+      }
+      if (request.type === "chapter.list") {
+        const folder = chapterFolder(request.projectId);
+        sendResponse(request.requestId, {
+          chapters: await listChapters(folder),
+        });
+        return;
+      }
+      if (request.type === "chapter.read") {
+        const folder = chapterFolder(request.projectId);
+        sendResponse(
+          request.requestId,
+          await readChapter(folder, request.path),
+        );
+        return;
+      }
+      if (request.type === "chapter.watch") {
+        const folder = chapterFolder(request.projectId);
+        for (const stop of chapterWatchers.values()) stop();
+        chapterWatchers.clear();
+        chapterWatchers.set(
+          request.projectId,
+          watchChapters(folder, (chapters) =>
+            post({
+              type: "chapters.changed",
+              projectId: request.projectId,
+              chapters,
+            }),
+          ),
+        );
+        sendResponse(request.requestId, { watching: true });
         return;
       }
       if (request.type === "settings.models") {
