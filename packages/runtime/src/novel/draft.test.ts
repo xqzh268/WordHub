@@ -210,7 +210,9 @@ describe("纲领草稿生成（模型）", () => {
     const ready = t.events().find((e) => e.type === "intake.draft.ready");
     expect(ready?.payload.source).toBe("model");
     expect(
-      (ready?.payload.documents as Record<string, string>)["outline.md"],
+      ((ready?.payload.documents ?? {}) as Record<string, string>)[
+        "outline.md"
+      ],
     ).toContain("暮鼓");
     // 草稿就绪之后才出现确认问题
     expect(types.indexOf("intake.draft.ready")).toBeLessThan(
