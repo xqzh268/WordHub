@@ -1,9 +1,11 @@
 // 评审质量评测（真实 DeepSeek）：设定集只写事实、提示词只说“请评审第N章”，不暗示要找什么，也不规定调用哪个工具。
 // 度量两件事：有预埋矛盾的章节能否被指出（检出率），无矛盾的章节是否被误报（误报率）。
-// 用法：node scripts/m3-live-neutral.mjs [重复次数，默认 3]
-// 通过线：检出率 ≥ 2/3 且 误报率 ≤ 1/3；结果写入 artifacts/m3-neutral-result.json。
+// 用法：node scripts/m3-live-neutral.mjs [重复次数，默认 5]
+// 通过线：检出率 ≥ 2/3 且 误报率 ≤ 1/3，分母是全部重复次数——运行出错的那次算“没检出”，不会被悄悄丢掉。
+// 结果写入 artifacts/m3-neutral-result.json；出错的那次还会留下事件摘要与截图（artifacts/m3-neutral-failures/）。
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -20,7 +22,7 @@ if (!KEY) {
   console.log("跳过：未设置 DEEPSEEK_API_KEY");
   process.exit(0);
 }
-const RUNS = Number(process.argv[2] ?? 3);
+const RUNS = Number(process.argv[2] ?? 5);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const electron = createRequire(import.meta.url)("electron");
 const cleanEnv = () => {
@@ -40,17 +42,38 @@ async function oneRun(index) {
     "# 设定\n裴照是不良人，左撇子，惯用横刀。故事发生在唐代长安崇仁坊。\n",
     "utf8",
   );
-  fs.writeFileSync(
-    path.join(folder, "chapters", "第三章.md"),
-    "裴照走进崇仁坊，右手按住刀柄，听见更鼓从坊门后传来。\n",
-    "utf8",
-  );
-  fs.writeFileSync(
-    path.join(folder, "chapters", "第四章.md"),
-    // 与第三章内容刻意不同：评审流程可能把第三章改对，若两章逐字相同，指出“重复”是正确观察而非误报。
-    "裴照左手按住刀柄，缓步走过崇仁坊的石桥，桥下水声很轻。\n",
-    "utf8",
-  );
+  // 两个场景互相隔离：每个场景开始前由 prepare 写好各自的章节，评审看到的“上一章”不会带着另一个场景的矛盾。
+  const chapterFile = (name) => path.join(folder, "chapters", name);
+  const scenarios = [
+    {
+      label: "contradiction",
+      chapter: "第三章",
+      prepare: () => {
+        fs.writeFileSync(
+          chapterFile("第三章.md"),
+          "裴照走进崇仁坊，右手按住刀柄，听见更鼓从坊门后传来。\n",
+          "utf8",
+        );
+      },
+    },
+    {
+      label: "clean",
+      chapter: "第四章",
+      prepare: () => {
+        // 前一章与设定一致，本章也与设定、上一章一致，并且有完整的小段情节：这是一个真正“干净”的世界。
+        fs.writeFileSync(
+          chapterFile("第三章.md"),
+          "裴照走进崇仁坊，左手按住刀柄，听见更鼓从坊门后传来。\n",
+          "utf8",
+        );
+        fs.writeFileSync(
+          chapterFile("第四章.md"),
+          "裴照左手按住刀柄，缓步走过崇仁坊的石桥，桥下水声很轻。\n\n他在桥心停了一停，望向坊墙上渐暗的天色，随后继续向前走去，更鼓声又响了一遍。\n",
+          "utf8",
+        );
+      },
+    },
+  ];
   let app;
   try {
     app = await _electron.launch({
@@ -67,7 +90,7 @@ async function oneRun(index) {
       },
     });
   } catch (error) {
-    fs.rmSync(tmp, { recursive: true, force: true });
+    await fsp.rm(tmp, { recursive: true, force: true }).catch(() => {});
     throw error;
   }
   const events = () => {
@@ -116,10 +139,8 @@ async function oneRun(index) {
     }, folder);
     await page.click('[data-testid="link-folder"]');
     await page.waitForSelector('[data-testid="project-card"]');
-    for (const [label, chapter] of [
-      ["contradiction", "第三章"],
-      ["clean", "第四章"],
-    ]) {
+    for (const { label, chapter, prepare } of scenarios) {
+      prepare();
       const before = events().length;
       await page.fill('[data-testid="composer-input"]', `请评审${chapter}`);
       await page.click('[data-testid="send"]');
@@ -137,11 +158,24 @@ async function oneRun(index) {
         );
         if (!terminal) await new Promise((r) => setTimeout(r, 500));
       }
+      // 纸面绑定项目文件后会在几百毫秒内对齐磁盘，这里最多等 8 秒再判断。
+      const paperShows = await page
+        .waitForFunction(
+          () =>
+            document
+              .querySelector('[data-testid="paper-sheet"]')
+              ?.textContent?.includes("裴照"),
+          null,
+          { timeout: 8000 },
+        )
+        .then(
+          () => true,
+          () => false,
+        );
       const paperText = await page
         .locator('[data-testid="paper-sheet"]')
         .innerText();
-      if (!paperText.includes("裴照"))
-        throw new Error(`${chapter}纸面没有显示章节正文`);
+      if (!paperShows) throw new Error(`${chapter}纸面没有显示章节正文`);
       const slice = events().filter((e) => e.seq > before);
       const raised = slice.filter((e) => e.type === "challenge.raise");
       const workflowId = terminal?.run_id;
@@ -171,6 +205,10 @@ async function oneRun(index) {
       outcome[label] = {
         finished: Boolean(terminal),
         terminal: terminal?.type,
+        terminalDetail:
+          terminal?.type === "workflow.failed"
+            ? JSON.stringify(terminal.payload ?? {}).slice(0, 400)
+            : undefined,
         challenges: raised.length,
         blocking: raised.filter((e) => e.payload.severity === "blocking")
           .length,
@@ -182,7 +220,9 @@ async function oneRun(index) {
         waitingApprovals: waiting.length,
       };
       if (terminal?.type !== "workflow.finished")
-        throw new Error(`${chapter}工作流没有正常收尾`);
+        throw new Error(
+          `${chapter}工作流没有正常收尾：${terminal?.type ?? "超时"} ${outcome[label].terminalDetail ?? ""}`.trim(),
+        );
       if (waiting.length) throw new Error(`${chapter}工作流有遗留待审批任务`);
       // 两个场景之间等工作流彻底结束，避免互相干扰。
       await page
@@ -193,22 +233,43 @@ async function oneRun(index) {
         .catch(() => {});
     }
   } catch (error) {
-    outcome.error = String(error?.message ?? error).slice(0, 160);
+    outcome.error = String(error?.message ?? error).slice(0, 400);
+    // 留下现场：事件摘要 + 截图，夜间失败后不用重跑就能看原因。
+    try {
+      const dir = path.join(root, "artifacts", "m3-neutral-failures");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, `run-${index}-events.json`),
+        JSON.stringify(
+          events().map((e) => ({
+            seq: e.seq,
+            type: e.type,
+            run: e.run_id,
+            payload: JSON.stringify(e.payload ?? {}).slice(0, 300),
+          })),
+          null,
+          1,
+        ),
+        "utf8",
+      );
+      const shot = await app
+        ?.windows()[0]
+        ?.screenshot({ path: path.join(dir, `run-${index}.png`) })
+        .catch(() => undefined);
+      void shot;
+    } catch {
+      /* 取证失败不影响主流程 */
+    }
   } finally {
     if (app)
       spawnSync("taskkill", ["/PID", String(app.process().pid), "/T", "/F"], {
         stdio: "ignore",
       });
-    try {
-      fs.rmSync(tmp, {
-        recursive: true,
-        force: true,
-        maxRetries: 5,
-        retryDelay: 400,
+    await fsp
+      .rm(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 })
+      .catch(() => {
+        /* Windows 句柄尚未释放 */
       });
-    } catch {
-      /* Windows 句柄尚未释放 */
-    }
   }
   return outcome;
 }
@@ -219,23 +280,26 @@ for (let i = 1; i <= RUNS; i += 1) {
   results.push(result);
   console.log(JSON.stringify(result));
 }
-const valid = results.filter(
+const completed = results.filter(
   (r) =>
     !r.error &&
     r.contradiction?.terminal === "workflow.finished" &&
     r.clean?.terminal === "workflow.finished",
 );
-const detected = valid.filter(
+const errored = results.length - completed.length;
+const detected = completed.filter(
   (r) => r.contradiction.challenges > 0 && r.contradiction.mentionsHand,
 ).length;
-const falsePositives = valid.filter((r) => r.clean.challenges > 0).length;
+const falsePositives = completed.filter((r) => r.clean.challenges > 0).length;
+// 分母是全部重复次数：出错的运行等同于“没检出”，不会被丢掉后抬高比率。
 const summary = {
   runs: RUNS,
-  valid: valid.length,
+  completed: completed.length,
+  errored,
   detected,
   falsePositives,
-  detectionRate: valid.length ? detected / valid.length : 0,
-  falsePositiveRate: valid.length ? falsePositives / valid.length : 0,
+  detectionRate: detected / RUNS,
+  falsePositiveRate: falsePositives / RUNS,
   results,
 };
 fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
@@ -245,7 +309,7 @@ fs.writeFileSync(
   "utf8",
 );
 console.log(
-  `\n检出 ${detected}/${valid.length}（${(summary.detectionRate * 100).toFixed(0)}%）｜误报 ${falsePositives}/${valid.length}（${(summary.falsePositiveRate * 100).toFixed(0)}%）`,
+  `\n检出 ${detected}/${RUNS}（${(summary.detectionRate * 100).toFixed(0)}%）｜误报 ${falsePositives}/${RUNS}（${(summary.falsePositiveRate * 100).toFixed(0)}%）｜出错 ${errored}/${RUNS}`,
 );
 const pass =
   summary.detectionRate >= 2 / 3 && summary.falsePositiveRate <= 1 / 3;

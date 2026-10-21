@@ -69,6 +69,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nightly-eval-detail
-          path: artifacts/m3-neutral-result.json
+          path: |
+            artifacts/m3-neutral-result.json
+            artifacts/m3-neutral-failures/
           if-no-files-found: ignore
           retention-days: 30
