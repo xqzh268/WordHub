@@ -110,12 +110,46 @@ export function isNovelIntakePrompt(prompt: string): boolean {
   return /写一部|写一本|创作|小说|短篇|长篇|故事/u.test(prompt.trim());
 }
 
+/** 主角的几种常见说法，按特异性从高到低匹配；捕获组是“主角”之后的描述。 */
+const PROTAGONIST_PATTERNS: RegExp[] = [
+  // 以裴照为主角 / 以不良人裴照为主人公
+  /以\s*([^，。；;,\n]+?)\s*为(?:主角|主人公|男主|女主)/u,
+  // 主角名叫裴照 / 主角名为裴照 / 主角名字叫裴照 / 主角的名字是裴照
+  /(?:主角|主人公|男主|女主)(?:的)?(?:名字|姓名|名)?\s*(?:叫做|叫|为|是|：|:)\s*([^，。；;,\n]+)/u,
+  // 主角设定为…… / 主角设定：……
+  /(?:主角|主人公)设定\s*(?:为|是|：|:)\s*([^，。；;,\n]+)/u,
+];
+
+const LEADING_QUANTIFIER = /^(?:一个|一位|一名|一只|一对|个|位|名)\s*(?=\S)/u;
+const TRAILING_FILLER = /(?:的故事|的传奇|的冒险)$/u;
+
+/** 清理主角描述：去量词、去“的故事”，把“叫X的Y”整理成“X（Y）”。 */
+export function normalizeProtagonist(raw: string): string {
+  let value = raw.trim();
+  value = value.replace(LEADING_QUANTIFIER, "");
+  value = value.replace(TRAILING_FILLER, "");
+  const named = value.match(
+    /^(?:名?叫做?|名为|名字叫)\s*([^的，。]+?)的(.+)$/u,
+  );
+  if (named?.[1] && named[2]) return `${named[1].trim()}（${named[2].trim()}）`;
+  return value.replace(/^(?:名?叫做?|名为|名字叫)\s*/u, "").trim();
+}
+
 export function extractInitialAnswers(prompt: string): IntakeAnswer {
   const text = prompt.trim();
-  const match = text.match(/主角(?:是|为|叫|：|:)[\s]*([^，。；;,\n]+)/u);
+  let protagonist: string | undefined;
+  for (const pattern of PROTAGONIST_PATTERNS) {
+    const captured = text.match(pattern)?.[1];
+    if (!captured) continue;
+    const cleaned = normalizeProtagonist(captured);
+    if (cleaned) {
+      protagonist = cleaned;
+      break;
+    }
+  }
   return {
     premise: text,
-    ...(match?.[1] ? { protagonist: match[1].trim() } : {}),
+    ...(protagonist ? { protagonist } : {}),
   };
 }
 
