@@ -223,4 +223,35 @@ describe("restoreItems", () => {
       },
     ]);
   });
+
+  it("草稿卡：状态与文档被恢复，无效文档被丢弃", () => {
+    const [draft] = restoreItems([
+      {
+        kind: "draft",
+        id: "draft_i1",
+        at: 1,
+        intakeId: "i1",
+        status: "ready",
+        source: "model",
+        documents: [
+          { file: "outline.md", title: "大纲", content: "第一章" },
+          { file: "x.md" },
+          null,
+        ],
+      },
+    ]);
+    expect(draft).toMatchObject({
+      kind: "draft",
+      status: "ready",
+      source: "model",
+      documents: [{ file: "outline.md", title: "大纲", content: "第一章" }],
+    });
+  });
+
+  it("草稿卡：未知状态按“生成中”处理", () => {
+    const [draft] = restoreItems([
+      { kind: "draft", id: "d", at: 1, intakeId: "i1", status: "??" },
+    ]);
+    expect(draft).toMatchObject({ status: "generating", documents: [] });
+  });
 });

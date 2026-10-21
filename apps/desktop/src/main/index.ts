@@ -247,6 +247,8 @@ function registerIpc(): void {
           intakeId: payload.intakeId,
           questionId: payload.questionId,
           value: payload.value,
+          apiKey: await resolveDeepSeekKey(),
+          mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
         });
       }
       if (command === "intake.confirm") {
@@ -256,6 +258,8 @@ function registerIpc(): void {
           projectId: payload.projectId,
           sessionId: payload.sessionId,
           intakeId: payload.intakeId,
+          apiKey: await resolveDeepSeekKey(),
+          mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
         });
       }
       if (command === "settings.credentialStatus") {

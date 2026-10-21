@@ -336,6 +336,58 @@ describe("纲领问询", () => {
   });
 });
 
+describe("纲领草稿", () => {
+  it("开始→就绪：同一张草稿卡先显示生成中，再填入文档", () => {
+    emit({ type: "intake.draft.started", intakeId: "i1" });
+    expect(ofKind("draft")[0]).toMatchObject({ status: "generating" });
+    emit({
+      type: "intake.draft.ready",
+      intakeId: "i1",
+      source: "model",
+      model: "deepseek-v4-pro",
+      documents: { "outline.md": "第一章", "setting.md": "崇仁坊" },
+    });
+    expect(ofKind("draft")).toHaveLength(1);
+    expect(ofKind("draft")[0]).toMatchObject({
+      status: "ready",
+      source: "model",
+      documents: [
+        { file: "outline.md", title: "大纲", content: "第一章" },
+        { file: "setting.md", title: "设定词典", content: "崇仁坊" },
+      ],
+    });
+  });
+
+  it("失败后回退为模板：保留失败原因并标记来源", () => {
+    emit({ type: "intake.draft.started", intakeId: "i1" });
+    emit({ type: "intake.draft.failed", intakeId: "i1", error: "超时" });
+    emit({
+      type: "intake.draft.ready",
+      intakeId: "i1",
+      source: "template",
+      documents: { "outline.md": "x" },
+    });
+    expect(ofKind("draft")[0]).toMatchObject({
+      source: "template",
+      error: "超时",
+    });
+  });
+
+  it("重新生成：旧文档被清空并回到生成中", () => {
+    emit({
+      type: "intake.draft.ready",
+      intakeId: "i1",
+      source: "model",
+      documents: { "outline.md": "旧" },
+    });
+    emit({ type: "intake.draft.started", intakeId: "i1" });
+    expect(ofKind("draft")[0]).toMatchObject({
+      status: "generating",
+      documents: [],
+    });
+  });
+});
+
 describe("纸面与章节", () => {
   const info = (
     name: string,

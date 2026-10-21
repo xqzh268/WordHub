@@ -134,6 +134,8 @@ function Entry({ item }: { item: ChatItem }) {
       return <ApprovalCard item={item} />;
     case "question":
       return <QuestionCard item={item} />;
+    case "draft":
+      return <DraftCard item={item} />;
     case "notice":
       return <p className={`notice ${item.tone ?? ""}`}>{item.text}</p>;
     case "task":
@@ -590,8 +592,64 @@ function ApprovalCard({ item }: { item: ApprovalItem }) {
   );
 }
 
+function DraftCard({ item }: { item: Extract<ChatItem, { kind: "draft" }> }) {
+  return (
+    <>
+      <span className="approval-mark" aria-hidden="true">
+        稿
+      </span>
+      <div className="approval draft-card" data-testid="draft-card">
+        <h3>
+          纲领草稿
+          {item.status === "ready" &&
+            (item.source === "model" ? " · 模型生成" : " · 问答整理")}
+        </h3>
+        {item.status === "generating" ? (
+          <p className="draft-wait">
+            正在根据你的回答生成大纲、人物档案、设定词典和文风基准，通常需要两三分钟……
+          </p>
+        ) : (
+          <>
+            {item.error && (
+              <p className="draft-warn">
+                {item.source === "template"
+                  ? `模型没能生成草稿（${item.error}），下面是按你的回答直接整理的基础版本。`
+                  : item.error}
+              </p>
+            )}
+            <p className="draft-hint">
+              这些文档确认后才会写入项目设定集（.wordhub/bible/）。标注“（建议）”的是模型替你补全的部分。
+            </p>
+            {item.documents.map((doc, index) => (
+              <details
+                key={doc.file}
+                className="draft-doc"
+                open={index === 0}
+                data-testid="draft-doc"
+              >
+                <summary>{doc.title}</summary>
+                <pre>{doc.content}</pre>
+              </details>
+            ))}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 function QuestionCard({ item }: { item: QuestionItem }) {
   const answer = useWorkbench((s) => s.answerQuestion);
+  const drafting = useWorkbench((s) =>
+    s.sessions.some((session) =>
+      session.items.some(
+        (entry) =>
+          entry.kind === "draft" &&
+          entry.intakeId === item.intakeId &&
+          entry.status === "generating",
+      ),
+    ),
+  );
   const confirm = useWorkbench((s) => s.confirmIntake);
   const [value, setValue] = useState(item.value ?? "");
   const [editing, setEditing] = useState(!item.resolved);
@@ -627,6 +685,7 @@ function QuestionCard({ item }: { item: QuestionItem }) {
               <button
                 key={option}
                 className={index === 0 ? "btn btn-primary" : "btn"}
+                disabled={drafting && option !== "继续修改"}
                 onClick={() => submit(option)}
               >
                 {option}

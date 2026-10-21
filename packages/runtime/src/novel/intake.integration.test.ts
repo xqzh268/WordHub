@@ -92,13 +92,24 @@ describe("M4.1纲领问答集成", () => {
         questionId: `${intakeId}:${key}`,
         value: "",
         requestId: `answer-${key}`,
+        mode: "mock",
       });
+    // 最后一题回答后会在后台生成草稿（模拟模式下回退为问答模板），等它就绪再确认。
+    const deadline = Date.now() + 5000;
+    while (
+      !resumedStore
+        .listEvents(projectId, sessionId)
+        .some((event) => event.type === "intake.draft.ready") &&
+      Date.now() < deadline
+    )
+      await new Promise((resolve) => setTimeout(resolve, 20));
     await restarted.handle({
       type: "intake.confirm",
       projectId,
       sessionId,
       intakeId,
       requestId: "confirm-intake",
+      mode: "mock",
     });
     expect(
       resumedStore.listEvents(projectId, sessionId).map((event) => event.type),

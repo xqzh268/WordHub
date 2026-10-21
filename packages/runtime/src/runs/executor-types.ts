@@ -112,6 +112,8 @@ export type RuntimeRequest =
       questionId: string;
       value: string;
       requestId: string;
+      apiKey?: string;
+      mode?: "live" | "mock";
     }
   | {
       type: "intake.confirm";
@@ -119,6 +121,8 @@ export type RuntimeRequest =
       sessionId: string;
       intakeId: string;
       requestId: string;
+      apiKey?: string;
+      mode?: "live" | "mock";
     }
   | { type: "abort"; runId: string };
 

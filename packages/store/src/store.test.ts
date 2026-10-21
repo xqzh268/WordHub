@@ -474,4 +474,59 @@ describe("WordHub M1 store", () => {
     );
     expect(agent?.status).not.toBe("streaming");
   });
+
+  it("纲领草稿：开始→失败→就绪合并成同一张草稿卡，重新生成会清空旧文档", () => {
+    const make = (
+      seq: number,
+      type: string,
+      payload: Record<string, unknown>,
+    ) => ({
+      id: `e${seq}`,
+      seq,
+      schemaVersion: 1 as const,
+      projectId: "p",
+      sessionId: "s",
+      runId: "r",
+      type,
+      actor: { type: "system" as const, id: "planner-intake" },
+      occurredAt: new Date().toISOString(),
+      visibility: "room" as const,
+      payload,
+    });
+    const docs = { "outline.md": "# 大纲\n第一章", "style.md": "# 文风" };
+    const items = projectChat([
+      make(1, "intake.draft.started", { intakeId: "i1" }),
+      make(2, "intake.draft.failed", { intakeId: "i1", error: "超时" }),
+      make(3, "intake.draft.ready", {
+        intakeId: "i1",
+        source: "template",
+        error: "超时",
+        documents: docs,
+      }),
+    ]);
+    const drafts = items.filter((item) => item.kind === "draft");
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      status: "ready",
+      source: "template",
+      error: "超时",
+    });
+    expect(
+      drafts[0]?.kind === "draft" && drafts[0].documents.map((d) => d.title),
+    ).toEqual(["大纲", "文风基准"]);
+
+    const again = projectChat([
+      make(1, "intake.draft.ready", {
+        intakeId: "i1",
+        source: "model",
+        documents: docs,
+      }),
+      make(2, "intake.draft.started", { intakeId: "i1" }),
+    ]);
+    expect(again[0]).toMatchObject({
+      kind: "draft",
+      status: "generating",
+      documents: [],
+    });
+  });
 });

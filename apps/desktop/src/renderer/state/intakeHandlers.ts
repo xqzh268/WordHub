@@ -117,6 +117,63 @@ export function handleIntake(
       ]);
       break;
     }
+    case "intake.draft.started":
+    case "intake.draft.failed":
+    case "intake.draft.ready":
+      if (message.intakeId) {
+        const intakeId = message.intakeId;
+        const id = `draft_${intakeId}`;
+        patchItems(get().activeSessionId, (items) => {
+          const existing = items.find(
+            (item): item is Extract<ChatItem, { kind: "draft" }> =>
+              item.kind === "draft" && item.id === id,
+          );
+          const base: Extract<ChatItem, { kind: "draft" }> = existing ?? {
+            kind: "draft",
+            id,
+            at: Date.now(),
+            intakeId,
+            status: "generating",
+            documents: [],
+          };
+          let next = base;
+          if (message.type === "intake.draft.started")
+            next = {
+              ...base,
+              status: "generating",
+              documents: [],
+              error: undefined,
+            };
+          else if (message.type === "intake.draft.failed")
+            next = { ...base, error: message.error ?? "未知错误" };
+          else {
+            const titles: Record<string, string> = {
+              "outline.md": "大纲",
+              "characters.md": "人物档案",
+              "setting.md": "设定词典",
+              "style.md": "文风基准",
+            };
+            next = {
+              ...base,
+              status: "ready",
+              source: message.source === "model" ? "model" : "template",
+              model: message.model,
+              error: message.error ?? base.error,
+              documents: Object.entries(message.documents ?? {}).map(
+                ([file, content]) => ({
+                  file,
+                  title: titles[file] ?? file,
+                  content,
+                }),
+              ),
+            };
+          }
+          return existing
+            ? items.map((item) => (item.id === id ? next : item))
+            : [...items, next];
+        });
+      }
+      break;
     default:
       return false;
   }

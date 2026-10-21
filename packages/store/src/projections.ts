@@ -100,6 +100,20 @@ export type ProjectedChatItem =
       value?: string;
       resolved?: boolean;
       eventId: string;
+    }
+  | {
+      kind: "draft";
+      id: string;
+      at: number;
+      intakeId: string;
+      status: "generating" | "ready";
+      /** model：模型生成；template：回退为问答模板 */
+      source?: "model" | "template";
+      /** 回退时记录模型失败的原因 */
+      error?: string;
+      model?: string;
+      documents: { file: string; title: string; content: string }[];
+      eventId: string;
     };
 
 type RunProjection = Extract<ProjectedChatItem, { kind: "agent" }>;
@@ -214,6 +228,63 @@ export function applyChatEvent(
       ...(ok ? {} : { tone: "warn" as const }),
       eventId: event.id,
     });
+    return state;
+  }
+  if (
+    event.type === "intake.draft.started" ||
+    event.type === "intake.draft.ready" ||
+    event.type === "intake.draft.failed"
+  ) {
+    const intakeId =
+      typeof payload.intakeId === "string" ? payload.intakeId : undefined;
+    if (!intakeId) return state;
+    const id = `draft_${intakeId}`;
+    let item = state.items.find(
+      (candidate): candidate is Extract<ProjectedChatItem, { kind: "draft" }> =>
+        candidate.kind === "draft" && candidate.id === id,
+    );
+    if (!item) {
+      item = {
+        kind: "draft",
+        id,
+        at: timestamp(event.occurredAt),
+        intakeId,
+        status: "generating",
+        documents: [],
+        eventId: event.id,
+      };
+      state.items.push(item);
+    }
+    item.eventId = event.id;
+    if (event.type === "intake.draft.started") {
+      item.status = "generating";
+      item.documents = [];
+      item.error = undefined;
+    } else if (event.type === "intake.draft.failed") {
+      item.error =
+        typeof payload.error === "string" ? payload.error : "未知错误";
+    } else {
+      item.status = "ready";
+      item.source = payload.source === "model" ? "model" : "template";
+      item.model =
+        typeof payload.model === "string" ? payload.model : undefined;
+      if (typeof payload.error === "string") item.error = payload.error;
+      const documents =
+        payload.documents && typeof payload.documents === "object"
+          ? (payload.documents as Record<string, unknown>)
+          : {};
+      const titles: Record<string, string> = {
+        "outline.md": "大纲",
+        "characters.md": "人物档案",
+        "setting.md": "设定词典",
+        "style.md": "文风基准",
+      };
+      item.documents = Object.entries(documents).flatMap(([file, content]) =>
+        typeof content === "string"
+          ? [{ file, title: titles[file] ?? file, content }]
+          : [],
+      );
+    }
     return state;
   }
   if (event.type === "intake.question") {

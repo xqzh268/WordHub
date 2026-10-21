@@ -107,6 +107,41 @@ export function restoreItems(raw: unknown): ChatItem[] {
               : "ready",
         } satisfies ChatItem,
       ];
+    if (value.kind === "draft" && typeof value.intakeId === "string")
+      return [
+        {
+          kind: "draft",
+          id: String(value.id),
+          at: Number(value.at),
+          intakeId: value.intakeId,
+          status: value.status === "ready" ? "ready" : "generating",
+          source:
+            value.source === "model" || value.source === "template"
+              ? value.source
+              : undefined,
+          error: typeof value.error === "string" ? value.error : undefined,
+          model: typeof value.model === "string" ? value.model : undefined,
+          documents: Array.isArray(value.documents)
+            ? value.documents.flatMap((doc) => {
+                if (!doc || typeof doc !== "object") return [];
+                const current = doc as Record<string, unknown>;
+                return typeof current.file === "string" &&
+                  typeof current.content === "string"
+                  ? [
+                      {
+                        file: current.file,
+                        title:
+                          typeof current.title === "string"
+                            ? current.title
+                            : current.file,
+                        content: current.content,
+                      },
+                    ]
+                  : [];
+              })
+            : [],
+        } satisfies ChatItem,
+      ];
     if (value.kind === "thread" && typeof value.claim === "string")
       return [
         {

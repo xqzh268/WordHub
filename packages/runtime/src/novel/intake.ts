@@ -1,5 +1,13 @@
+import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import { ControlledFileWriter, WordHubStore } from "@wordhub/store";
 import type { Event } from "@wordhub/contracts";
+import type { ReasoningLevel } from "../types.js";
+import {
+  DRAFT_FILES,
+  type DraftDocuments,
+  type DraftUsage,
+  generateDraft,
+} from "./draft.js";
 import type { ProjectService } from "../projects/service.js";
 import type { AppendRunEvent, RunRequest } from "../runs/run-types.js";
 
@@ -104,6 +112,8 @@ export type IntakeState = {
   sourcePrompt: string;
   answers: IntakeAnswer;
   confirmed: boolean;
+  /** 模型（或模板回退）生成的设定文档草稿；答案一旦改动就作废 */
+  draft?: { documents: DraftDocuments; source: "model" | "template" };
 };
 
 export function isNovelIntakePrompt(prompt: string): boolean {
@@ -158,9 +168,10 @@ export function questionFor(key: IntakeKey | "confirm"): IntakeQuestion {
     return {
       key,
       level: 2,
-      prompt: "纲领信息已经整理完成。确认后才会写入项目设定集。",
+      prompt:
+        "大纲、人物档案、设定词典和文风基准的草稿已经生成，请先看上方的草稿。确认后才会写入项目设定集；也可以重新生成。",
       required: true,
-      options: ["确认并写入", "继续修改"],
+      options: ["确认并写入", "重新生成", "继续修改"],
     };
   const question = INTAKE_QUESTIONS.find((item) => item.key === key);
   if (!question) throw new Error(`未知纲领问题：${key}`);
@@ -227,11 +238,29 @@ export function replayIntake(
         key !== "confirm" &&
         INTAKE_QUESTIONS.some((item) => item.key === key)
       )
-        state = applyIntakeAnswer(
-          state,
-          key as IntakeKey,
-          typeof payload.value === "string" ? payload.value : "",
-        );
+        state = {
+          ...applyIntakeAnswer(
+            state,
+            key as IntakeKey,
+            typeof payload.value === "string" ? payload.value : "",
+          ),
+          draft: undefined,
+        };
+    } else if (state && event.type === "intake.draft.ready") {
+      const documents = payload.documents;
+      if (documents && typeof documents === "object")
+        state = {
+          ...state,
+          draft: {
+            documents: Object.fromEntries(
+              Object.entries(documents as Record<string, unknown>).filter(
+                (entry): entry is [string, string] =>
+                  typeof entry[1] === "string",
+              ),
+            ),
+            source: payload.source === "model" ? "model" : "template",
+          },
+        };
     } else if (state && event.type === "intake.reset") {
       const from = payload.fromKey;
       const index =
@@ -242,7 +271,7 @@ export function replayIntake(
         const answers = { ...state.answers };
         for (const question of INTAKE_QUESTIONS.slice(index))
           delete answers[question.key as IntakeKey];
-        state = { ...state, answers };
+        state = { ...state, answers, draft: undefined };
       }
     } else if (state && event.type === "intake.confirmed")
       state = { ...state, confirmed: true };
@@ -285,16 +314,29 @@ function appendIntake(
   );
 }
 
+/** 没有模型草稿时（生成失败、模拟模式）用问答原文直接整理的基础版本。 */
+export function templateDocuments(answers: IntakeAnswer): DraftDocuments {
+  const value = (key: IntakeKey) => answers[key]?.trim() || "未设定";
+  return {
+    "outline.md": `# 故事纲领\n\n## 一句话 premise\n${value("premise")}\n\n## 核心冲突\n${value("conflict")}\n`,
+    "characters.md": `# 人物档案\n\n## 主角\n${value("protagonist")}\n`,
+    "setting.md": `# 设定词典\n\n## 世界与时代\n${value("world")}\n\n## 必须出现\n${value("mustInclude")}\n\n## 禁止出现\n${value("forbidden")}\n`,
+    "style.md": `# 文风基准\n\n## 视角与基调\n${value("viewpointTone")}\n\n## 主题\n${value("theme")}\n\n## 读者\n${value("audience")}\n`,
+  };
+}
+
 export function buildBibleArtifacts(
   state: IntakeState,
 ): Record<string, string> {
-  const a = state.answers;
-  const value = (key: IntakeKey) => a[key]?.trim() || "未设定";
+  const documents = state.draft?.documents ?? templateDocuments(state.answers);
+  const value = (key: IntakeKey) => state.answers[key]?.trim() || "未设定";
   return {
-    ".wordhub/bible/outline.md": `# 故事纲领\n\n## 一句话 premise\n${value("premise")}\n\n## 核心冲突\n${value("conflict")}\n`,
-    ".wordhub/bible/characters.md": `# 人物档案\n\n## 主角\n${value("protagonist")}\n`,
-    ".wordhub/bible/setting.md": `# 设定词典\n\n## 世界与时代\n${value("world")}\n\n## 必须出现\n${value("mustInclude")}\n\n## 禁止出现\n${value("forbidden")}\n`,
-    ".wordhub/bible/style.md": `# 文风基准\n\n## 视角与基调\n${value("viewpointTone")}\n\n## 主题\n${value("theme")}\n\n## 读者\n${value("audience")}\n`,
+    ...Object.fromEntries(
+      DRAFT_FILES.map(({ file }) => [
+        `.wordhub/bible/${file}`,
+        documents[file] ?? templateDocuments(state.answers)[file] ?? "",
+      ]),
+    ),
     ".wordhub/bible/writing-plan.json": JSON.stringify(
       {
         schemaVersion: 1,
@@ -308,10 +350,25 @@ export function buildBibleArtifacts(
   };
 }
 
+export type DraftModel = {
+  models: Models;
+  model: Model<Api>;
+  reasoning: ReasoningLevel;
+};
+type DraftContext = { apiKey?: string; mode?: "live" | "mock" };
+
 export function createNovelIntakeService(deps: {
   projects: ProjectService;
   append: AppendRunEvent;
+  /** 解析纲领 Agent 的模型；省略时一律使用模板草稿 */
+  resolveDraftModel?: (
+    projectPath: string,
+    mode?: "live" | "mock",
+  ) => Promise<DraftModel>;
 }) {
+  const drafting = new Set<string>();
+  const pending = new Set<Promise<void>>();
+
   const appendQuestion = (
     store: WordHubStore,
     request: RunRequest,
@@ -417,12 +474,81 @@ export function createNovelIntakeService(deps: {
     };
   }
 
+  /** 在后台生成草稿：先发“开始”，成功或回退后发“就绪”，最后再问是否确认。 */
+  async function draft(
+    located: Awaited<ReturnType<typeof locate>>,
+    answers: IntakeAnswer,
+    context: DraftContext,
+  ): Promise<void> {
+    const intakeId = located.state.intakeId;
+    const emit = (type: string, payload: Record<string, unknown>) =>
+      appendIntake(deps.append, located.store, located.request, type, {
+        intakeId,
+        ...payload,
+      });
+    drafting.add(intakeId);
+    emit("intake.draft.started", {});
+    let documents: DraftDocuments;
+    let source: "model" | "template" = "model";
+    let usage: DraftUsage | undefined;
+    let model: string | undefined;
+    let error: string | undefined;
+    try {
+      const key =
+        context.apiKey ??
+        process.env.DEEPSEEK_API_KEY ??
+        process.env.WORDHUB_DEEPSEEK_API_KEY;
+      if (context.mode !== "mock" && !key)
+        throw new Error("DeepSeek密钥未配置");
+      if (!deps.resolveDraftModel) throw new Error("未配置草稿模型");
+      const resolved = await deps.resolveDraftModel(
+        located.project.folderPath,
+        context.mode,
+      );
+      const out = await generateDraft({
+        models: resolved.models,
+        model: resolved.model,
+        reasoning: resolved.reasoning,
+        apiKey: key,
+        answers,
+        signal: AbortSignal.timeout(300000),
+      });
+      documents = out.documents;
+      usage = out.usage;
+      model = resolved.model.id;
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : String(cause);
+      source = "template";
+      documents = templateDocuments(answers);
+      emit("intake.draft.failed", { error });
+    }
+    emit("intake.draft.ready", { documents, source, model, usage, error });
+    drafting.delete(intakeId);
+    appendQuestion(located.store, located.request, intakeId, "confirm");
+  }
+
+  function scheduleDraft(
+    located: Awaited<ReturnType<typeof locate>>,
+    answers: IntakeAnswer,
+    context: DraftContext,
+  ): void {
+    drafting.add(located.state.intakeId);
+    const task = draft(located, answers, context)
+      .catch(() => {
+        drafting.delete(located.state.intakeId);
+      })
+      .finally(() => pending.delete(task));
+    pending.add(task);
+  }
+
   async function answer(request: {
     projectId: string;
     sessionId: string;
     intakeId: string;
     questionId: string;
     value: string;
+    apiKey?: string;
+    mode?: "live" | "mock";
   }) {
     const located = await locate(request);
     const key = request.questionId.slice(`${request.intakeId}:`.length) as
@@ -432,6 +558,11 @@ export function createNovelIntakeService(deps: {
       throw new Error("问题ID无效");
     if (key === "confirm") {
       if (request.value === "确认并写入") return confirm(request);
+      if (request.value === "重新生成") {
+        if (drafting.has(request.intakeId)) return;
+        scheduleDraft(located, located.state.answers, request);
+        return;
+      }
       const next = nextIntakeKey(located.state);
       if (next && next !== "confirm")
         appendQuestion(located.store, located.request, request.intakeId, next);
@@ -456,7 +587,14 @@ export function createNovelIntakeService(deps: {
       value: nextState.answers[key] ?? "",
     });
     const next = nextIntakeKey(nextState);
-    if (next)
+    if (next === "confirm") {
+      if (!drafting.has(request.intakeId))
+        scheduleDraft(
+          { ...located, state: nextState },
+          nextState.answers,
+          request,
+        );
+    } else if (next)
       appendQuestion(located.store, located.request, request.intakeId, next);
   }
 
@@ -468,6 +606,8 @@ export function createNovelIntakeService(deps: {
     const located = await locate(request);
     const next = nextIntakeKey(located.state);
     if (next !== "confirm") throw new Error("纲领问答尚未完成");
+    if (drafting.has(request.intakeId))
+      throw new Error("草稿还在生成，请稍候再确认");
     const writer = new ControlledFileWriter(
       located.store,
       request.projectId,
@@ -519,5 +659,9 @@ export function createNovelIntakeService(deps: {
     );
   }
 
-  return { start, answer, confirm };
+  /** 等待所有后台草稿任务结束（测试与优雅退出用）。 */
+  const settled = async (): Promise<void> => {
+    while (pending.size) await Promise.all([...pending]);
+  };
+  return { start, answer, confirm, settled };
 }

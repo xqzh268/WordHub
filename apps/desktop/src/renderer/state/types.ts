@@ -90,6 +90,17 @@ export type ChatItem =
       resolved?: boolean;
     }
   | {
+      kind: "draft";
+      id: string;
+      at: number;
+      intakeId: string;
+      status: "generating" | "ready";
+      source?: "model" | "template";
+      error?: string;
+      model?: string;
+      documents: { file: string; title: string; content: string }[];
+    }
+  | {
       kind: "task";
       id: string;
       at: number;

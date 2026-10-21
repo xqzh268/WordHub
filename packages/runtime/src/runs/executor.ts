@@ -112,6 +112,26 @@ export function createRunExecutor(options: ExecutorOptions) {
   const intake = createNovelIntakeService({
     projects: projectService,
     append: appendRunEvent,
+    resolveDraftModel: async (projectPath, mode) => {
+      const resolved = await modelSettings.resolve({
+        agentId: "planner",
+        projectPath,
+      });
+      const runtimeModels = mode === "mock" ? mockModels : models;
+      const model = runtimeModels.getModel(
+        resolved.ref.provider,
+        resolved.ref.id,
+      );
+      if (!model)
+        throw new Error(
+          `model not found: ${resolved.ref.provider}/${resolved.ref.id}`,
+        );
+      return {
+        models: runtimeModels,
+        model,
+        reasoning: resolved.ref.reasoning,
+      };
+    },
   });
   function sendResponse(requestId: string, result: unknown): void {
     post({ type: "response", requestId, ok: true, result });
