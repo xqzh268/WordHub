@@ -281,7 +281,9 @@ function AgentMessage({ item }: { item: AgentItem }) {
   const agent = agentById(item.agentId);
   const streaming = item.status === "streaming";
   const thinking = item.status === "thinking";
-  const [reasoningOpen, setReasoningOpen] = useState(true);
+  // 思考过程只在生成时自动展开；结束后折叠，用户点开后以用户的选择为准。
+  const [reasoningToggle, setReasoningToggle] = useState<boolean | null>(null);
+  const reasoningOpen = reasoningToggle ?? (thinking || streaming);
   const [contextOpen, setContextOpen] = useState(false);
   const [undone, setUndone] = useState(false);
   const resumeRun = useWorkbench((s) => s.resumeRun);
@@ -318,10 +320,10 @@ function AgentMessage({ item }: { item: AgentItem }) {
           <div className="reasoning-panel">
             <button
               className="reasoning-toggle"
-              onClick={() => setReasoningOpen((value) => !value)}
+              onClick={() => setReasoningToggle(!reasoningOpen)}
               aria-expanded={reasoningOpen}
             >
-              <span>思考内容（临时）</span>
+              <span>思考过程（模型原文，可能是英文，仅本次运行显示）</span>
               {item.reasoningLevel && (
                 <span className="tag">{item.reasoningLevel}</span>
               )}

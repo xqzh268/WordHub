@@ -31,6 +31,7 @@
     "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",
     "test:facts:e2e": "node scripts/facts-e2e.mjs",
     "test:chapters:e2e": "node scripts/chapters-e2e.mjs",
+    "test:m4:regression": "node scripts/m4-regression.mjs",
     "test:m4:review": "node scripts/m4-review-eval.mjs",
     "test:m4:draft": "node scripts/m4-draft-live.mjs",
     "test:m3:live": "node scripts/m3-live-e2e.mjs",

@@ -74,3 +74,6 @@
 
 .finalize-btn { flex: none; margin-left: 10px; height: 28px; padding: 0 12px; font-size: 12.5px; white-space: nowrap; }
 .finalize-btn.done { color: var(--ink-3); }
+
+.chapter-nav select { background: var(--bg-raised); color: var(--ink-1); }
+.chapter-nav select option { background: var(--bg-raised); color: var(--ink-1); }

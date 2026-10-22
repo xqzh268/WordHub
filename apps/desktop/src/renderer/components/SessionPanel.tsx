@@ -1,5 +1,5 @@
 import { ChevronsUpDown, FolderPlus, Plus, RotateCw } from "lucide-react";
-import { AGENTS, WORKER_LABEL } from "../lib/agents";
+import { LISTED_AGENTS, WORKER_LABEL } from "../lib/agents";
 import { useWorkbench } from "../state/store";
 import { Seal } from "./Seal";
 
@@ -81,7 +81,7 @@ export function SessionPanel() {
           <span>Agents</span>
         </div>
         <ul className="agent-list" role="list">
-          {AGENTS.map((agent) => (
+          {LISTED_AGENTS.map((agent) => (
             <li key={agent.id}>
               <button
                 className="agent-row"

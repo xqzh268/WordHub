@@ -1,0 +1,196 @@
+{
+  "phases": {
+    "纲领问答与草稿": {
+      "seconds": 110,
+      "costUsd": 0,
+      "tokens": 0
+    },
+    "写第一章": {
+      "seconds": 110,
+      "costUsd": 0.0583,
+      "tokens": 83146
+    },
+    "定稿第一章": {
+      "seconds": 17,
+      "costUsd": 0.0054,
+      "tokens": 30507
+    },
+    "写第二章": {
+      "seconds": 207,
+      "costUsd": 0.1184,
+      "tokens": 167327
+    },
+    "定稿第二章": {
+      "seconds": 21,
+      "costUsd": 0.0059,
+      "tokens": 34114
+    },
+    "写第三章": {
+      "seconds": 403,
+      "costUsd": 0.1703,
+      "tokens": 133149
+    },
+    "定稿第三章": {
+      "seconds": 32,
+      "costUsd": 0.005,
+      "tokens": 40089
+    },
+    "确认事实": {
+      "seconds": 10,
+      "costUsd": 0,
+      "tokens": 0
+    },
+    "评审第四章（含跨章矛盾）": {
+      "seconds": 445,
+      "costUsd": 0.1998,
+      "tokens": 195623
+    },
+    "评审第五章（干净对照）": {
+      "seconds": 322,
+      "costUsd": 0.1571,
+      "tokens": 214859
+    }
+  },
+  "checks": [
+    {
+      "name": "纲领草稿由模型生成四份文档",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "确认后设定文件落盘",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "第一章：写作工作流正常收尾",
+      "passed": true,
+      "detail": "超时"
+    },
+    {
+      "name": "第一章：章节文件有实质内容",
+      "passed": true,
+      "detail": "chapter-01.md · 983 字符"
+    },
+    {
+      "name": "第一章：定稿完成并记录",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "第一章：观察者抽取了待确认事实与摘要",
+      "passed": true,
+      "detail": "10 条事实"
+    },
+    {
+      "name": "第二章：写作工作流正常收尾",
+      "passed": true,
+      "detail": "超时"
+    },
+    {
+      "name": "第二章：章节文件有实质内容",
+      "passed": true,
+      "detail": "chapter-02.md · 1404 字符"
+    },
+    {
+      "name": "第二章：定稿完成并记录",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "第二章：观察者抽取了待确认事实与摘要",
+      "passed": true,
+      "detail": "10 条事实"
+    },
+    {
+      "name": "第三章：写作工作流正常收尾",
+      "passed": true,
+      "detail": "超时"
+    },
+    {
+      "name": "第三章：章节文件有实质内容",
+      "passed": true,
+      "detail": "chapter-03.md · 2124 字符"
+    },
+    {
+      "name": "第三章：定稿完成并记录",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "第三章：观察者抽取了待确认事实与摘要",
+      "passed": true,
+      "detail": "10 条事实"
+    },
+    {
+      "name": "至少确认了若干事实",
+      "passed": true,
+      "detail": "30 条"
+    },
+    {
+      "name": "观察者从定稿章节里抽出了预埋的“老周之死”",
+      "passed": true,
+      "detail": "章末另记质库掌柜老周倒在后墙下，胸口中一刀，血已凉身死，裴照合上他的眼睛。"
+    },
+    {
+      "name": "评审完成",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "检出跨章矛盾（第三章已死的老周在第四章活着）",
+      "passed": true,
+      "detail": "1 条质询"
+    },
+    {
+      "name": "质询同时引用了第四章与前文原文",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "干净对照章没有误报",
+      "passed": false,
+      "detail": "3 条质询"
+    }
+  ],
+  "totals": {
+    "seconds": 1677,
+    "costUsd": 0.7202,
+    "tokens": 898814
+  },
+  "planted": {
+    "chapter": "chapter-03.md"
+  },
+  "facts": {
+    "proposed": 30,
+    "confirmedByScript": 30,
+    "byKind": {
+      "character_state": 9,
+      "term": 5,
+      "foreshadow": 7,
+      "event": 9
+    },
+    "plantedDeathExtracted": true
+  },
+  "crossChapter": {
+    "finished": true,
+    "challenges": 1,
+    "categories": [
+      "fact"
+    ],
+    "citesBothChapters": true,
+    "claims": [
+      "第四章开头让质库掌柜老周活着站在柜台后招呼裴照，与第三章末尾老周已倒地身死（胸口一刀、血凉、再没有起来）直接冲突，属同一人物生死状态矛盾。若老周已死，「翌日清晨」他不可能在柜台后笑着招呼、端汤问话。"
+    ]
+  },
+  "clean": {
+    "finished": true,
+    "challenges": 3,
+    "claims": [
+      "正文写\"三更的更鼓响过\"之后\"坊门在他身后一道道落了锁\"，但设定词典规定坊门在昼刻尽后击闭门鼓时即关闭；三更已值夜半，坊门早已闭锁多时，不可能此时才一道道落锁。夜禁时序与设定直接冲突。",
+      "第五章正文仅四句：三更过后裴照独自过石桥、坊门落锁，没有任何对峙情节。大纲第五章\"更鼓对峙\"要求：韩敬逼问，宫门刺客夜禁中围堵裴照，裴照借更鼓声和坊墙夹道脱身、把证据交给可信之人。章节实际内容与大纲安排严重不符，高潮情节整体缺失。",
+      "\"三更的更鼓响过\"后裴照\"望向坊墙上渐暗的天色\"：三更为夜半，天色早已全黑，写\"渐暗\"是黄昏入夜的景象，与三更的时序不合。"
+    ]
+  },
+  "ok": false
+}

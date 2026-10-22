@@ -1,7 +1,7 @@
 import { ArrowUp, AtSign, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AGENTS, routeMessage, type AgentMeta } from "../lib/agents";
+import { LISTED_AGENTS, routeMessage, type AgentMeta } from "../lib/agents";
 import { useWorkbench } from "../state/store";
 import { Seal } from "./Seal";
 
@@ -34,7 +34,7 @@ export function Composer() {
   const candidates = useMemo<AgentMeta[]>(
     () =>
       mention
-        ? AGENTS.filter((agent) => agent.name.startsWith(mention.query))
+        ? LISTED_AGENTS.filter((agent) => agent.name.startsWith(mention.query))
         : [],
     [mention],
   );

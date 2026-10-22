@@ -10,6 +10,7 @@ import type { WorkflowDefinition } from "./workflow.js";
 import { hasPendingEscalation } from "../runs/escalation.js";
 import { isNovelIntakePrompt } from "../novel/intake.js";
 import { checkEditorText, DEFAULT_EDITOR_RULES } from "../editor/checks.js";
+import { analyzeStyle, styleBrief } from "../editor/style-metrics.js";
 import { listChapters, readChapter } from "../chapters/service.js";
 import { parseChapterNumber } from "@wordhub/contracts";
 import { loadProjectPrefs } from "../projects/prefs.js";
@@ -140,6 +141,7 @@ export function createWorkflowService(deps: {
     if (!revision) return;
     const text = await readFile(revision.snapshotPath, "utf8");
     const result = checkEditorText(text, DEFAULT_EDITOR_RULES);
+    const styleReport = analyzeStyle(text);
     deps.append(
       store,
       request,
@@ -153,6 +155,14 @@ export function createWorkflowService(deps: {
         ok: result.ok,
         metrics: result.metrics,
         violations: result.violations,
+        style: {
+          index: styleReport.index,
+          flags: styleReport.flags.map((flag) => ({
+            code: flag.code,
+            count: flag.count,
+          })),
+          metrics: styleReport.metrics,
+        },
       },
       `editor-check:${taskId}:${revision.id}`,
     );
@@ -515,11 +525,29 @@ export function createWorkflowService(deps: {
                 agent: event.actor.id,
                 ...event.payload,
               }));
+            // 编辑节点：把写手产出的章节过一遍静态“机器味”检查，把标出的位置交给编辑改写
+            const writtenChapter = outputs
+              .filter(
+                (output) =>
+                  typeof (output as { content?: unknown }).content ===
+                    "string" &&
+                  /^chapters\//u.test(
+                    String((output as { path?: unknown }).path),
+                  ),
+              )
+              .at(-1) as { content: string } | undefined;
+            const styleHint =
+              node.kind === "edit" &&
+              writtenChapter &&
+              // 文风评测用开关：对照组不给编辑附静态检查清单
+              process.env.WORDHUB_DISABLE_STYLE_HINT !== "1"
+                ? styleBrief(analyzeStyle(writtenChapter.content))
+                : "";
             const finalizeChapterPath =
               node.kind === "observe"
                 ? (await finalizeTarget(request))?.path
                 : undefined;
-            const prompt = `${request.prompt}\n任务节点：${node.id}。任务角色：${node.kind}。只执行本节点职责。${node.kind === "edit" ? "读取写手已写入的章节，在同一文件润色；先读取最新正文及哈希。" : ""}${node.kind === "challenge.reply" ? "下方已提供完整质询线程，不要搜索线程ID。必须用其中的threadId调用challenge.reply回应；接受时先用doc.write把修订落盘，反驳时说明证据。成功回应后立即总结。" : ""}${node.id.startsWith("challenge-") && node.kind === "review" ? "复核下方质询与写手回复。已解决则调用challenge.reply，使用原threadId和disposition=accept；仍有矛盾则用原threadId再次调用challenge.raise。不得创建新线程代替复核。" : ""}${node.kind === "observe" ? `定稿章节：${finalizeChapterPath ?? "见任务描述中的章号"}。按观察者职责：用fact.propose提出带逐字原文锚点的待确认事实，最后用chapter.summarize写本章摘要，然后停止。` : ""}${node.kind === "rework" ? "依据已裁决的质询修改章节，先读取最新正文和设定，再用doc.write写回同一路径。" : ""}\n质询与裁决上下文：${JSON.stringify(threads)}\n上游产物：${JSON.stringify(outputs)}\n章节路径以doc.read读取chapters目录清单为准，沿用实际文件名；成功写入一次后简要报告并停止调用工具。`;
+            const prompt = `${request.prompt}\n任务节点：${node.id}。任务角色：${node.kind}。只执行本节点职责。${node.kind === "edit" ? `读取写手已写入的章节，在同一文件润色；先读取最新正文及哈希。${styleHint}` : ""}${node.kind === "challenge.reply" ? "下方已提供完整质询线程，不要搜索线程ID。必须用其中的threadId调用challenge.reply回应；接受时先用doc.write把修订落盘，反驳时说明证据。成功回应后立即总结。" : ""}${node.id.startsWith("challenge-") && node.kind === "review" ? "复核下方质询与写手回复。已解决则调用challenge.reply，使用原threadId和disposition=accept；仍有矛盾则用原threadId再次调用challenge.raise。不得创建新线程代替复核。" : ""}${node.kind === "observe" ? `定稿章节：${finalizeChapterPath ?? "见任务描述中的章号"}。按观察者职责：用fact.propose提出带逐字原文锚点的待确认事实，最后用chapter.summarize写本章摘要，然后停止。` : ""}${node.kind === "rework" ? "依据已裁决的质询修改章节，先读取最新正文和设定，再用doc.write写回同一路径。" : ""}\n质询与裁决上下文：${JSON.stringify(threads)}\n上游产物：${JSON.stringify(outputs)}\n章节路径以doc.read读取chapters目录清单为准，沿用实际文件名；成功写入一次后简要报告并停止调用工具。`;
             try {
               await deps.run({
                 ...request,

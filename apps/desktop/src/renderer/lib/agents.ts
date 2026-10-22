@@ -57,6 +57,11 @@ export const AGENTS: AgentMeta[] = [
   },
 ];
 
+/** 侧栏与 @ 名单里列出的 Agent：观察者只作为“定稿”动作的内部步骤，不单独对话。 */
+export const LISTED_AGENTS: AgentMeta[] = AGENTS.filter(
+  (agent) => agent.id !== "observer",
+);
+
 export const agentById = (id: string): AgentMeta =>
   AGENTS.find((agent) => agent.id === id) ?? AGENTS[0]!;
 
@@ -88,6 +93,7 @@ const TASK_KIND_LABELS: Record<string, string> = {
   rework: "返工",
   consult: "征询意见",
   summary: "汇总",
+  observe: "定稿整理",
 };
 /** 任务行的显示名：「写手 · 撰写」。 */
 export const taskLabel = (agentId?: string, kind?: string): string => {
