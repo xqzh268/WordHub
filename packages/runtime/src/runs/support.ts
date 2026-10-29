@@ -1,5 +1,10 @@
 import { createId, timestamp, WordHubStore } from "@wordhub/store";
-import type { Actor, Event } from "@wordhub/contracts";
+import {
+  canonicalChapterName,
+  parseChapterNumber,
+  type Actor,
+  type Event,
+} from "@wordhub/contracts";
 import type { RuntimeRequest } from "./executor-types.js";
 import type { ModelSettings } from "../models/settings.js";
 import { projectContext } from "../context/project.js";
@@ -11,6 +16,29 @@ type SupportDeps = {
   modelSettings: ModelSettings;
   runContexts: Map<string, { taskId?: string }>;
 };
+
+export function expectedChapterPathForRequest(
+  request: Extract<RuntimeRequest, { type: "run" }>,
+  definition: AgentDefinition,
+): string | undefined {
+  const isWriterTask =
+    request.agentId === "writer" ||
+    ["write", "edit", "rework"].includes(request.taskKind ?? "");
+  if (!isWriterTask || !definition.tools.includes("doc.write"))
+    return undefined;
+  // 提示里出现多个章号（如“参考第二章写第三章”）时无法确定目标，不施加约束。
+  const numbers = new Set(
+    [
+      ...request.prompt.matchAll(
+        /第\s*([零〇一二两三四五六七八九十百千\d]+)\s*[章回]/gu,
+      ),
+    ].map((match) => parseChapterNumber(match[1] ?? "")),
+  );
+  const [number] = numbers;
+  return numbers.size !== 1 || number === undefined
+    ? undefined
+    : `chapters/${canonicalChapterName(number)}`;
+}
 
 export function createRunSupport(deps: SupportDeps) {
   const { post, modelSettings, runContexts } = deps;
@@ -70,6 +98,7 @@ export function createRunSupport(deps: SupportDeps) {
       runId: request.runId,
       projectPath: request.projectPath!,
       agent: definition,
+      expectedChapterPath: expectedChapterPathForRequest(request, definition),
       approved: new Map(),
       event: (type, payload) =>
         appendRunEvent(

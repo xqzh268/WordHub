@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 import { writeTestModelOverrides } from "./lib/test-models.mjs";
+import { summarizeRunEvents } from "./lib/m4-diagnostics.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -91,6 +92,7 @@ async function phase(name, fn) {
       seconds: Math.round((Date.now() - t0) / 1000),
       costUsd: Number(costOf(slice).toFixed(4)),
       tokens: tokensOf(slice),
+      diagnostics: summarizeRunEvents(slice),
     };
     console.log(`  [${name}] ${JSON.stringify(report.phases[name])}`);
   }

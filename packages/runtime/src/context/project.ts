@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import {
   FACT_KIND_LABELS,
   chapterNumberFromName,
+  parseChapterNumber,
   projectFacts,
   projectSummaries,
 } from "@wordhub/contracts";
@@ -17,41 +18,13 @@ const BIBLE_FILES = {
 
 const chapterNumber = (text: string): number | undefined => {
   const match = text.match(
-    /第\s*([0-9]+|[零〇一二两三四五六七八九十百千万]+)\s*章/u,
+    /第\s*([0-9零〇一二两三四五六七八九十百千万]+)\s*[章回节]/u,
   );
-  if (!match?.[1]) return undefined;
-  if (/^\d+$/u.test(match[1])) return Number(match[1]);
-  const digits: Record<string, number> = {
-    零: 0,
-    〇: 0,
-    一: 1,
-    二: 2,
-    两: 2,
-    三: 3,
-    四: 4,
-    五: 5,
-    六: 6,
-    七: 7,
-    八: 8,
-    九: 9,
-  };
-  if (match[1] === "十") return 10;
-  const ten = match[1].indexOf("十");
-  if (ten >= 0) {
-    const left = match[1].slice(0, ten);
-    const right = match[1].slice(ten + 1);
-    return (
-      (left ? (digits[left] ?? 0) : 1) * 10 + (right ? (digits[right] ?? 0) : 0)
-    );
-  }
-  return [...match[1]].reduce(
-    (total, digit) => total * 10 + (digits[digit] ?? 0),
-    0,
-  );
+  return match?.[1] ? parseChapterNumber(match[1]) : undefined;
 };
 
 const chapterNameMatches = (name: string, number: number): boolean =>
-  chapterNumber(name) === number;
+  (chapterNumber(name) ?? chapterNumberFromName(name)) === number;
 
 async function readBibleFile(
   projectPath: string,
@@ -72,7 +45,72 @@ const headingLevel = (line: string): number =>
   line.match(/^(#{1,6})\s/u)?.[1]?.length ?? 0;
 
 const stripMarker = (line: string): string =>
-  line.replace(/^(?:#{1,6}\s+|[-*+]\s+|\d+[.)、]\s*)/u, "").trim();
+  line
+    .replace(/^\s*>+\s*/u, "")
+    .replace(/^(?:#{1,6}\s+|[-*+]\s+|\d+[.)、]\s*)/u, "")
+    // 模型常用 `**第3章**` 或 `3. **第3章**`，强调符号不改变章节语义。
+    .replace(/[*_~]/gu, "")
+    .trim();
+
+const outlineChapterNumber = (line: string): number | undefined => {
+  const normalized = stripMarker(line);
+  return /^第\s*/u.test(normalized) ? chapterNumber(normalized) : undefined;
+};
+
+/** 在人物档案的二级标题中保留本章相关人物，始终保留主角段落。 */
+export function charactersForChapter(text: string, references: string): string {
+  const lines = text.split(/\r?\n/u);
+  const headings = lines
+    .map((line, index) => {
+      const match = line.match(/^(#{2,6})\s+(.+?)\s*$/u);
+      if (!match?.[1]) return undefined;
+      return { index, level: match[1].length, title: match[2] ?? "" };
+    })
+    .filter((item): item is { index: number; level: number; title: string } =>
+      Boolean(item),
+    );
+  if (!headings.length) return text;
+  const sections = headings.map((heading, index) => ({
+    ...heading,
+    end: headings[index + 1]?.index ?? lines.length,
+  }));
+  const selected = sections.filter((section) => {
+    const title = stripMarker(section.title);
+    if (/主角/u.test(title)) return true;
+    const names = title
+      .replace(/^[^:：]+[:：]/u, "")
+      .replace(/[（(][^）)]*[）)]/gu, "")
+      .split(/[、,，/]/u)
+      .map((name) => name.trim())
+      .filter((name) => name.length >= 2);
+    return names.some((name) => references.includes(name));
+  });
+  if (!selected.length || selected.length === sections.length) return text;
+  const prefix = lines.slice(0, sections[0]?.index ?? 0);
+  return [
+    ...prefix,
+    ...selected.flatMap((section) => lines.slice(section.index, section.end)),
+  ]
+    .join("\n")
+    .trim();
+}
+
+/** 取上一章末尾的完整句子，目标窗口为500–800字，避免从句中间截断。 */
+export function previousChapterTail(
+  text: string,
+  minChars = 500,
+  maxChars = 800,
+): string {
+  const normalized = text.replace(/\r\n/gu, "\n").trim();
+  if (normalized.length <= maxChars) return normalized;
+  const minStart = Math.max(0, normalized.length - maxChars);
+  const maxStart = Math.max(minStart, normalized.length - minChars);
+  for (let start = minStart; start <= maxStart; start += 1) {
+    if (start === 0 || /[。！？!?；;\n]/u.test(normalized[start - 1] ?? ""))
+      return normalized.slice(start).trimStart();
+  }
+  return normalized.slice(minStart).trimStart();
+}
 
 /**
  * 取出大纲里属于第 N 章的段落：从该章标题行开始，到下一个同级或更高级标题、
@@ -86,28 +124,21 @@ export function outlineForChapter(
   if (number === undefined) return text;
   const lines = text.split(/\r?\n/u);
   const isChapterLine = (line: string) =>
-    /^第/u.test(stripMarker(line)) &&
-    chapterNumber(stripMarker(line)) !== undefined;
+    outlineChapterNumber(line) !== undefined;
   const start = lines.findIndex(
-    (line) =>
-      isChapterLine(line) && chapterNameMatches(stripMarker(line), number),
+    (line) => isChapterLine(line) && outlineChapterNumber(line) === number,
   );
   if (start < 0)
-    return lines.filter((line) => chapterNameMatches(line, number)).join("\n");
+    return lines.filter((line) => chapterNumber(line) === number).join("\n");
   const level = headingLevel(lines[start] ?? "");
   let end = lines.length;
   for (let index = start + 1; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     const otherLevel = headingLevel(line);
-    const otherChapter =
-      isChapterLine(line) && !chapterNameMatches(stripMarker(line), number);
-    const closesSection =
-      level > 0
-        ? otherLevel > 0 && otherLevel <= level
-        : otherChapter && otherLevel === 0;
+    const otherChapter = outlineChapterNumber(line);
     if (
-      closesSection ||
-      (otherChapter && otherLevel > 0 && otherLevel <= (level || 6))
+      (otherChapter !== undefined && otherChapter !== number) ||
+      (otherLevel > 0 && (level === 0 || otherLevel <= level))
     ) {
       end = index;
       break;
@@ -165,18 +196,19 @@ export async function collectProjectContextLayers(input: {
   const scopes = new Set(input.agent.memoryScopes.read);
   const layers: ContextLayer[] = [];
   const number = chapterNumber(input.prompt);
+  let chapterOutline = "";
 
   if (scopes.has("outline") || scopes.has("bible")) {
     const outline = await readBibleFile(input.projectPath, "outline.md");
-    const text = outline ? outlineForChapter(outline.text, number) : "";
-    if (text.trim())
+    chapterOutline = outline ? outlineForChapter(outline.text, number) : "";
+    if (chapterOutline.trim())
       layers.push({
         id: number === undefined ? "outline" : `chapter-${number}`,
         kind: "outline",
         sourcePath: outline
           ? `${outline.path}${number === undefined ? "" : `#第${number}章`}`
           : undefined,
-        text,
+        text: chapterOutline,
         tokenBudget: 1200,
       });
   }
@@ -200,7 +232,10 @@ export async function collectProjectContextLayers(input: {
         id: "characters",
         kind: "bible",
         sourcePath: characters.path,
-        text: characters.text,
+        text: charactersForChapter(
+          characters.text,
+          `${chapterOutline}\n${input.prompt}`,
+        ),
         tokenBudget: 1800,
       });
   }
@@ -256,7 +291,7 @@ export async function collectProjectContextLayers(input: {
         id: `previous-chapter-${number! - 1}`,
         kind: "document",
         sourcePath: previous.path,
-        text: previous.text.slice(-1600),
+        text: previousChapterTail(previous.text),
         tokenBudget: 400,
       });
   }

@@ -23,6 +23,8 @@ export function projectTools(input: {
   runId: string;
   projectPath: string;
   agent: AgentDefinition;
+  /** 写手/编辑节点的目标章路径，由协调器从用户请求确定。 */
+  expectedChapterPath?: string;
   event: (type: string, payload: Record<string, unknown>) => string;
   approved: Map<string, string>;
 }) {
@@ -94,6 +96,15 @@ export function projectTools(input: {
       ),
     writeDocument: async (value) => {
       try {
+        const normalizedPath = value.path.replaceAll("\\", "/");
+        if (
+          input.expectedChapterPath &&
+          normalizedPath.startsWith("chapters/") &&
+          normalizedPath !== input.expectedChapterPath
+        )
+          throw new Error(
+            `本次任务的章节必须写入${input.expectedChapterPath}，不要使用${normalizedPath}。`,
+          );
         const result = await writer.writeText({
           relativePath: value.path,
           content: value.content,

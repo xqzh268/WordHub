@@ -61,6 +61,26 @@ describe("outlineForChapter", () => {
     );
   });
 
+  it("兼容有序列表、加粗标题和复杂中文章号", () => {
+    const text = outlineForChapter(
+      "## 逐章大纲\n1. **第十二章 旧案回响**\n   - 目标：取回账册。\n   - 事件：坊正改口。\n2. **第一百零五章 尾声**\n   - 目标：收束。\n## 伏笔计划\n- 第十二章留下的账册在此回收。",
+      12,
+    );
+    expect(text).toContain("第十二章 旧案回响");
+    expect(text).toContain("坊正改口");
+    expect(text).not.toContain("第一百零五章");
+    expect(text).not.toContain("伏笔计划");
+    expect(
+      outlineForChapter("### 第一百零五章 尾声\n- 目标：收束。", 105),
+    ).toContain("目标：收束");
+    expect(
+      outlineForChapter(
+        "## 逐章大纲\n1. **第一章 开端**\n   - 目标：起笔。\n## 伏笔计划\n- 第一章留下线索。",
+        1,
+      ),
+    ).not.toContain("伏笔计划");
+  });
+
   it("没有章节标题时退回逐行匹配，没提章号时返回全文", () => {
     expect(outlineForChapter("故事线：见第5章的转折\n其他", 5)).toBe(
       "故事线：见第5章的转折",
