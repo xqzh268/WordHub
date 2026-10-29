@@ -43,8 +43,8 @@ export async function fixture(
   return { root, project, messages, executor };
 }
 
-export async function waitFor(predicate: () => boolean) {
-  const deadline = Date.now() + 10000;
+export async function waitFor(predicate: () => boolean, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
   while (!predicate()) {
     if (Date.now() > deadline) throw new Error("M3运行超时");
     await new Promise((resolve) => setTimeout(resolve, 10));

@@ -331,8 +331,11 @@ maxTurns: 8
         decision: "accept",
         requestId: "early-decision-request",
       });
-      await waitFor(() =>
-        f.messages.some((message) => message.type === "workflow.finished"),
+      // 慢速流式输出（20 token/s）让本用例本地约 12 秒，CI 机器更慢，放宽等待上限。
+      await waitFor(
+        () =>
+          f.messages.some((message) => message.type === "workflow.finished"),
+        25000,
       );
       await running;
       const workflow = f.messages.find(
