@@ -153,6 +153,15 @@ try {
     return {
       finished: Boolean(finished),
       failed: Boolean(failed),
+      // 失败时保留原因和最后几个事件，现场的临时库会在脚本结束后删除
+      failure: failed?.payload,
+      tail: events()
+        .slice(before)
+        .slice(-14)
+        .map(
+          (e) =>
+            `${e.type}${e.payload?.error ? `:${String(e.payload.error).slice(0, 160)}` : ""}`,
+        ),
       slice: events().slice(before),
     };
   }
@@ -321,6 +330,10 @@ try {
         ]),
       ),
       plantedDeathExtracted: Boolean(dead),
+      // 现场的临时库会被删除，人物状态类事实留在报告里，便于判断“没抽出”是措辞还是真漏
+      characterStates: all
+        .filter((e) => e.payload.kind === "character_state")
+        .map((e) => `${e.payload.subject}：${e.payload.statement}`),
     };
     check("至少确认了若干事实", clicks > 0, `${clicks} 条`);
     check(
@@ -356,7 +369,13 @@ try {
       citesBothChapters: citesBoth,
       claims: raised.map((e) => String(e.payload.claim ?? "").slice(0, 120)),
     };
-    check("评审完成", r.finished);
+    check(
+      "评审完成",
+      r.finished,
+      r.finished
+        ? ""
+        : JSON.stringify({ failure: r.failure, tail: r.tail }).slice(0, 900),
+    );
     check(
       "检出跨章矛盾（第三章已死的老周在第四章活着）",
       raised.length > 0,
