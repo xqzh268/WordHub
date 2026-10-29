@@ -321,8 +321,11 @@ maxTurns: 8
         projectPath: f.project,
         mode: "mock",
       });
-      await waitFor(() =>
-        f.messages.some((message) => message.type === "escalation.created"),
+      // 质询带逐字引文后参数变长，20 token/s 的慢速流式让升级出现得很晚（本地约 10 秒）。
+      await waitFor(
+        () =>
+          f.messages.some((message) => message.type === "escalation.created"),
+        25000,
       );
       await f.executor.handle({
         type: "challenge.decide",
