@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "chapterCount": "6",
+  "sourcePrompt": "写一部唐代悬疑短篇，主角是不良人裴照",
+  "answers": {
+    "premise": "写一部唐代悬疑短篇，主角是不良人裴照",
+    "protagonist": "不良人裴照",
+    "conflict": "查清一桩牵连宫门的旧案，同时不能让上司察觉自己在追查",
+    "world": "唐代长安崇仁坊一带，夜禁制度下的坊市",
+    "viewpointTone": "",
+    "theme": "",
+    "audience": "",
+    "chapterCount": "6",
+    "mustInclude": "更鼓",
+    "forbidden": "现代词汇和网络用语"
+  }
+}

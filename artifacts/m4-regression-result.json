@@ -1,54 +1,1140 @@
 {
   "phases": {
     "纲领问答与草稿": {
-      "seconds": 110,
+      "seconds": 70,
       "costUsd": 0,
-      "tokens": 0
+      "tokens": 0,
+      "diagnostics": [
+        {
+          "runId": "run_mvts2ljowytm",
+          "agentId": "planner",
+          "seconds": 0,
+          "status": "run.finished",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        }
+      ]
     },
     "写第一章": {
-      "seconds": 110,
-      "costUsd": 0.0583,
-      "tokens": 83146
+      "seconds": 105,
+      "costUsd": 0.0237,
+      "tokens": 84278,
+      "diagnostics": [
+        {
+          "runId": "run_mvts43tntdlj",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_0de82a54c051489d8144e867c8f3c2fd",
+          "nodeId": "writer",
+          "agentId": "writer",
+          "seconds": 32.4,
+          "status": "run.finished",
+          "toolCalls": 5,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.write"
+          ],
+          "contextTokens": 1088,
+          "contextLayers": [
+            {
+              "id": "chapter-1",
+              "estimatedTokens": 82
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 289
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 3766,
+          "outputTokens": 4406,
+          "usageEvents": 4
+        },
+        {
+          "runId": "run_637e609a1bcd4f588b1e5bada71adc49",
+          "nodeId": "editor",
+          "agentId": "editor",
+          "seconds": 16.6,
+          "status": "run.finished",
+          "toolCalls": 3,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 2239,
+          "contextLayers": [
+            {
+              "id": "chapter-1",
+              "estimatedTokens": 82
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 423
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 4348,
+          "outputTokens": 2945,
+          "usageEvents": 3
+        },
+        {
+          "runId": "run_42dccb31693c47bd916dd50539730303",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 53.6,
+          "status": "run.finished",
+          "toolCalls": 5,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "challenge.raise"
+          ],
+          "contextTokens": 2183,
+          "contextLayers": [
+            {
+              "id": "chapter-1",
+              "estimatedTokens": 82
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 423
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 6236,
+          "outputTokens": 8561,
+          "usageEvents": 4
+        }
+      ]
     },
     "定稿第一章": {
-      "seconds": 17,
-      "costUsd": 0.0054,
-      "tokens": 30507
+      "seconds": 20,
+      "costUsd": 0.0051,
+      "tokens": 26263,
+      "diagnostics": [
+        {
+          "runId": "run_mvts6d4znh5u",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_1578cb00fd8a49c092a96844f5f02267",
+          "nodeId": "observer",
+          "agentId": "observer",
+          "seconds": 15.7,
+          "status": "run.finished",
+          "toolCalls": 13,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "chapter.summarize"
+          ],
+          "contextTokens": 1140,
+          "contextLayers": [
+            {
+              "id": "chapter-1",
+              "estimatedTokens": 82
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 289
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 4889,
+          "outputTokens": 2942,
+          "usageEvents": 5
+        }
+      ]
     },
     "写第二章": {
-      "seconds": 207,
-      "costUsd": 0.1184,
-      "tokens": 167327
+      "seconds": 150,
+      "costUsd": 0.0339,
+      "tokens": 155930,
+      "diagnostics": [
+        {
+          "runId": "run_mvts6sa10q1y",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_5abff21d97154c04963c743ff7f2e1e5",
+          "nodeId": "writer",
+          "agentId": "writer",
+          "seconds": 59.3,
+          "status": "run.finished",
+          "toolCalls": 5,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.write"
+          ],
+          "contextTokens": 1727,
+          "contextLayers": [
+            {
+              "id": "chapter-2",
+              "estimatedTokens": 89
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 411
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 116
+            },
+            {
+              "id": "previous-chapter-1",
+              "estimatedTokens": 394
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 4645,
+          "outputTokens": 7937,
+          "usageEvents": 4
+        },
+        {
+          "runId": "run_ac7b63e7e21748a0ac3d1850560e730e",
+          "nodeId": "editor",
+          "agentId": "editor",
+          "seconds": 18.2,
+          "status": "run.finished",
+          "toolCalls": 3,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 3210,
+          "contextLayers": [
+            {
+              "id": "chapter-2",
+              "estimatedTokens": 89
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 535
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 116
+            },
+            {
+              "id": "previous-chapter-1",
+              "estimatedTokens": 394
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 8403,
+          "outputTokens": 3229,
+          "usageEvents": 4
+        },
+        {
+          "runId": "run_df1728e1360546d29fd6f97b56bf4b73",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 68.5,
+          "status": "run.finished",
+          "toolCalls": 8,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "challenge.raise"
+          ],
+          "contextTokens": 3202,
+          "contextLayers": [
+            {
+              "id": "chapter-2",
+              "estimatedTokens": 89
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 535
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 116
+            },
+            {
+              "id": "previous-chapter-1",
+              "estimatedTokens": 394
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 10672,
+          "outputTokens": 10580,
+          "usageEvents": 6
+        }
+      ]
     },
     "定稿第二章": {
-      "seconds": 21,
-      "costUsd": 0.0059,
-      "tokens": 34114
+      "seconds": 25,
+      "costUsd": 0.0066,
+      "tokens": 43337,
+      "diagnostics": [
+        {
+          "runId": "run_mvts9zso4qf3",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_81d394ed2e1048c18222b70c7eb750ca",
+          "nodeId": "observer",
+          "agentId": "observer",
+          "seconds": 22.3,
+          "status": "run.finished",
+          "toolCalls": 18,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "chapter.summarize"
+          ],
+          "contextTokens": 1779,
+          "contextLayers": [
+            {
+              "id": "chapter-2",
+              "estimatedTokens": 89
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 411
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 116
+            },
+            {
+              "id": "previous-chapter-1",
+              "estimatedTokens": 394
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 5580,
+          "outputTokens": 3965,
+          "usageEvents": 6
+        }
+      ]
     },
     "写第三章": {
-      "seconds": 403,
-      "costUsd": 0.1703,
-      "tokens": 133149
+      "seconds": 256,
+      "costUsd": 0.062,
+      "tokens": 273529,
+      "diagnostics": [
+        {
+          "runId": "run_mvtsaiszwcyd",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_70f43789d36e4f8fbcbec030e356463a",
+          "nodeId": "writer",
+          "agentId": "writer",
+          "seconds": 60.9,
+          "status": "run.finished",
+          "toolCalls": 6,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 1822,
+          "contextLayers": [
+            {
+              "id": "chapter-3",
+              "estimatedTokens": 92
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 349
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 265
+            },
+            {
+              "id": "previous-chapter-2",
+              "estimatedTokens": 399
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 7987,
+          "outputTokens": 8212,
+          "usageEvents": 4
+        },
+        {
+          "runId": "run_bba762517e78440cb5d9ab9409c6804e",
+          "nodeId": "editor",
+          "agentId": "editor",
+          "seconds": 15,
+          "status": "run.finished",
+          "toolCalls": 3,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 3488,
+          "contextLayers": [
+            {
+              "id": "chapter-3",
+              "estimatedTokens": 92
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 461
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 265
+            },
+            {
+              "id": "previous-chapter-2",
+              "estimatedTokens": 399
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 6957,
+          "outputTokens": 3003,
+          "usageEvents": 3
+        },
+        {
+          "runId": "run_8067a53845e04b2ba9174fa2f36183bb",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 105.9,
+          "status": "run.finished",
+          "toolCalls": 9,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.read",
+            "challenge.raise"
+          ],
+          "contextTokens": 3539,
+          "contextLayers": [
+            {
+              "id": "chapter-3",
+              "estimatedTokens": 92
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 461
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 265
+            },
+            {
+              "id": "previous-chapter-2",
+              "estimatedTokens": 399
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 12914,
+          "outputTokens": 17730,
+          "usageEvents": 5
+        },
+        {
+          "runId": "run_c2aa6c7c0e4e4272a0131451a3f3c7b5",
+          "nodeId": "challenge-reply-1",
+          "agentId": "writer",
+          "seconds": 32.8,
+          "status": "run.finished",
+          "toolCalls": 7,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.write",
+            "challenge.reply"
+          ],
+          "contextTokens": 3217,
+          "contextLayers": [
+            {
+              "id": "chapter-3",
+              "estimatedTokens": 92
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 574
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 265
+            },
+            {
+              "id": "previous-chapter-2",
+              "estimatedTokens": 399
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 7609,
+          "outputTokens": 5507,
+          "usageEvents": 6
+        },
+        {
+          "runId": "run_b7cad0afa7de4a93a4aa84365b0db33d",
+          "nodeId": "rework",
+          "agentId": "writer",
+          "seconds": 30.8,
+          "status": "run.finished",
+          "toolCalls": 5,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "bible.read",
+            "doc.write"
+          ],
+          "contextTokens": 2967,
+          "contextLayers": [
+            {
+              "id": "chapter-3",
+              "estimatedTokens": 92
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 574
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 265
+            },
+            {
+              "id": "previous-chapter-2",
+              "estimatedTokens": 399
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 4585,
+          "outputTokens": 6257,
+          "usageEvents": 4
+        }
+      ]
     },
     "定稿第三章": {
-      "seconds": 32,
-      "costUsd": 0.005,
-      "tokens": 40089
+      "seconds": 29,
+      "costUsd": 0.0064,
+      "tokens": 36565,
+      "diagnostics": [
+        {
+          "runId": "run_mvtsg2f7lzan",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_99af249d37f54098b7c7d9e102055e89",
+          "nodeId": "observer",
+          "agentId": "observer",
+          "seconds": 22.3,
+          "status": "run.finished",
+          "toolCalls": 17,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "fact.propose",
+            "chapter.summarize"
+          ],
+          "contextTokens": 1874,
+          "contextLayers": [
+            {
+              "id": "chapter-3",
+              "estimatedTokens": 92
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 349
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 265
+            },
+            {
+              "id": "previous-chapter-2",
+              "estimatedTokens": 399
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 5692,
+          "outputTokens": 3737,
+          "usageEvents": 5
+        }
+      ]
     },
     "确认事实": {
-      "seconds": 10,
+      "seconds": 13,
       "costUsd": 0,
-      "tokens": 0
+      "tokens": 0,
+      "diagnostics": [
+        {
+          "runId": "run_81d394ed2e1048c18222b70c7eb750ca",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_99af249d37f54098b7c7d9e102055e89",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_1578cb00fd8a49c092a96844f5f02267",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        }
+      ]
     },
     "评审第四章（含跨章矛盾）": {
-      "seconds": 445,
-      "costUsd": 0.1998,
-      "tokens": 195623
+      "seconds": 141,
+      "costUsd": 0.0357,
+      "tokens": 243448,
+      "diagnostics": [
+        {
+          "runId": "run_mvtsh12b13cn",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_6e2f47d3fe2b474492f48c310d8257d0",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 26.5,
+          "status": "run.finished",
+          "toolCalls": 10,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "challenge.raise",
+            "challenge.raise",
+            "challenge.raise"
+          ],
+          "contextTokens": 3393,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 80
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 535
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 463
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 1200
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 396
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 10840,
+          "outputTokens": 4256,
+          "usageEvents": 5
+        },
+        {
+          "runId": "run_7f3d2ba9b928406886b585960f0faebb",
+          "nodeId": "challenge-reply-1",
+          "agentId": "writer",
+          "seconds": 80.1,
+          "status": "run.finished",
+          "toolCalls": 11,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.write",
+            "doc.read",
+            "doc.write",
+            "challenge.reply",
+            "challenge.reply",
+            "challenge.reply"
+          ],
+          "contextTokens": 4662,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 80
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 535
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 463
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 1200
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 396
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 15157,
+          "outputTokens": 11954,
+          "usageEvents": 8
+        },
+        {
+          "runId": "run_9ac2b6f0faff43b19db0c52aa9f2895d",
+          "nodeId": "rework",
+          "agentId": "writer",
+          "seconds": 23,
+          "status": "run.finished",
+          "toolCalls": 7,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.write"
+          ],
+          "contextTokens": 5031,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 80
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 585
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 463
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 1200
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 396
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 10016,
+          "outputTokens": 3577,
+          "usageEvents": 5
+        }
+      ]
     },
     "评审第五章（干净对照）": {
-      "seconds": 322,
-      "costUsd": 0.1571,
-      "tokens": 214859
+      "seconds": 445,
+      "costUsd": 0.0695,
+      "tokens": 349345,
+      "diagnostics": [
+        {
+          "runId": "run_mvtsk1z7m2ta",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_246b8b12406445afa8fde49b43db28a7",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 44.7,
+          "status": "run.finished",
+          "toolCalls": 12,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "challenge.raise",
+            "challenge.raise",
+            "challenge.raise",
+            "challenge.raise"
+          ],
+          "contextTokens": 3528,
+          "contextLayers": [
+            {
+              "id": "chapter-5",
+              "estimatedTokens": 105
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 648
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 463
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 1200
+            },
+            {
+              "id": "previous-chapter-4",
+              "estimatedTokens": 393
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 12297,
+          "outputTokens": 7082,
+          "usageEvents": 7
+        },
+        {
+          "runId": "run_1316a0b4bfcc483286609133cc2b137d",
+          "nodeId": "challenge-reply-1",
+          "agentId": "writer",
+          "seconds": 140.9,
+          "status": "run.finished",
+          "toolCalls": 11,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "doc.write",
+            "doc.read",
+            "doc.write",
+            "challenge.reply",
+            "challenge.reply",
+            "challenge.reply",
+            "challenge.reply"
+          ],
+          "contextTokens": 5142,
+          "contextLayers": [
+            {
+              "id": "chapter-5",
+              "estimatedTokens": 105
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 648
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 463
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 1200
+            },
+            {
+              "id": "previous-chapter-4",
+              "estimatedTokens": 393
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 13441,
+          "outputTokens": 25059,
+          "usageEvents": 7
+        },
+        {
+          "runId": "run_e483a42665fc4fc9b18fa91f1c2c666c",
+          "nodeId": "rework",
+          "agentId": "writer",
+          "seconds": 98.9,
+          "status": "run.finished",
+          "toolCalls": 5,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 5706,
+          "contextLayers": [
+            {
+              "id": "chapter-5",
+              "estimatedTokens": 105
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 414
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 648
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 463
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 1200
+            },
+            {
+              "id": "previous-chapter-4",
+              "estimatedTokens": 393
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 245
+            }
+          ],
+          "inputTokens": 6057,
+          "outputTokens": 16481,
+          "usageEvents": 4
+        }
+      ]
     }
   },
   "checks": [
@@ -70,7 +1156,7 @@
     {
       "name": "第一章：章节文件有实质内容",
       "passed": true,
-      "detail": "chapter-01.md · 983 字符"
+      "detail": "第一章.md · 950 字符"
     },
     {
       "name": "第一章：定稿完成并记录",
@@ -78,7 +1164,7 @@
       "detail": ""
     },
     {
-      "name": "第一章：观察者抽取了待确认事实与摘要",
+      "name": "第一章：史官抽取了待确认事实与摘要",
       "passed": true,
       "detail": "10 条事实"
     },
@@ -90,7 +1176,7 @@
     {
       "name": "第二章：章节文件有实质内容",
       "passed": true,
-      "detail": "chapter-02.md · 1404 字符"
+      "detail": "第二章.md · 1607 字符"
     },
     {
       "name": "第二章：定稿完成并记录",
@@ -98,9 +1184,9 @@
       "detail": ""
     },
     {
-      "name": "第二章：观察者抽取了待确认事实与摘要",
+      "name": "第二章：史官抽取了待确认事实与摘要",
       "passed": true,
-      "detail": "10 条事实"
+      "detail": "15 条事实"
     },
     {
       "name": "第三章：写作工作流正常收尾",
@@ -110,7 +1196,7 @@
     {
       "name": "第三章：章节文件有实质内容",
       "passed": true,
-      "detail": "chapter-03.md · 2124 字符"
+      "detail": "第三章.md · 2155 字符"
     },
     {
       "name": "第三章：定稿完成并记录",
@@ -118,19 +1204,19 @@
       "detail": ""
     },
     {
-      "name": "第三章：观察者抽取了待确认事实与摘要",
+      "name": "第三章：史官抽取了待确认事实与摘要",
       "passed": true,
-      "detail": "10 条事实"
+      "detail": "14 条事实"
     },
     {
       "name": "至少确认了若干事实",
       "passed": true,
-      "detail": "30 条"
+      "detail": "39 条"
     },
     {
-      "name": "观察者从定稿章节里抽出了预埋的“老周之死”",
-      "passed": true,
-      "detail": "章末另记质库掌柜老周倒在后墙下，胸口中一刀，血已凉身死，裴照合上他的眼睛。"
+      "name": "史官从定稿章节里抽出了预埋的“老周之死”",
+      "passed": false,
+      "detail": "未抽出"
     },
     {
       "name": "评审完成",
@@ -140,7 +1226,7 @@
     {
       "name": "检出跨章矛盾（第三章已死的老周在第四章活着）",
       "passed": true,
-      "detail": "1 条质询"
+      "detail": "3 条质询"
     },
     {
       "name": "质询同时引用了第四章与前文原文",
@@ -148,48 +1234,52 @@
       "detail": ""
     },
     {
-      "name": "干净对照章没有误报",
-      "passed": false,
-      "detail": "3 条质询"
+      "name": "干净对照章评审完成（质询留作人工核对）",
+      "passed": true,
+      "detail": "4 条质询"
     }
   ],
   "totals": {
-    "seconds": 1677,
-    "costUsd": 0.7202,
-    "tokens": 898814
+    "seconds": 1254,
+    "costUsd": 0.2429,
+    "tokens": 1212695
   },
   "planted": {
-    "chapter": "chapter-03.md"
+    "chapter": "第三章.md"
   },
   "facts": {
-    "proposed": 30,
-    "confirmedByScript": 30,
+    "proposed": 39,
+    "confirmedByScript": 39,
     "byKind": {
-      "character_state": 9,
-      "term": 5,
-      "foreshadow": 7,
-      "event": 9
+      "character_state": 14,
+      "term": 4,
+      "foreshadow": 10,
+      "event": 11
     },
-    "plantedDeathExtracted": true
+    "plantedDeathExtracted": false
   },
   "crossChapter": {
     "finished": true,
-    "challenges": 1,
+    "challenges": 3,
     "categories": [
-      "fact"
+      "fact",
+      "timeline"
     ],
     "citesBothChapters": true,
     "claims": [
-      "第四章开头让质库掌柜老周活着站在柜台后招呼裴照，与第三章末尾老周已倒地身死（胸口一刀、血凉、再没有起来）直接冲突，属同一人物生死状态矛盾。若老周已死，「翌日清晨」他不可能在柜台后笑着招呼、端汤问话。"
+      "同一人物老周在上一章末尾已经死亡，本章却又活生生站在质库柜台后招呼裴照，前后直接冲突，读者会立刻困惑。",
+      "上一章夜里韦延已当面停掉裴照的差事、收走腰牌，本章开篇却说“翌日清晨”他“照例”走进崇仁坊，与停职状态直接冲突。",
+      "本章正文与大纲第四章的安排不符：大纲要求借崔九的路子混进进奏院、见到柳五娘并留下章末悬念，正文却只写了清早在坊内与质库掌柜的一段，本章关键反转事件全部缺失。"
     ]
   },
   "clean": {
     "finished": true,
-    "challenges": 3,
+    "challenges": 4,
     "claims": [
-      "正文写\"三更的更鼓响过\"之后\"坊门在他身后一道道落了锁\"，但设定词典规定坊门在昼刻尽后击闭门鼓时即关闭；三更已值夜半，坊门早已闭锁多时，不可能此时才一道道落锁。夜禁时序与设定直接冲突。",
-      "第五章正文仅四句：三更过后裴照独自过石桥、坊门落锁，没有任何对峙情节。大纲第五章\"更鼓对峙\"要求：韩敬逼问，宫门刺客夜禁中围堵裴照，裴照借更鼓声和坊墙夹道脱身、把证据交给可信之人。章节实际内容与大纲安排严重不符，高潮情节整体缺失。",
-      "\"三更的更鼓响过\"后裴照\"望向坊墙上渐暗的天色\"：三更为夜半，天色早已全黑，写\"渐暗\"是黄昏入夜的景象，与三更的时序不合。"
+      "本章现有正文只有开头两段，止于裴照夜里进坊，大纲第五章的关键事件（鼓楼借鼓设局、来的是王承庆使唤的小黄门、崔九在乱中被杀、裴照以私通宫人下狱、韦延上堂自认十年前受贿枉法）与章末狱中递茶的悬念一处未落。章节内容与大纲的第七日安排相冲突，第六章",
+      "正文写三更时坊门才在他身后一道道落锁，与设定「日暮击鼓八百声，坊门关闭」不符：坊门在日暮闭门鼓后即关，三更时早已落锁，不应此刻才落。此处的时辰与闭坊时刻自相矛盾。",
+      "三更已近夜半，天色只会由暗转得更沉，不会处在「渐暗」的过程里；「天色渐暗」是日暮闭坊时的景象。此处描写与所标时辰不合，读者会误以为这是黄昏而非三更。",
+      "第三章韦延已收走裴照的腰牌、令他不必当值，第四章也明写他「腰上空着」；本章他却三更独自在崇仁坊行走，正文既未提行牒，也未交代他如何避过街使与武侯铺，与设定「无行牒者不得夜行」相抵。至少应有一处交代（藏身、行牒、或明知犯夜的自觉）。"
     ]
   },
   "ok": false

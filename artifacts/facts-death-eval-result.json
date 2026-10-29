@@ -1,0 +1,171 @@
+{
+  "model": "deepseek-flash",
+  "trials": 5,
+  "results": [
+    {
+      "trial": 1,
+      "finished": true,
+      "failed": false,
+      "characterStateCount": 2,
+      "characterStates": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在本章中死亡，尸体被发现于质库后墙，胸口中了一刀，血已凉透、呼吸全无。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        },
+        {
+          "subject": "裴照",
+          "statement": "裴照在本章末尾位于质库后墙的凶案现场，是确认老周死亡的人。",
+          "quote": "裴照赶到质库后墙时，老周已经倒在地上。"
+        }
+      ],
+      "subjectMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在本章中死亡，尸体被发现于质库后墙，胸口中了一刀，血已凉透、呼吸全无。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        }
+      ],
+      "deathMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在本章中死亡，尸体被发现于质库后墙，胸口中了一刀，血已凉透、呼吸全无。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "finished": false,
+      "failed": true,
+      "failure": {
+        "tasks": [
+          {
+            "id": "run_mvtta4vbmjf8:observer",
+            "status": "failed"
+          }
+        ]
+      },
+      "characterStateCount": 0,
+      "characterStates": [],
+      "subjectMatches": [],
+      "deathMatches": []
+    },
+    {
+      "trial": 3,
+      "finished": true,
+      "failed": false,
+      "characterStateCount": 2,
+      "characterStates": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙被发现时胸口中刀，血已凉透、呼吸全无，已死亡。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        },
+        {
+          "subject": "裴照",
+          "statement": "裴照赶到质库后墙现场，探过老周鼻息并替其合上眼睛，确认老周已死。",
+          "quote": "裴照伸手探过鼻息，又替老周合上眼睛"
+        }
+      ],
+      "subjectMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙被发现时胸口中刀，血已凉透、呼吸全无，已死亡。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        }
+      ],
+      "deathMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙被发现时胸口中刀，血已凉透、呼吸全无，已死亡。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        }
+      ]
+    },
+    {
+      "trial": 4,
+      "finished": true,
+      "failed": false,
+      "characterStateCount": 3,
+      "characterStates": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙被发现倒地，胸口中刀，血已凉透，呼吸全无，裴照探过鼻息后确认其已死亡。",
+          "quote": "确认质库掌柜老周已死"
+        },
+        {
+          "subject": "老周",
+          "statement": "老周死于胸部刀伤，血已凉透，说明死亡已有一段时间。",
+          "quote": "胸口中了一刀，血已经凉透"
+        },
+        {
+          "subject": "裴照",
+          "statement": "裴照在质库后墙验看老周鼻息，并替老周合上眼睛。",
+          "quote": "裴照伸手探过鼻息，又替老周合上眼睛"
+        }
+      ],
+      "subjectMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙被发现倒地，胸口中刀，血已凉透，呼吸全无，裴照探过鼻息后确认其已死亡。",
+          "quote": "确认质库掌柜老周已死"
+        },
+        {
+          "subject": "老周",
+          "statement": "老周死于胸部刀伤，血已凉透，说明死亡已有一段时间。",
+          "quote": "胸口中了一刀，血已经凉透"
+        }
+      ],
+      "deathMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙被发现倒地，胸口中刀，血已凉透，呼吸全无，裴照探过鼻息后确认其已死亡。",
+          "quote": "确认质库掌柜老周已死"
+        },
+        {
+          "subject": "老周",
+          "statement": "老周死于胸部刀伤，血已凉透，说明死亡已有一段时间。",
+          "quote": "胸口中了一刀，血已经凉透"
+        }
+      ]
+    },
+    {
+      "trial": 5,
+      "finished": true,
+      "failed": false,
+      "characterStateCount": 2,
+      "characterStates": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙倒地，胸口被刺一刀，失血而死，已无呼吸。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        },
+        {
+          "subject": "裴照",
+          "statement": "裴照探过老周鼻息、替其合上眼睛，当场确认老周已死。",
+          "quote": "裴照伸手探过鼻息，又替老周合上眼睛"
+        }
+      ],
+      "subjectMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙倒地，胸口被刺一刀，失血而死，已无呼吸。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        }
+      ],
+      "deathMatches": [
+        {
+          "subject": "老周",
+          "statement": "质库掌柜老周在质库后墙倒地，胸口被刺一刀，失血而死，已无呼吸。",
+          "quote": "胸口中了一刀，血已经凉透，呼吸全无。"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "finished": 4,
+    "subjectMentioned": 4,
+    "deathMatched": 4
+  }
+}

@@ -1,0 +1,596 @@
+{
+  "model": "deepseek-flash",
+  "trials": 3,
+  "results": [
+    {
+      "trial": 1,
+      "seconds": 59,
+      "finished": true,
+      "failed": false,
+      "challenges": 1,
+      "categories": [
+        "fact"
+      ],
+      "errors": [],
+      "tail": [
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.usage",
+        "task.succeeded",
+        "run.finished",
+        "workflow.finished"
+      ],
+      "diagnostics": [
+        {
+          "runId": "run_mvttdex3s7vp",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_1286573e171241c4bc96b13dff55b6c2",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 10.1,
+          "status": "run.finished",
+          "toolCalls": 8,
+          "tools": [
+            "doc.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "challenge.raise"
+          ],
+          "contextTokens": 203,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 1400,
+          "outputTokens": 1077,
+          "usageEvents": 5
+        },
+        {
+          "runId": "run_01778a8554ef47e3bd5cf8aed7f8af25",
+          "nodeId": "challenge-reply-1",
+          "agentId": "writer",
+          "seconds": 26.3,
+          "status": "run.finished",
+          "toolCalls": 12,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.write",
+            "doc.read",
+            "doc.write",
+            "challenge.reply"
+          ],
+          "contextTokens": 977,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 3737,
+          "outputTokens": 3778,
+          "usageEvents": 7
+        },
+        {
+          "runId": "run_818627a115ca4f4ab0b02b4a0fdc02b0",
+          "nodeId": "rework",
+          "agentId": "writer",
+          "seconds": 17.7,
+          "status": "run.finished",
+          "toolCalls": 8,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 854,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 2278,
+          "outputTokens": 2933,
+          "usageEvents": 4
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "seconds": 69,
+      "finished": true,
+      "failed": false,
+      "challenges": 1,
+      "categories": [
+        "fact"
+      ],
+      "errors": [],
+      "tail": [
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.usage",
+        "task.succeeded",
+        "run.finished",
+        "workflow.finished"
+      ],
+      "diagnostics": [
+        {
+          "runId": "run_mvtteou0wlzj",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_4ca2e8c3e7af4e3fb25d8f7520e0f2fd",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 8.3,
+          "status": "run.finished",
+          "toolCalls": 8,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "challenge.raise"
+          ],
+          "contextTokens": 203,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 1079,
+          "outputTokens": 1179,
+          "usageEvents": 4
+        },
+        {
+          "runId": "run_02d3deee5bc045f8a995e974f6307bec",
+          "nodeId": "challenge-reply-1",
+          "agentId": "writer",
+          "seconds": 30.9,
+          "status": "run.finished",
+          "toolCalls": 7,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.write",
+            "doc.read",
+            "doc.write",
+            "challenge.reply"
+          ],
+          "contextTokens": 985,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 2306,
+          "outputTokens": 4409,
+          "usageEvents": 7
+        },
+        {
+          "runId": "run_9547a3cbe32a4881841b097c9a4431de",
+          "nodeId": "rework",
+          "agentId": "writer",
+          "seconds": 25.5,
+          "status": "run.finished",
+          "toolCalls": 7,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.write"
+          ],
+          "contextTokens": 928,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 2315,
+          "outputTokens": 3480,
+          "usageEvents": 4
+        }
+      ]
+    },
+    {
+      "trial": 3,
+      "seconds": 55,
+      "finished": true,
+      "failed": false,
+      "challenges": 1,
+      "categories": [
+        "character"
+      ],
+      "errors": [],
+      "tail": [
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.text_delta",
+        "run.usage",
+        "task.succeeded",
+        "run.finished",
+        "workflow.finished"
+      ],
+      "diagnostics": [
+        {
+          "runId": "run_mvttg6wclpee",
+          "toolCalls": 0,
+          "tools": [],
+          "contextLayers": [],
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "usageEvents": 0
+        },
+        {
+          "runId": "run_0d4e9170b07543c1a85f24ffa456225b",
+          "nodeId": "reviewer",
+          "agentId": "reviewer",
+          "seconds": 7.2,
+          "status": "run.finished",
+          "toolCalls": 8,
+          "tools": [
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "challenge.raise"
+          ],
+          "contextTokens": 203,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 1501,
+          "outputTokens": 1022,
+          "usageEvents": 4
+        },
+        {
+          "runId": "run_d2e3b1825c7043a6b0d066b0023dccaa",
+          "nodeId": "challenge-reply-1",
+          "agentId": "writer",
+          "seconds": 29.5,
+          "status": "run.finished",
+          "toolCalls": 10,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.write",
+            "doc.read",
+            "doc.write",
+            "challenge.reply"
+          ],
+          "contextTokens": 999,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 2423,
+          "outputTokens": 4198,
+          "usageEvents": 7
+        },
+        {
+          "runId": "run_fd3bbc75087d4bd68484a35bf49f6823",
+          "nodeId": "rework",
+          "agentId": "writer",
+          "seconds": 13.5,
+          "status": "run.finished",
+          "toolCalls": 7,
+          "tools": [
+            "bible.read",
+            "doc.read",
+            "doc.read",
+            "doc.read",
+            "bible.read",
+            "bible.read",
+            "doc.write"
+          ],
+          "contextTokens": 871,
+          "contextLayers": [
+            {
+              "id": "chapter-4",
+              "estimatedTokens": 14
+            },
+            {
+              "id": "setting",
+              "estimatedTokens": 16
+            },
+            {
+              "id": "characters",
+              "estimatedTokens": 24
+            },
+            {
+              "id": "summaries",
+              "estimatedTokens": 17
+            },
+            {
+              "id": "facts",
+              "estimatedTokens": 28
+            },
+            {
+              "id": "previous-chapter-3",
+              "estimatedTokens": 34
+            },
+            {
+              "id": "style",
+              "estimatedTokens": 10
+            }
+          ],
+          "inputTokens": 1953,
+          "outputTokens": 2102,
+          "usageEvents": 4
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "workflowFinished": 3,
+    "workflowFailed": 0,
+    "challengeRuns": 3
+  }
+}

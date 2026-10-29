@@ -32,6 +32,8 @@
     "test:providers:live": "node scripts/providers-live-e2e.mjs",
     "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",
     "test:facts:e2e": "node scripts/facts-e2e.mjs",
+    "test:m4:death-facts": "node scripts/facts-death-eval.mjs",
+    "test:m4:fourth-review": "node scripts/m4-fourth-review-eval.mjs",
     "test:chapters:e2e": "node scripts/chapters-e2e.mjs",
     "test:m4:regression": "node scripts/m4-regression.mjs",
     "test:m4:review": "node scripts/m4-review-eval.mjs",
