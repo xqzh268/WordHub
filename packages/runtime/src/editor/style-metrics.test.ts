@@ -95,6 +95,38 @@ describe("analyzeStyle", () => {
   });
 });
 
+describe("解释心理", () => {
+  const NARRATED =
+    "他知道这个人怕事。裴照心里清楚，坊正不会说实话。她害怕被人看出来。他明白这一步走错就回不了头。";
+  it("叙述者点明心理的句子被计数并标出", () => {
+    const report = analyzeStyle(NARRATED);
+    expect(report.metrics.explainMind).toBe(4);
+    expect(report.flags.some((f) => f.code === "explain-mind")).toBe(true);
+  });
+
+  it("引号里的对白不算", () => {
+    const report = analyzeStyle(
+      "“我知道你怕。”他说。“我明白，我心里清楚。”她答。“你觉得呢？”",
+    );
+    expect(report.metrics.explainMind).toBe(0);
+  });
+
+  it("用动作和对白露出心理的写法不被标出", () => {
+    const report = analyzeStyle(
+      "坊正把茶盏推远了半寸，没有看他。裴照问了第二遍，他才开口：“那晚我睡得早。”",
+    );
+    expect(report.metrics.explainMind).toBe(0);
+    expect(report.flags.some((f) => f.code === "explain-mind")).toBe(false);
+  });
+
+  it("只有两处时不标出（偶尔点明是正常的）", () => {
+    const report = analyzeStyle(
+      "他知道这个人怕事。后来天黑了，他走了。她明白了。",
+    );
+    expect(report.flags.some((f) => f.code === "explain-mind")).toBe(false);
+  });
+});
+
 describe("styleBrief", () => {
   it("没有标记时返回空字符串", () => {
     expect(styleBrief(analyzeStyle(HUMAN_LIKE))).toBe("");

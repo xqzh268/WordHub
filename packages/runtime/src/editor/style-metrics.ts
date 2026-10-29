@@ -10,7 +10,8 @@ export type StyleFlagCode =
   | "not-but"
   | "list-run"
   | "number-density"
-  | "simile-density";
+  | "simile-density"
+  | "explain-mind";
 
 export type StyleFlag = {
   code: StyleFlagCode;
@@ -38,6 +39,8 @@ export type StyleMetrics = {
   numbersPerThousand: number;
   /** 每千字的比喻词（像、仿佛、如同、宛如、好似）个数 */
   similesPerThousand: number;
+  /** 叙述者直接点明人物心理的句子数（“他知道……”“她怕……”），不含引号内的对白 */
+  explainMind: number;
   /** 每千字破折号与分号 */
   dashesPerThousand: number;
 };
@@ -72,6 +75,15 @@ const NOT_BUT =
   /(?:不是|并非|不单是|不只是)[^。！？\n]{1,24}?[，,、]?(?:而是|是)/gu;
 const NUMBER =
   /[0-9０-９]+|[二三四五六七八九十两百千]+(?=[个下声次只名步条道把口里尺寸丈年天日夜更遍回层间扇盏支根张])/gu;
+/**
+ * 叙述者替读者总结人物心理：他/她/人名 + (心里)清楚/明白/知道/意识到/觉得/害怕/担心 …。
+ * 好的写法是让心理从动作和对白里露出来，而不是由叙述者点明。
+ */
+const EXPLAIN_MIND =
+  /(?:他|她|它|[\p{Script=Han}]{2,3}?)(?:心里|心中|自己)?(?:很|也|早|并)?(?:清楚|明白|知道|意识到|觉得|害怕|担心|怕得|不敢承认|不愿承认|心想)[^。！？\n]{0,24}[。！？]/gu;
+const stripDialogue = (text: string): string =>
+  text.replace(/“[^”]*”|「[^」]*」|『[^』]*』|"[^"]*"/gu, "");
+
 const SIMILE = /像|仿佛|如同|宛如|好似|似的|恍如/gu;
 
 /** 4 个及以上、每段不超过 5 个字的逗号并列。 */
@@ -125,6 +137,9 @@ export function analyzeStyle(text: string): StyleReport {
   const listRuns = findListRuns(text);
   const numbers = [...text.matchAll(NUMBER)].map((match) => match[0]);
   const similes = [...text.matchAll(SIMILE)];
+  const explain = [...stripDialogue(text).matchAll(EXPLAIN_MIND)].map(
+    (match) => match[0],
+  );
   const dashes = [...text.matchAll(/——|；/gu)];
   const perThousand = (count: number) =>
     characters ? (count * 1000) / characters : 0;
@@ -146,6 +161,7 @@ export function analyzeStyle(text: string): StyleReport {
     listRuns: listRuns.length,
     numbersPerThousand: Number(perThousand(numbers.length).toFixed(1)),
     similesPerThousand: Number(perThousand(similes.length).toFixed(1)),
+    explainMind: explain.length,
     dashesPerThousand: Number(perThousand(dashes.length).toFixed(1)),
   };
 
@@ -171,6 +187,13 @@ export function analyzeStyle(text: string): StyleReport {
       examples: listRuns.slice(0, 5),
       count: listRuns.length,
     });
+  if (explain.length >= 3)
+    flags.push({
+      code: "explain-mind",
+      label: "叙述者替读者总结人物心理（应改成动作或对白）",
+      examples: explain.slice(0, 5),
+      count: explain.length,
+    });
   // 密度类指标在过短的文字里噪声太大，只对整章（300 字以上）判断
   if (characters >= 300 && metrics.numbersPerThousand > 8)
     flags.push({
@@ -191,6 +214,7 @@ export function analyzeStyle(text: string): StyleReport {
     shortRunExamples.length +
     notBut.length +
     listRuns.length +
+    (explain.length >= 3 ? explain.length : 0) +
     Math.max(0, numbers.length - Math.ceil(characters / 125)) +
     Math.max(0, similes.length - Math.ceil(characters / 125));
   return {
@@ -207,5 +231,5 @@ export function styleBrief(report: StyleReport): string {
     (flag) =>
       `- ${flag.label}${flag.examples.length ? `：${flag.examples.map((x) => `「${x}」`).join("、")}` : ""}`,
   );
-  return `静态检查标出了以下“机器味”表达，请在不改变情节、信息和人物设定的前提下重写这些位置：把碎句合并成有因果、有衔接的长短句，把清单式并列改成一两处有取舍的描写，减少“不是……而是……”和精确计数，比喻只留最贴切的一处。\n${lines.join("\n")}`;
+  return `静态检查标出了以下“机器味”表达，请在不改变情节、信息和人物设定的前提下重写这些位置：把碎句合并成有因果、有衔接的长短句，把清单式并列改成一两处有取舍的描写，把叙述者点明人物心理的句子改成动作或对白，减少“不是……而是……”和精确计数，比喻只留最贴切的一处。\n${lines.join("\n")}`;
 }
