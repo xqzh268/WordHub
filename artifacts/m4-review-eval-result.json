@@ -1,0 +1,239 @@
+{
+  "runs": 3,
+  "errored": 0,
+  "detectionRate": 1,
+  "categoryAccuracy": 1,
+  "falsePositiveRate": 0,
+  "perCategory": {
+    "timeline": {
+      "detected": 3,
+      "categoryHit": 3,
+      "runs": 3
+    },
+    "character": {
+      "detected": 3,
+      "categoryHit": 3,
+      "runs": 3
+    },
+    "fact": {
+      "detected": 3,
+      "categoryHit": 3,
+      "runs": 3
+    },
+    "commonsense": {
+      "detected": 3,
+      "categoryHit": 3,
+      "runs": 3
+    },
+    "style": {
+      "detected": 3,
+      "categoryHit": 3,
+      "runs": 3
+    }
+  },
+  "results": [
+    {
+      "run": 1,
+      "scenarios": {
+        "timeline": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "timeline"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "本章开头仍处于腊月初九夜，紧接着正文一句「转眼已是来年正月十五」，把时间推进到约一个月后，与设定「故事发生在腊月初八至腊月十二，共五天」直接冲突；也超出大纲第3"
+          ]
+        },
+        "character": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "character"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文写裴照在腊月初九夜里到质库后墙蹲守（即办案途中）时掏出烧酒喝了数口，与人物档案「办案时从不饮酒」的设定直接冲突，也与「沉默寡言、冷峻克制」的行为逻辑不合。建"
+          ]
+        },
+        "fact": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "fact"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文写日暮鼓落下之后坊门「依旧大敞」、裴照随人流自由进出且无人查问文书，与设定词典中「日暮鼓后夜禁开始，坊门关闭，夜行须有官府文书」的制度直接冲突。若确为本章要"
+          ]
+        },
+        "commonsense": {
+          "finished": true,
+          "challenges": 2,
+          "categories": [
+            "commonsense",
+            "timeline"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文写裴照「掏出怀表看了一眼时辰」。唐代长安并无怀表（明代才由西洋传入），此处出现时代不存在的器物，违背题材与时代常识；且以「看时辰」交代夜间时刻与唐代更鼓、漏",
+            "设定词典把「更鼓」定义为日暮鼓、夜禁开始的信号；而正文在「已是三更」（子时前后）才写「更鼓声远远传来」，与设定中更鼓的时间位置不一致。若此处想写的是夜间打更报时"
+          ]
+        },
+        "style": {
+          "finished": true,
+          "challenges": 2,
+          "categories": [
+            "style"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文第二段中途视角跳出裴照，直接进入周怀仁的内心（\"暗自盘算，如何把这口锅甩给手下的小吏\"），违反文风基准规定的第三人称有限视角。应删除或改为裴照可观察到的外部",
+            "唐代长安题材正文中出现网络流行语\"绝绝子\"，同段还用\"甩锅\"这类现代口语，与文风基准\"不使用现代词汇和网络用语\"直接冲突，也破坏冷峻克制的基调。建议改为符合时代"
+          ]
+        },
+        "clean": {
+          "finished": true,
+          "challenges": 0,
+          "categories": [],
+          "claims": []
+        }
+      }
+    },
+    {
+      "run": 2,
+      "scenarios": {
+        "timeline": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "timeline"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文在腊月初九夜的场景后，用一句「转眼已是来年正月十五」把时间直接推进到一个多月后，与设定「故事发生在腊月初八至腊月十二，共五天」直接冲突，也脱离了本章大纲只写"
+          ]
+        },
+        "character": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "character"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "裴照正因办案伏在质库后墙盯守，却当场灌烧酒，直接违反人物档案「办案时从不饮酒」的硬设定。此处不是措辞问题，而是角色核心习惯被反向书写，会让读者对人物认知产生混乱"
+          ]
+        },
+        "fact": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "fact"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文把日暮鼓之后写成坊门大开、行人自由进出且无人查问文书，与设定词典「更鼓」条（日暮鼓后夜禁开始、坊门关闭、夜行须有官府文书）及「金吾卫负责夜禁巡逻」直接冲突。"
+          ]
+        },
+        "commonsense": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "commonsense"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "唐代长安场景中出现「怀表」，属于时代错置的器物。设定明确故事发生于唐代，记时应依赖更鼓、漏刻等，怀表是明清以后才传入的西洋计时器，读者会因此出戏。建议改为凭更鼓"
+          ]
+        },
+        "style": {
+          "finished": true,
+          "challenges": 2,
+          "categories": [
+            "style"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "文风基准规定「第三人称有限视角，只随裴照一人，不进入其他角色内心」，但正文在写完裴照视角后直接切到衙署里的周怀仁，并描写其内心盘算（「暗自盘算，如何把这口锅甩给",
+            "文风基准明确「不使用现代词汇和网络用语」，且题材为唐代长安，但正文出现「绝绝子」「甩锅」等当代网络用语，与冷峻克制的基调明显冲突。"
+          ]
+        },
+        "clean": {
+          "finished": true,
+          "challenges": 0,
+          "categories": [],
+          "claims": []
+        }
+      }
+    },
+    {
+      "run": 3,
+      "scenarios": {
+        "timeline": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "timeline"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文前半段按大纲写腊月初九夜里裴照到质库后墙查看，但紧接着在同一段里跳到「来年正月十五」，把故事时间推到设定范围之外。设定规定全篇只发生在腊月初八至腊月十二共五"
+          ]
+        },
+        "character": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "character"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文写裴照在质库后墙伏守时从怀里摸出烧酒仰头灌了几大口，属于办案过程中饮酒，与人物档案「办案时从不饮酒」直接冲突。此处他是奉差夜查（本章目标即夜访质库后墙），并"
+          ]
+        },
+        "fact": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "fact"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "设定词典规定「日暮鼓后夜禁开始，坊门关闭，夜行须有官府文书」，而正文写日暮鼓刚落时坊门大敞、行人如织、裴照无需文书自由进出，与夜禁制度直接冲突。此段若发生在鼓前"
+          ]
+        },
+        "commonsense": {
+          "finished": true,
+          "challenges": 1,
+          "categories": [
+            "commonsense"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文让裴照在唐代长安用「怀表」看时辰。怀表是近代机械钟表，唐代不存在此类随身计时器，此处的器物超出时代常识；唐代夜间报时与计时依靠漏刻、更鼓（设定中亦有「更鼓」"
+          ]
+        },
+        "style": {
+          "finished": true,
+          "challenges": 2,
+          "categories": [
+            "style"
+          ],
+          "categoryHit": true,
+          "claims": [
+            "正文混入现代网络用语「绝绝子」「甩锅」，与文风基准中「不使用现代词汇和网络用语」的要求直接冲突，也破坏了冷峻克制的基调。",
+            "叙述越界进入周怀仁内心（「暗自盘算」），违反第三人称有限视角「只随裴照一人」的规定。"
+          ]
+        },
+        "clean": {
+          "finished": true,
+          "challenges": 0,
+          "categories": [],
+          "claims": []
+        }
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
+import { writeTestModelOverrides } from "./lib/test-models.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -27,6 +28,7 @@ const { ELECTRON_RUN_AS_NODE, ...cleanEnv } = process.env;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-regression-"));
 const userData = path.join(tmp, "appdata");
 const folder = path.join(tmp, "项目", "长安夜");
+writeTestModelOverrides(folder);
 fs.mkdirSync(folder, { recursive: true });
 const chaptersDir = path.join(folder, "chapters");
 

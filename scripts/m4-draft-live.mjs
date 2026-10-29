@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
+import { writeTestModelOverrides } from "./lib/test-models.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -22,6 +23,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const electron = createRequire(import.meta.url)("electron");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-draft-live-"));
 const folder = path.join(tmp, "项目", "长安夜");
+writeTestModelOverrides(folder);
 fs.mkdirSync(folder, { recursive: true });
 const bibleDir = path.join(folder, ".wordhub", "bible");
 

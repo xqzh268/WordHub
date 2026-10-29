@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
+import { writeTestModelOverrides } from "./lib/test-models.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -34,6 +35,7 @@ async function oneRun(index) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-neutral-"));
   const userData = path.join(tmp, "appdata");
   const folder = path.join(tmp, "项目");
+  writeTestModelOverrides(folder);
   fs.mkdirSync(path.join(folder, ".wordhub", "bible"), { recursive: true });
   fs.mkdirSync(path.join(folder, "chapters"), { recursive: true });
   // 设定集只陈述事实，不提示评审该找什么。

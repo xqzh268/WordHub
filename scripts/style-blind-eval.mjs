@@ -14,6 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
+import { flashOnly, writeTestModelOverrides } from "./lib/test-models.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -36,8 +37,8 @@ const { analyzeStyle } = await import(
     .href
 );
 
-// ── 新纲领提示词生成的文风基准（B / C 共用）──────────────────────
-async function newStyleBible() {
+// ── 用当前纲领提示词重新生成整套设定（变体 D 用）──────────────────────
+async function newBible() {
   const { createModels } = await import("@earendil-works/pi-ai");
   const { deepseekProvider } = await import(
     "@earendil-works/pi-ai/providers/deepseek"
@@ -52,54 +53,58 @@ async function newStyleBible() {
   );
   const { documents } = await generateDraft({
     models,
-    model: models.getModel("deepseek", "deepseek-v4-pro"),
+    model: models.getModel(
+      "deepseek",
+      flashOnly() ? "deepseek-flash" : "deepseek-v4-pro",
+    ),
     reasoning: "high",
     apiKey: KEY,
     answers: plan.answers,
   });
-  return documents["style.md"];
+  return documents;
 }
 
-console.log("生成新文风基准……");
-const newStyle = await newStyleBible();
-fs.writeFileSync(path.join(outDir, "style-new.md"), newStyle, "utf8");
+const read = (file) => fs.readFileSync(file, "utf8");
+const work = (name) =>
+  read(path.join(root, "packages/novel/agents", name, "AGENT.md"));
+// 历史版本：3553193 = 本轮文风改动之前；2dd1a89 = 第一轮文风改动（提示词去“短句为主”、编辑静态清单）
+const OLD = "3553193";
+const R1 = "2dd1a89";
+const wanted = new Set((process.argv[4] ?? "B,D").split(","));
+const styleB = path.join(outDir, "style-new.md"); // 第一轮盲评时 B/C 用的文风基准（保留，勿覆盖）
 
-// ── 版本定义 ──────────────────────────────────────────────
 const variants = [
   {
     id: "A",
-    label: "现状",
-    writer: git("HEAD:packages/novel/agents/writer/AGENT.md"),
-    editor: git("HEAD:packages/novel/agents/editor/AGENT.md"),
-    style: fs.readFileSync(path.join(baseBible, "style.md"), "utf8"),
+    label: "最初版本",
+    writer: git(`${OLD}:packages/novel/agents/writer/AGENT.md`),
+    editor: git(`${OLD}:packages/novel/agents/editor/AGENT.md`),
+    style: () => read(path.join(baseBible, "style.md")),
     hint: false,
   },
   {
     id: "B",
-    label: "改提示词",
-    writer: fs.readFileSync(
-      path.join(root, "packages/novel/agents/writer/AGENT.md"),
-      "utf8",
-    ),
-    editor: git("HEAD:packages/novel/agents/editor/AGENT.md"),
-    style: newStyle,
+    label: "第一轮改动（对照）",
+    writer: git(`${R1}:packages/novel/agents/writer/AGENT.md`),
+    editor: git(`${OLD}:packages/novel/agents/editor/AGENT.md`),
+    style: () => read(styleB),
     hint: false,
   },
   {
-    id: "C",
-    label: "改提示词+编辑改写",
-    writer: fs.readFileSync(
-      path.join(root, "packages/novel/agents/writer/AGENT.md"),
-      "utf8",
-    ),
-    editor: fs.readFileSync(
-      path.join(root, "packages/novel/agents/editor/AGENT.md"),
-      "utf8",
-    ),
-    style: newStyle,
-    hint: true,
+    id: "D",
+    label: "去篇章层套路（小动作限用、开结尾、章节功能多样）",
+    writer: work("writer"),
+    editor: git(`${OLD}:packages/novel/agents/editor/AGENT.md`),
+    docs: async () => {
+      console.log("用当前纲领提示词重新生成整套设定……");
+      const docs = await newBible();
+      for (const [name, text] of Object.entries(docs))
+        fs.writeFileSync(path.join(outDir, `docs-D-${name}`), text, "utf8");
+      return docs;
+    },
+    hint: false,
   },
-];
+].filter((variant) => wanted.has(variant.id));
 
 /** 变体工作区：复制 packages/novel，替换写手/编辑提示词，工作流去掉评审（评测只看文字）。 */
 function variantRoot(tmp, variant) {
@@ -160,17 +165,26 @@ async function oneSession(variant, repeat) {
   );
   const userData = path.join(tmp, "appdata");
   const folder = path.join(tmp, "项目", "长安夜");
+  writeTestModelOverrides(folder);
   const bible = path.join(folder, ".wordhub", "bible");
   fs.mkdirSync(bible, { recursive: true });
   fs.mkdirSync(path.join(folder, "chapters"), { recursive: true });
-  for (const name of [
-    "outline.md",
-    "characters.md",
-    "setting.md",
-    "writing-plan.json",
-  ])
-    fs.copyFileSync(path.join(baseBible, name), path.join(bible, name));
-  fs.writeFileSync(path.join(bible, "style.md"), variant.style, "utf8");
+  fs.copyFileSync(
+    path.join(baseBible, "writing-plan.json"),
+    path.join(bible, "writing-plan.json"),
+  );
+  if (variant.docs && !variant.cachedDocs)
+    variant.cachedDocs = await variant.docs();
+  const docs = variant.cachedDocs;
+  for (const name of ["outline.md", "characters.md", "setting.md", "style.md"])
+    fs.writeFileSync(
+      path.join(bible, name),
+      docs?.[name] ??
+        (name === "style.md"
+          ? variant.style()
+          : read(path.join(baseBible, name))),
+      "utf8",
+    );
   const workspace = variantRoot(tmp, variant);
   const app = await _electron.launch({
     executablePath: electron,

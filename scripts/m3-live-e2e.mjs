@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
+import { writeTestModelOverrides } from "./lib/test-models.mjs";
 
 const key =
   process.env.DEEPSEEK_API_KEY ?? process.env.WORDHUB_DEEPSEEK_API_KEY;
@@ -23,6 +24,7 @@ const electron = createRequire(import.meta.url)("electron");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-m3-live-"));
 const userData = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
+writeTestModelOverrides(folder);
 fs.mkdirSync(path.join(folder, ".wordhub", "bible"), { recursive: true });
 fs.mkdirSync(path.join(folder, "chapters"), { recursive: true });
 fs.writeFileSync(

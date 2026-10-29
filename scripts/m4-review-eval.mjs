@@ -12,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
+import { writeTestModelOverrides } from "./lib/test-models.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -75,6 +76,7 @@ async function oneRun(index) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-review-eval-"));
   const userData = path.join(tmp, "appdata");
   const folder = path.join(tmp, "项目");
+  writeTestModelOverrides(folder);
   const bibleDir = path.join(folder, ".wordhub", "bible");
   fs.mkdirSync(bibleDir, { recursive: true });
   fs.mkdirSync(path.join(folder, "chapters"), { recursive: true });
