@@ -57,7 +57,7 @@ export const AGENTS: AgentMeta[] = [
   },
 ];
 
-/** 侧栏与 @ 名单里列出的 Agent：史官只作为“定稿”动作的内部步骤，不单独对话。 */
+/** @ 名单里列出的 Agent：史官只作为“定稿”动作的内部步骤，不单独对话（侧栏仍列出，可查看和切换模型）。 */
 export const LISTED_AGENTS: AgentMeta[] = AGENTS.filter(
   (agent) => agent.id !== "observer",
 );

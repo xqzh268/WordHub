@@ -25,6 +25,12 @@
 .session-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
 
+.agent-line { display: flex; align-items: center; gap: 4px; }
+.agent-line .agent-row { flex: 1; min-width: 0; }
+.agent-model-btn { margin-left: 0; padding: 3px 6px; border-radius: var(--r-sm); white-space: nowrap; cursor: pointer; }
+.agent-model-btn:hover { background: var(--bg-hover); color: var(--ink-2); }
+.agent-picker { display: grid; gap: 6px; padding: 4px 8px 8px 40px; }
+.agent-picker .text-input { width: 100%; font-size: 11px; }
 .agent-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: var(--r-sm); text-align: left; transition: background-color var(--dur-fast) var(--ease-out); }
 .agent-row:not(:disabled):hover { background: var(--bg-hover); }
 .agent-name { font-size: 13px; color: var(--ink-2); }

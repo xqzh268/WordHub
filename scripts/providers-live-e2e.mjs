@@ -253,6 +253,15 @@ try {
     `${usage.length} 条，$${cost.toFixed(5)}`,
   );
 
+  const tip = await page
+    .locator('[data-testid="agent-model-writer"]')
+    .getAttribute("title");
+  check(
+    "侧栏的模型标签显示最近一次实际使用的模型",
+    Boolean(tip?.includes("最近一次实际使用 deepseek-flash")),
+    tip ?? "",
+  );
+
   // ── 5. 定稿（史官） ────────────────────────────────────────
   if (chapter) {
     const fin = await runWorkflow(page, `定稿 chapters/${chapter}`, 600000);

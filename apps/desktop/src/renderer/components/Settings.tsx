@@ -4,21 +4,12 @@ import { ProviderSettings } from "./ProviderSettings";
 import { motion } from "motion/react";
 import type { ThemePreference } from "@wordhub/contracts";
 import { AGENTS } from "../lib/agents";
+import { pickReasoning } from "../lib/models";
 import { useWorkbench, type ReadingFont } from "../state/store";
 import { Seal } from "./Seal";
 import { useCallback, useEffect, useState } from "react";
 
 type ModelData = CommandResults["settings.models"];
-
-/** 换模型时尽量沿用原思考强度；不支持就取接近的高档，而不是退到列表第一项（常是 off）。 */
-function pickReasoning(supported: string[], current: string): string {
-  if (supported.includes(current) || supported.length === 0) return current;
-  return (
-    ["high", "medium", "low"].find((level) => supported.includes(level)) ??
-    supported[0] ??
-    current
-  );
-}
 
 const THEMES: { id: ThemePreference; label: string; Icon: typeof Sun }[] = [
   { id: "light", label: "宣纸", Icon: Sun },
@@ -70,7 +61,9 @@ export function SettingsView() {
       ?.invoke("settings.models", undefined)
       .then((result) => setModelData(result));
   }, []);
-  useEffect(reloadModels, [reloadModels]);
+  const modelsVersion = useWorkbench((s) => s.modelsVersion);
+  const bumpModels = useWorkbench((s) => s.bumpModels);
+  useEffect(reloadModels, [reloadModels, modelsVersion]);
 
   return (
     <div className="page selectable" data-testid="settings">
@@ -80,7 +73,7 @@ export function SettingsView() {
           <p>让写作的环境，贴近你习惯的纸。</p>
         </header>
 
-        <ProviderSettings onChanged={reloadModels} />
+        <ProviderSettings onChanged={bumpModels} />
 
         <section className="panel-section">
           <h2>写作流程</h2>
@@ -219,7 +212,7 @@ export function SettingsView() {
                         ),
                       },
                     });
-                  reloadModels();
+                  bumpModels();
                 })();
               }}
               aria-label="全部角色使用同一模型"
@@ -278,7 +271,7 @@ export function SettingsView() {
                     agentId: agent.id,
                     model,
                   })
-                  .then(reloadModels);
+                  .then(bumpModels);
               return (
                 <li key={agent.id}>
                   <Seal

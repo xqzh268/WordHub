@@ -81,6 +81,9 @@ export type State = Prefs & {
   watchChapters(): Promise<void>;
   setComposer(text: string): void;
   mention(agentName: string): void;
+  /** 模型配置有变化（设置页或侧栏切换）后递增，侧栏据此重新读取 */
+  modelsVersion: number;
+  bumpModels(): void;
   newSession(): Promise<void>;
   selectSession(id: string): void;
   linkFolder(): Promise<void>;
@@ -141,6 +144,10 @@ export const useWorkbench = create<State>((set, get) => {
     paper: isDemo ? DEMO_CHAPTER : null,
     chapters: [],
     activeChapter: null,
+    modelsVersion: 0,
+    bumpModels() {
+      set((state) => ({ modelsVersion: state.modelsVersion + 1 }));
+    },
     facts: [],
     summaries: [],
     finalized: [],

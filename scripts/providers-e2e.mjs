@@ -170,6 +170,49 @@ try {
     filtered.join(","),
   );
   await page.fill('input[aria-label="筛选模型"]', "");
+  // 侧栏：列出史官；点模型可就地切换，设置页同步
+  await page.click('[data-testid="rail-workspace"]');
+  await page.waitForSelector('[data-testid="agent-writer"]', { timeout: 5000 });
+  check(
+    "侧栏 Agent 列表包含史官",
+    (await page.locator('[data-testid="agent-observer"]').count()) === 1,
+  );
+  await page.click('[data-testid="agent-model-writer"]');
+  await page
+    .locator('[data-testid="agent-picker"] select')
+    .first()
+    .selectOption("my-gateway/plain");
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="agent-model-writer"]')
+        ?.textContent?.includes("plain"),
+    null,
+    { timeout: 5000 },
+  );
+  await page.click('[data-testid="rail-settings"]');
+  await page.waitForFunction(
+    () =>
+      document.querySelector('select[aria-label="写手模型"]')?.value ===
+      "my-gateway/plain",
+    null,
+    { timeout: 5000 },
+  );
+  check("侧栏切换模型后设置页同步", true);
+  await page
+    .locator('select[aria-label="写手模型"]')
+    .selectOption("my-gateway/writer-1");
+  await page.click('[data-testid="rail-workspace"]');
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="agent-model-writer"]')
+        ?.textContent?.includes("writer-1"),
+    null,
+    { timeout: 5000 },
+  );
+  check("设置页切换模型后侧栏同步", true);
+  await page.click('[data-testid="rail-settings"]');
 } catch (error) {
   problems.push(String(error?.stack ?? error));
 }
