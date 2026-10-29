@@ -104,6 +104,29 @@ const variants = [
     },
     hint: false,
   },
+  // 交叉实验（把“提示词”与“设定”两个因素分开）：
+  // E = 新写手提示词 + 旧设定（B 的设定）；F = 第一轮写手提示词 + D 的新设定（需先跑过 D）。
+  {
+    id: "E",
+    label: "新写手提示词 + 旧设定",
+    writer: work("writer"),
+    editor: git(`${OLD}:packages/novel/agents/editor/AGENT.md`),
+    style: () => read(styleB),
+    hint: false,
+  },
+  {
+    id: "F",
+    label: "第一轮写手提示词 + D 的新设定",
+    writer: git(`${R1}:packages/novel/agents/writer/AGENT.md`),
+    editor: git(`${OLD}:packages/novel/agents/editor/AGENT.md`),
+    docs: async () =>
+      Object.fromEntries(
+        ["outline.md", "characters.md", "setting.md", "style.md"].map(
+          (name) => [name, read(path.join(outDir, `docs-D-${name}`))],
+        ),
+      ),
+    hint: false,
+  },
 ].filter((variant) => wanted.has(variant.id));
 
 /** 变体工作区：复制 packages/novel，替换写手/编辑提示词，工作流去掉评审（评测只看文字）。 */
