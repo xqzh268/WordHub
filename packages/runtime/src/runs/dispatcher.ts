@@ -36,14 +36,14 @@ type DispatcherDeps = {
   projectService: ProjectService;
   recoverProjectFiles: (id: string) => Promise<WordHubStore>;
   modelSettings: ModelSettings;
+  providerAuth: (
+    id: string,
+  ) => Promise<{ configured: boolean; source?: string }>;
+  reloadProviders: () => Promise<void>;
   testConnection: (
     request: Extract<RuntimeRequest, { type: "settings.testConnection" }>,
   ) => Promise<{ ok: boolean; message: string }>;
-  resumePersistedApproval: (
-    runId: string,
-    approved: boolean,
-    apiKey?: string,
-  ) => Promise<void>;
+  resumePersistedApproval: (runId: string, approved: boolean) => Promise<void>;
   pendingApprovals: Map<string, PendingApproval>;
   runContexts: Map<string, RunContext>;
   active: Map<string, { abort(): void }>;
@@ -61,7 +61,7 @@ type DispatcherDeps = {
   intakeConfirm: (
     request: Extract<RuntimeRequest, { type: "intake.confirm" }>,
   ) => Promise<void>;
-  resumeRun: (runId: string, apiKey?: string) => Promise<void>;
+  resumeRun: (runId: string) => Promise<void>;
 };
 
 export function createRequestHandler(deps: DispatcherDeps) {
@@ -78,6 +78,8 @@ export function createRequestHandler(deps: DispatcherDeps) {
     recoverProjectFiles,
     modelSettings,
     testConnection,
+    providerAuth,
+    reloadProviders,
     resumePersistedApproval,
     pendingApprovals,
     runContexts,
@@ -250,6 +252,34 @@ export function createRequestHandler(deps: DispatcherDeps) {
         sendResponse(request.requestId, view);
         return;
       }
+      if (request.type === "settings.providers") {
+        const providers = await modelSettings.providerList(request.projectPath);
+        sendResponse(request.requestId, {
+          presets: await modelSettings.presets(),
+          providers: await Promise.all(
+            providers.map(async (provider) => ({
+              ...provider,
+              auth: await providerAuth(provider.id),
+            })),
+          ),
+        });
+        return;
+      }
+      if (request.type === "settings.addProvider") {
+        if (request.preset) await modelSettings.addPreset(request.preset);
+        else if (request.custom)
+          await modelSettings.addCustom(request.custom, request.replace);
+        else throw new Error("需要选择预设或填写自定义Provider");
+        await reloadProviders();
+        sendResponse(request.requestId, { saved: true });
+        return;
+      }
+      if (request.type === "settings.removeProvider") {
+        await modelSettings.removeProvider(request.id, request.projectPath);
+        await reloadProviders();
+        sendResponse(request.requestId, { saved: true });
+        return;
+      }
       if (request.type === "settings.testConnection") {
         sendResponse(request.requestId, await testConnection(request));
         return;
@@ -284,7 +314,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
         return;
       }
       if (request.type === "run.resume") {
-        await resumeRun(request.runId, request.apiKey);
+        await resumeRun(request.runId);
         sendResponse(request.requestId, {
           runId: request.runId,
           resumed: true,
@@ -292,8 +322,6 @@ export function createRequestHandler(deps: DispatcherDeps) {
         return;
       }
       if (request.type === "settings.setAgentModel") {
-        if (!request.projectPath)
-          throw new Error("逐Agent模型设置需要项目文件夹");
         await modelSettings.set(
           request.agentId,
           request.model,
@@ -325,11 +353,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
       if (request.type === "run.approve") {
         const pending = pendingApprovals.get(request.runId);
         if (!pending) {
-          await resumePersistedApproval(
-            request.runId,
-            request.approved,
-            request.apiKey,
-          );
+          await resumePersistedApproval(request.runId, request.approved);
           sendResponse(request.requestId, {
             runId: request.runId,
             approved: request.approved,

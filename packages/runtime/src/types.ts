@@ -63,7 +63,14 @@ export type ModelCatalogEntry = {
     outputUsdPerMillion: number;
     cacheReadUsdPerMillion: number;
   };
+  /** 价格来源：用户填写 / 与Pi目录中同名模型一致 / 未知（按0计，界面需明确提示）。内置目录模型省略。 */
+  pricingSource?: "user" | "catalog" | "unknown";
 };
+
+export type CustomProviderApi =
+  | "openai-completions"
+  | "openai-responses"
+  | "anthropic-messages";
 
 export type ProviderConfig = {
   id: string;
@@ -71,6 +78,8 @@ export type ProviderConfig = {
   kind: "builtin" | "openai-compatible" | "custom";
   enabled: boolean;
   baseUrl?: string;
+  /** 自定义Provider使用的Pi协议；builtin忽略。 */
+  api?: CustomProviderApi;
   credentialRef?: string;
   models: ModelCatalogEntry[];
 };

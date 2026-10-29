@@ -1,14 +1,17 @@
-import { createModels } from "@earendil-works/pi-ai";
+import { createModels, InMemoryCredentialStore } from "@earendil-works/pi-ai";
 import {
   fauxAssistantMessage,
   fauxProvider,
   fauxToolCall,
   type FauxResponseFactory,
 } from "@earendil-works/pi-ai/providers/faux";
-import { deepseekProvider } from "@earendil-works/pi-ai/providers/deepseek";
 import path from "node:path";
 import { WordHubStore, createId, timestamp } from "@wordhub/store";
 import { ModelSettings } from "../models/settings.js";
+import {
+  createRuntimeModels,
+  registerCustomProviders,
+} from "../models/providers.js";
 import { ProjectService } from "../projects/service.js";
 import { PiAgentHost } from "../host/pi-agent-host.js";
 import { createRunLoop } from "./live.js";
@@ -21,9 +24,31 @@ import { createNovelIntakeService } from "../novel/intake.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
   const post = options.post;
-  const live = createModels();
-  live.setProvider(deepseekProvider());
+  // 密钥由主进程同步到这里；Pi按Provider先查已存凭据，再查各自的环境变量。
+  const credentialStore = new InMemoryCredentialStore();
+  const syncedProviders = new Set<string>();
+  const syncCredentials = async (keys: Record<string, string>) => {
+    for (const [provider, key] of Object.entries(keys)) {
+      syncedProviders.add(provider);
+      await credentialStore.modify(provider, async () => ({
+        type: "api_key",
+        key,
+      }));
+    }
+    for (const provider of [...syncedProviders])
+      if (!(provider in keys)) {
+        syncedProviders.delete(provider);
+        await credentialStore.delete(provider);
+      }
+  };
+  let credentialsReady: Promise<void> = Promise.resolve();
+  const live = createRuntimeModels({ credentials: credentialStore });
   const models = options.models ?? live;
+  /** 缺密钥时给出明确的Provider名；mock模式不需要。 */
+  const assertAuth = async (provider: string): Promise<void> => {
+    if (!(await models.getAuth(provider)))
+      throw new Error(`${provider}的API密钥未配置，请在设置页添加`);
+  };
   // 仅供Electron faux回归控制观察窗口；正常运行不设置该环境变量。
   const mockTokenRate = Number(process.env.WORDHUB_MOCK_TOKEN_RATE);
   const faux = fauxProvider({
@@ -102,7 +127,16 @@ export function createRunExecutor(options: ExecutorOptions) {
     projectService,
     path.join(options.workspaceRoot, "packages/novel/agents"),
   );
-  const ready = projectService.init();
+  /** 把models.json里的自定义Provider注册进Pi；文件损坏时只记录，不阻止启动。 */
+  const syncProviders = async () => {
+    if (options.models) return;
+    try {
+      registerCustomProviders(live, await modelSettings.config());
+    } catch (error) {
+      console.error("[wordhub-worker] 自定义Provider加载失败", error);
+    }
+  };
+  const ready = projectService.init().then(syncProviders);
   const recoverProjectFiles = (id: string) => projectService.store(id);
   const createProject = (
     request: Extract<RuntimeRequest, { type: "project.create" }>,
@@ -126,6 +160,7 @@ export function createRunExecutor(options: ExecutorOptions) {
         throw new Error(
           `model not found: ${resolved.ref.provider}/${resolved.ref.id}`,
         );
+      if (mode !== "mock") await assertAuth(resolved.ref.provider);
       return {
         models: runtimeModels,
         model,
@@ -207,7 +242,7 @@ export function createRunExecutor(options: ExecutorOptions) {
         resolution: request.decision === "accept" ? "accepted" : "kept",
       },
     );
-    await workflows.continueWorkflow(request.workflowId, request.apiKey);
+    await workflows.continueWorkflow(request.workflowId);
   };
   const intakeAnswer = async (
     request: Extract<RuntimeRequest, { type: "intake.answer" }>,
@@ -215,7 +250,7 @@ export function createRunExecutor(options: ExecutorOptions) {
   const intakeConfirm = async (
     request: Extract<RuntimeRequest, { type: "intake.confirm" }>,
   ) => intake.confirm(request);
-  const resumeRun = async (runId: string, apiKey?: string) => {
+  const resumeRun = async (runId: string) => {
     for (const project of projectService.recent()) {
       const store = await projectService.store(project.id);
       const run = store.getRun(runId);
@@ -237,7 +272,6 @@ export function createRunExecutor(options: ExecutorOptions) {
         agentId:
           typeof payload.agentId === "string" ? payload.agentId : "writer",
         mode: payload.mode === "mock" ? "mock" : "live",
-        apiKey,
         resume: true,
       });
       return;
@@ -248,19 +282,27 @@ export function createRunExecutor(options: ExecutorOptions) {
   async function testConnection(
     request: Extract<RuntimeRequest, { type: "settings.testConnection" }>,
   ): Promise<{ ok: boolean; message: string }> {
-    if (request.provider !== "deepseek")
-      return { ok: false, message: `暂不支持服务商：${request.provider}` };
-    const model = models.getModel("deepseek", "deepseek-flash");
-    if (!model) return { ok: false, message: "DeepSeek模型不可用" };
+    const config = await modelSettings.config(request.projectPath);
+    const entry = config.providers.find((item) => item.id === request.provider);
+    // 未指定模型时选输出价格最低且已知价格的模型，避免用贵模型做连通性测试。
+    const cheapest = [...(entry?.models ?? [])]
+      .filter((item) => item.pricingSource !== "unknown")
+      .sort(
+        (x, y) => x.pricing.outputUsdPerMillion - y.pricing.outputUsdPerMillion,
+      )[0];
+    const modelId = request.model ?? cheapest?.id ?? entry?.models[0]?.id;
+    const model = modelId
+      ? models.getModel(request.provider, modelId)
+      : undefined;
+    if (!entry || !model)
+      return { ok: false, message: `服务商或模型不可用：${request.provider}` };
+    if (!(await models.getAuth(request.provider)))
+      return { ok: false, message: "尚未配置API密钥" };
     const host = new PiAgentHost({
       models,
       model,
       reasoning: "off",
       systemPrompt: "你是连接测试助手。只需回复：连接成功。",
-      getApiKey: () =>
-        request.apiKey ??
-        process.env.DEEPSEEK_API_KEY ??
-        process.env.WORDHUB_DEEPSEEK_API_KEY,
       maxTurns: 1,
       emit: () => undefined,
     });
@@ -305,7 +347,6 @@ export function createRunExecutor(options: ExecutorOptions) {
   async function resumePersistedApproval(
     runId: string,
     approved: boolean,
-    apiKey?: string,
   ): Promise<void> {
     for (const project of projectService.recent()) {
       const store = await projectService.store(project.id);
@@ -321,15 +362,26 @@ export function createRunExecutor(options: ExecutorOptions) {
           ? (started.payload as Record<string, unknown>)
           : {};
       const mode = payload.mode === "mock" ? "mock" : "live";
-      if (
-        mode !== "mock" &&
-        !apiKey &&
-        !process.env.DEEPSEEK_API_KEY &&
-        !process.env.WORDHUB_DEEPSEEK_API_KEY
-      ) {
-        const message = "DeepSeek密钥未配置，无法恢复这次审批";
-        await failPersistedRun(runId, message);
-        throw new Error(message);
+      if (mode !== "mock") {
+        const provider =
+          typeof payload.provider === "string" ? payload.provider : undefined;
+        const ref = (
+          await modelSettings
+            .resolve({
+              agentId:
+                typeof payload.agentId === "string"
+                  ? payload.agentId
+                  : "writer",
+              projectPath: project.folderPath,
+            })
+            .catch(() => undefined)
+        )?.ref;
+        const needed = provider ?? ref?.provider ?? "deepseek";
+        if (!(await models.getAuth(needed))) {
+          const message = `${needed}的API密钥未配置，无法恢复这次审批`;
+          await failPersistedRun(runId, message);
+          throw new Error(message);
+        }
       }
       restoredApprovals.set(runId, approved);
       void runLive({
@@ -342,7 +394,6 @@ export function createRunExecutor(options: ExecutorOptions) {
         model: typeof payload.model === "string" ? payload.model : undefined,
         reasoning:
           typeof payload.reasoning === "string" ? payload.reasoning : undefined,
-        apiKey,
         mode,
         projectId: project.id,
         projectPath: project.folderPath,
@@ -385,6 +436,11 @@ export function createRunExecutor(options: ExecutorOptions) {
     recoverProjectFiles,
     modelSettings,
     testConnection,
+    providerAuth: async (id) => {
+      const check = await models.checkAuth(id);
+      return { configured: Boolean(check), source: check?.source };
+    },
+    reloadProviders: syncProviders,
     resumePersistedApproval,
     pendingApprovals,
     runContexts,
@@ -399,7 +455,18 @@ export function createRunExecutor(options: ExecutorOptions) {
   });
   return {
     ready,
-    handle,
+    async handle(request: RuntimeRequest): Promise<void> {
+      // 密钥同步先于其后到达的所有请求完成，避免请求在密钥写入前读取。
+      if (request.type === "credentials.sync") {
+        credentialsReady = credentialsReady.then(() =>
+          syncCredentials(request.keys),
+        );
+        await credentialsReady;
+        return;
+      }
+      await credentialsReady;
+      await handle(request);
+    },
     close() {
       for (const running of active.values()) running.abort();
       for (const approval of pendingApprovals.values()) approval.resolve(false);

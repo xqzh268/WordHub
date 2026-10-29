@@ -175,7 +175,7 @@ try {
   );
   await page.getByText("只看待确认").click();
 
-  // 定稿按钮（mock 后台：观察者不会真的提事实，但链路应当走完并记录定稿）
+  // 定稿按钮（mock 后台：史官不会真的提事实，但链路应当走完并记录定稿）
   await page.getByRole("tab", { name: /纸面/u }).click();
   await page.waitForSelector('[data-testid="finalize"]');
   check(

@@ -355,7 +355,7 @@ export type DraftModel = {
   model: Model<Api>;
   reasoning: ReasoningLevel;
 };
-type DraftContext = { apiKey?: string; mode?: "live" | "mock" };
+type DraftContext = { mode?: "live" | "mock" };
 
 export function createNovelIntakeService(deps: {
   projects: ProjectService;
@@ -494,12 +494,6 @@ export function createNovelIntakeService(deps: {
     let model: string | undefined;
     let error: string | undefined;
     try {
-      const key =
-        context.apiKey ??
-        process.env.DEEPSEEK_API_KEY ??
-        process.env.WORDHUB_DEEPSEEK_API_KEY;
-      if (context.mode !== "mock" && !key)
-        throw new Error("DeepSeek密钥未配置");
       if (!deps.resolveDraftModel) throw new Error("未配置草稿模型");
       const resolved = await deps.resolveDraftModel(
         located.project.folderPath,
@@ -509,7 +503,6 @@ export function createNovelIntakeService(deps: {
         models: resolved.models,
         model: resolved.model,
         reasoning: resolved.reasoning,
-        apiKey: key,
         answers,
         signal: AbortSignal.timeout(300000),
       });
@@ -547,7 +540,6 @@ export function createNovelIntakeService(deps: {
     intakeId: string;
     questionId: string;
     value: string;
-    apiKey?: string;
     mode?: "live" | "mock";
   }) {
     const located = await locate(request);

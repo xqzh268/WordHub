@@ -182,7 +182,7 @@ export function createWorkflowService(deps: {
       ? undefined
       : chapters.find((chapter) => chapter.number === number);
   };
-  /** 观察者成功后记下“定稿”：路径与当时的内容哈希，之后可判断定稿后是否又改过。 */
+  /** 史官成功后记下“定稿”：路径与当时的内容哈希，之后可判断定稿后是否又改过。 */
   const recordFinalization = async (
     store: WordHubStore,
     request: RunRequest,
@@ -547,7 +547,7 @@ export function createWorkflowService(deps: {
               node.kind === "observe"
                 ? (await finalizeTarget(request))?.path
                 : undefined;
-            const prompt = `${request.prompt}\n任务节点：${node.id}。任务角色：${node.kind}。只执行本节点职责。${node.kind === "edit" ? `读取写手已写入的章节，在同一文件润色；先读取最新正文及哈希。${styleHint}` : ""}${node.kind === "challenge.reply" ? "下方已提供完整质询线程，不要搜索线程ID。必须用其中的threadId调用challenge.reply回应；接受时先用doc.write把修订落盘，反驳时说明证据。成功回应后立即总结。" : ""}${node.id.startsWith("challenge-") && node.kind === "review" ? "复核下方质询与写手回复。已解决则调用challenge.reply，使用原threadId和disposition=accept；仍有矛盾则用原threadId再次调用challenge.raise。不得创建新线程代替复核。" : ""}${node.kind === "observe" ? `定稿章节：${finalizeChapterPath ?? "见任务描述中的章号"}。按观察者职责：用fact.propose提出带逐字原文锚点的待确认事实，最后用chapter.summarize写本章摘要，然后停止。` : ""}${node.kind === "rework" ? "依据已裁决的质询修改章节，先读取最新正文和设定，再用doc.write写回同一路径。" : ""}\n质询与裁决上下文：${JSON.stringify(threads)}\n上游产物：${JSON.stringify(outputs)}\n章节路径以doc.read读取chapters目录清单为准，沿用实际文件名；成功写入一次后简要报告并停止调用工具。`;
+            const prompt = `${request.prompt}\n任务节点：${node.id}。任务角色：${node.kind}。只执行本节点职责。${node.kind === "edit" ? `读取写手已写入的章节，在同一文件润色；先读取最新正文及哈希。${styleHint}` : ""}${node.kind === "challenge.reply" ? "下方已提供完整质询线程，不要搜索线程ID。必须用其中的threadId调用challenge.reply回应；接受时先用doc.write把修订落盘，反驳时说明证据。成功回应后立即总结。" : ""}${node.id.startsWith("challenge-") && node.kind === "review" ? "复核下方质询与写手回复。已解决则调用challenge.reply，使用原threadId和disposition=accept；仍有矛盾则用原threadId再次调用challenge.raise。不得创建新线程代替复核。" : ""}${node.kind === "observe" ? `定稿章节：${finalizeChapterPath ?? "见任务描述中的章号"}。按史官职责：用fact.propose提出带逐字原文锚点的待确认事实，最后用chapter.summarize写本章摘要，然后停止。` : ""}${node.kind === "rework" ? "依据已裁决的质询修改章节，先读取最新正文和设定，再用doc.write写回同一路径。" : ""}\n质询与裁决上下文：${JSON.stringify(threads)}\n上游产物：${JSON.stringify(outputs)}\n章节路径以doc.read读取chapters目录清单为准，沿用实际文件名；成功写入一次后简要报告并停止调用工具。`;
             try {
               await deps.run({
                 ...request,
@@ -687,7 +687,7 @@ export function createWorkflowService(deps: {
     }
     await drive(linked.store, request, definition);
   }
-  async function continueWorkflow(id: string, apiKey?: string) {
+  async function continueWorkflow(id: string) {
     const located = await locate(id);
     const resolution = located.store
       .listEvents(located.request.projectId!, located.request.sessionId)
@@ -700,28 +700,16 @@ export function createWorkflowService(deps: {
     for (const task of located.store.listTasks(id))
       if (task.status === "waiting_approval") {
         located.store.updateTask(task.id, { status: "succeeded" });
-        appendTaskSucceeded(
-          located.store,
-          { ...located.request, apiKey },
-          task.id,
-        );
+        appendTaskSucceeded(located.store, located.request, task.id);
       }
     if (decision === "keep")
       for (const task of located.store.listTasks(id))
         if (task.status === "pending" && task.kind === "rework") {
           located.store.updateTask(task.id, { status: "succeeded" });
-          appendTaskSucceeded(
-            located.store,
-            { ...located.request, apiKey },
-            task.id,
-          );
+          appendTaskSucceeded(located.store, located.request, task.id);
         }
     stopped.delete(id);
-    await drive(
-      located.store,
-      { ...located.request, apiKey },
-      located.definition,
-    );
+    await drive(located.store, located.request, located.definition);
   }
   function stop(id: string) {
     stopped.add(id);

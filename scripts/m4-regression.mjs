@@ -1,4 +1,4 @@
-// M4.7 真实回归（真实 DeepSeek）：全新空项目 → 一句话 → 纲领问答 → 草稿确认 → 写前三章 → 逐章定稿（观察者抽取事实）
+// M4.7 真实回归（真实 DeepSeek）：全新空项目 → 一句话 → 纲领问答 → 草稿确认 → 写前三章 → 逐章定稿（史官抽取事实）
 // → 确认事实 → 预埋跨章矛盾（第三章里老周死了，第四章里老周活着出场）→ 评审第四章 → 干净对照章评审。
 // 记录：各阶段耗时与费用、事实数量、检出与误报。用法：node scripts/m4-regression.mjs
 // 说明：写前三章是真实创作，整个流程通常要几十分钟；结果写入 artifacts/m4-regression-result.json。
@@ -280,7 +280,7 @@ try {
           r.finished && r.slice.some((e) => e.type === "chapter.finalized"),
         );
         check(
-          `${label}：观察者抽取了待确认事实与摘要`,
+          `${label}：史官抽取了待确认事实与摘要`,
           finalizedFacts > 0 &&
             r.slice.some((e) => e.type === "chapter.summary"),
           `${finalizedFacts} 条事实`,
@@ -322,7 +322,7 @@ try {
     };
     check("至少确认了若干事实", clicks > 0, `${clicks} 条`);
     check(
-      "观察者从定稿章节里抽出了预埋的“老周之死”",
+      "史官从定稿章节里抽出了预埋的“老周之死”",
       Boolean(dead),
       dead ? dead.payload.statement : "未抽出",
     );

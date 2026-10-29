@@ -10,7 +10,7 @@ import { projectTools } from "./project.js";
 
 const agent = {
   name: "observer",
-  displayName: "观察者",
+  displayName: "史官",
   description: "测试",
   model: { provider: "deepseek", id: "deepseek-flash", reasoning: "low" },
   tools: ["fact.propose", "chapter.summarize", "doc.read"],

@@ -190,7 +190,7 @@ describe("runtime运行编排", () => {
     executor.close();
   });
 
-  it("审批恢复把注入的密钥交给同一Agent并继续写入", async () => {
+  it("审批恢复后继续写入同一Agent的任务", async () => {
     const root = await mkdtemp(
       path.join(os.tmpdir(), "wordhub-approval-recovery-"),
     );
@@ -226,7 +226,6 @@ describe("runtime运行编排", () => {
       projectPath: project,
       mode: "live",
       agentId: "writer-copy",
-      apiKey: "initial-test-key",
     });
     await waitForMessage(
       firstMessages,
@@ -246,7 +245,6 @@ describe("runtime运行编排", () => {
       type: "run.approve",
       runId: "run_approval_recovery",
       approved: true,
-      apiKey: "saved-only-test-key",
       requestId: "approval-recovery-response",
     });
     await new Promise<void>((resolve) => {
@@ -269,8 +267,7 @@ describe("runtime运行编排", () => {
           message.type === "approval.granted" && message.restored === true,
       ),
     ).toBe(true);
-    expect(seenKeys).toContain("initial-test-key");
-    expect(seenKeys).toContain("saved-only-test-key");
+    expect(seenKeys).toHaveLength(3);
     expect(
       secondMessages.some((message) => message.type === "run.finished"),
     ).toBe(true);
@@ -280,96 +277,77 @@ describe("runtime运行编排", () => {
     second.close();
   });
 
-  it("审批恢复缺少密钥时失败且不把审批标为已裁决", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "wordhub-approval-key-"));
-    const project = path.join(root, "project");
-    await mkdir(path.join(project, ".wordhub", "agents", "writer-copy"), {
-      recursive: true,
-    });
-    await writeFile(
-      path.join(project, ".wordhub", "agents", "writer-copy", "AGENT.md"),
-      approvalAgent,
-      "utf8",
-    );
-    await mkdir(path.join(project, ".wordhub", "bible"), { recursive: true });
-    await writeFile(
-      path.join(project, ".wordhub", "bible", "bible.md"),
-      "设定",
-      "utf8",
-    );
-    const models = approvalModels([]);
-    const firstMessages: Array<Record<string, unknown>> = [];
-    const first = createRunExecutor({
-      storageRoot: path.join(root, "store"),
-      workspaceRoot: process.cwd(),
-      models,
-      post: (message) => firstMessages.push(message),
-    });
-    await first.ready;
-    await first.handle({
-      type: "run",
-      runId: "run_approval_missing_key",
-      prompt: "写第一章",
-      projectPath: project,
-      mode: "live",
-      agentId: "writer-copy",
-      apiKey: "initial-test-key",
-    });
-    await waitForMessage(
-      firstMessages,
-      (message) => message.type === "approval.requested",
-    );
-    first.close();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
+  it("同步的密钥按Provider由Pi解析，删除后回到未配置", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "wordhub-credentials-"));
     const previousKey = process.env.DEEPSEEK_API_KEY;
     delete process.env.DEEPSEEK_API_KEY;
     try {
-      const secondMessages: Array<Record<string, unknown>> = [];
-      const second = createRunExecutor({
+      const messages: Array<Record<string, unknown>> = [];
+      const executor = createRunExecutor({
         storageRoot: path.join(root, "store"),
         workspaceRoot: process.cwd(),
-        models,
-        post: (message) => secondMessages.push(message),
+        post: (message) => messages.push(message),
       });
-      await second.ready;
-      await second.handle({
-        type: "run.approve",
-        runId: "run_approval_missing_key",
-        approved: true,
-        requestId: "approval-missing-key-response",
+      await executor.ready;
+      const providers = async (requestId: string) => {
+        await executor.handle({ type: "settings.providers", requestId });
+        const response = messages.find(
+          (message) => message.requestId === requestId,
+        ) as {
+          result: {
+            providers: Array<{
+              id: string;
+              auth: { configured: boolean; source?: string };
+            }>;
+          };
+        };
+        return response.result.providers.find((item) => item.id === "deepseek");
+      };
+      expect((await providers("p1"))?.auth.configured).toBe(false);
+      await executor.handle({
+        type: "credentials.sync",
+        keys: { deepseek: "synced-test-key" },
       });
-      await waitForMessage(
-        secondMessages,
-        (message) => message.type === "error",
-      );
+      expect((await providers("p2"))?.auth).toEqual({
+        configured: true,
+        source: "stored credential",
+      });
+      await executor.handle({ type: "credentials.sync", keys: {} });
+      expect((await providers("p3"))?.auth.configured).toBe(false);
+      executor.close();
+    } finally {
+      if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY;
+      else process.env.DEEPSEEK_API_KEY = previousKey;
+    }
+  });
+
+  it("真实模式缺少所选Provider的密钥时明确报错", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "wordhub-nokey-"));
+    const project = path.join(root, "project");
+    await mkdir(project, { recursive: true });
+    const previousKey = process.env.DEEPSEEK_API_KEY;
+    delete process.env.DEEPSEEK_API_KEY;
+    try {
+      const messages: Array<Record<string, unknown>> = [];
+      const executor = createRunExecutor({
+        storageRoot: path.join(root, "store"),
+        workspaceRoot: process.cwd(),
+        post: (message) => messages.push(message),
+      });
+      await executor.ready;
+      await executor.handle({
+        type: "run",
+        runId: "run_no_key",
+        prompt: "写第一章",
+        projectPath: project,
+        mode: "live",
+        agentId: "writer",
+      });
+      await waitForMessage(messages, (message) => message.type === "error");
       expect(
-        secondMessages.some((message) => message.type === "approval.granted"),
-      ).toBe(false);
-      expect(
-        secondMessages.some((message) => message.type === "approval.rejected"),
-      ).toBe(false);
-      expect(
-        secondMessages.find((message) => message.type === "error")?.error,
-      ).toContain("DeepSeek密钥未配置");
-      const [projectRecord] = JSON.parse(
-        await readFile(path.join(root, "store", "projects.json"), "utf8"),
-      ) as Array<{ id: string }>;
-      const store = new WordHubStore(
-        path.join(root, "store", "projects", projectRecord!.id),
-      );
-      expect(store.getRun("run_approval_missing_key")?.status).toBe("failed");
-      expect(
-        store
-          .listEvents(projectRecord!.id)
-          .some(
-            (event) =>
-              event.runId === "run_approval_missing_key" &&
-              event.type === "run.error",
-          ),
-      ).toBe(true);
-      store.close();
-      second.close();
+        messages.find((message) => message.type === "error")?.error,
+      ).toContain("deepseek的API密钥未配置");
+      executor.close();
     } finally {
       if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY;
       else process.env.DEEPSEEK_API_KEY = previousKey;

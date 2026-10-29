@@ -15,7 +15,6 @@ export type WorkerRunRequest = {
   rawPrompt?: string;
   agentId?: string;
   mentions?: string[];
-  apiKey?: string;
   model?: string;
   reasoning?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   mode?: "live" | "mock";
@@ -36,7 +35,42 @@ export class PiWorkerHost {
   >();
   private readonly listeners = new Set<(event: AppEvent) => void>();
 
+  private credentialSource?: () => Promise<Record<string, string>>;
+  private syncedCredentials = "";
+  private sendChain: Promise<void> = Promise.resolve();
+
   constructor(private readonly emit: (event: AppEvent) => void) {}
+
+  /** 设置密钥来源；每次发消息前若密钥有变化，会先同步给后台进程。 */
+  setCredentialSource(source: () => Promise<Record<string, string>>): void {
+    this.credentialSource = source;
+  }
+
+  /** 按调用顺序串行发送，保证密钥同步总在依赖它的消息之前。 */
+  private send(message: Record<string, unknown>): void {
+    this.sendChain = this.sendChain.then(async () => {
+      try {
+        const keys = await this.credentialSource?.().catch(() => undefined);
+        if (keys) {
+          const serialized = JSON.stringify(keys);
+          if (serialized !== this.syncedCredentials) {
+            this.child?.postMessage({ type: "credentials.sync", keys });
+            this.syncedCredentials = serialized;
+          }
+        }
+        this.child?.postMessage(message);
+      } catch (error) {
+        // 单条消息发送失败不能卡住后面的队列；有等待响应的请求要让调用方知道。
+        console.error("[wordhub-worker] 发送失败", error);
+        const requestId = message.requestId;
+        if (typeof requestId === "string") {
+          const pending = this.pending.get(requestId);
+          this.pending.delete(requestId);
+          pending?.reject(error);
+        }
+      }
+    });
+  }
 
   setStorageRoot(storageRoot: string): void {
     this.storageRoot = storageRoot;
@@ -54,6 +88,7 @@ export class PiWorkerHost {
   start(): void {
     if (this.child) return;
     this.crashing = false;
+    this.syncedCredentials = "";
     this.setState("starting");
     const workerPath = path.join(
       path.dirname(fileURLToPath(import.meta.url)),
@@ -152,11 +187,11 @@ export class PiWorkerHost {
 
   run(request: WorkerRunRequest): void {
     this.start();
-    this.child?.postMessage({ type: "run", ...request });
+    this.send({ type: "run", ...request });
   }
 
   abort(runId: string): void {
-    this.child?.postMessage({ type: "abort", runId });
+    this.send({ type: "abort", runId });
   }
 
   request<T = unknown>(message: Record<string, unknown>): Promise<T> {
@@ -167,7 +202,7 @@ export class PiWorkerHost {
         resolve: resolve as (value: unknown) => void,
         reject,
       });
-      this.child?.postMessage({ ...message, requestId });
+      this.send({ ...message, requestId });
     });
   }
 

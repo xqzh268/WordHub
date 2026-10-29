@@ -25,6 +25,10 @@ export type WorkspaceCommand =
   | "run.restartWorker"
   | "settings.credentialStatus"
   | "settings.setCredential"
+  | "settings.deleteCredential"
+  | "settings.providers"
+  | "settings.addProvider"
+  | "settings.removeProvider"
   | "settings.models"
   | "settings.setAgentModel"
   | "settings.testConnection"
@@ -82,9 +86,33 @@ export interface CommandPayloads {
   "run.restartWorker": undefined;
   "settings.credentialStatus": undefined;
   "settings.setCredential": { provider: string; secret: string };
+  "settings.deleteCredential": { provider: string };
+  "settings.providers": undefined;
+  "settings.addProvider": {
+    preset?: string;
+    custom?: {
+      id: string;
+      label: string;
+      baseUrl: string;
+      api: "openai-completions" | "openai-responses" | "anthropic-messages";
+      models: Array<{
+        id: string;
+        label?: string;
+        contextWindow?: number;
+        maxOutputTokens?: number;
+        reasoning?: boolean;
+        inputUsdPerMillion?: number;
+        outputUsdPerMillion?: number;
+        cacheReadUsdPerMillion?: number;
+      }>;
+    };
+    /** 编辑已有的自定义服务商时为真。 */
+    replace?: boolean;
+  };
+  "settings.removeProvider": { id: string };
   "settings.models": undefined;
   "settings.setAgentModel": { projectId?: string; agentId: string; model: { provider: string; id: string; reasoning: string } };
-  "settings.testConnection": { provider: string };
+  "settings.testConnection": { provider: string; model?: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
 
@@ -104,7 +132,7 @@ export interface CommandResults {
   "project.prefs.get": { autoReviewOnFinalize: boolean };
   "project.prefs.set": { autoReviewOnFinalize: boolean };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
-  "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; tasks: unknown[]; workflow?: string; label?: string };
+  "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; unpricedModels?: string[]; tasks: unknown[]; workflow?: string; label?: string };
   "run.abort": { runId: string; aborted: boolean };
   "run.resume": { runId: string; resumed: boolean };
   "run.approve": { runId: string; approved: boolean };
@@ -112,8 +140,34 @@ export interface CommandResults {
   "intake.answer": { intakeId: string; questionId: string };
   "intake.confirm": { intakeId: string; confirmed: boolean };
   "run.restartWorker": { worker: WorkspaceSnapshot["worker"] };
-  "settings.credentialStatus": { provider: string; configured: boolean; source?: "saved" | "environment" | "none"; encryptionAvailable: boolean };
+  "settings.credentialStatus": { encryptionAvailable: boolean; saved: string[] };
   "settings.setCredential": { saved: boolean };
+  "settings.deleteCredential": { deleted: boolean };
+  "settings.providers": {
+    presets: Array<{ id: string; label: string; baseUrl?: string; modelCount: number; added: boolean }>;
+    providers: Array<{
+      id: string;
+      label: string;
+      kind: "builtin" | "openai-compatible" | "custom";
+      baseUrl?: string;
+      api?: string;
+      modelCount: number;
+      removable: boolean;
+      userDefined: boolean;
+      /** 仅自定义服务商：完整模型清单（含价格与来源），供编辑。 */
+      models?: Array<{
+        id: string;
+        label: string;
+        contextWindow: number;
+        supportsReasoning: boolean;
+        pricing: { inputUsdPerMillion: number; outputUsdPerMillion: number; cacheReadUsdPerMillion: number };
+        pricingSource?: "user" | "catalog" | "unknown";
+      }>;
+      auth: { configured: boolean; source?: string };
+    }>;
+  };
+  "settings.addProvider": { saved: boolean };
+  "settings.removeProvider": { saved: boolean };
   "settings.models": { agents: Array<{ id: string; displayName: string; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }> };
   "settings.setAgentModel": { saved: boolean };
   "settings.testConnection": { ok: boolean; message: string };

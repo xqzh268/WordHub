@@ -27,43 +27,54 @@ export class ElectronCredentialStore {
     return safeStorage.decryptString(Buffer.from(encrypted, "base64"));
   }
 
+  private async write(values: StoredSecrets): Promise<void> {
+    const filePath = this.filePath();
+    await mkdir(path.dirname(filePath), { recursive: true });
+    const temporary = `${filePath}.${randomUUID()}.tmp`;
+    await writeFile(temporary, JSON.stringify(values, null, 2), "utf8");
+    await rename(temporary, filePath);
+    this.decrypted = undefined;
+  }
+
   async set(provider: string, secret: string): Promise<void> {
     if (!this.encryptionAvailable())
       throw new Error("当前系统的安全存储不可用，未保存密钥");
     const values = await this.read();
     values[provider] = safeStorage.encryptString(secret).toString("base64");
-    const filePath = this.filePath();
-    await mkdir(path.dirname(filePath), { recursive: true });
-    const temporary = `${filePath}.${randomUUID()}.tmp`;
-    await writeFile(temporary, JSON.stringify(values, null, 2), "utf8");
-    await rename(temporary, filePath);
+    await this.write(values);
   }
 
   async delete(provider: string): Promise<void> {
     const values = await this.read();
     delete values[provider];
-    const filePath = this.filePath();
-    await mkdir(path.dirname(filePath), { recursive: true });
-    const temporary = `${filePath}.${randomUUID()}.tmp`;
-    await writeFile(temporary, JSON.stringify(values, null, 2), "utf8");
-    await rename(temporary, filePath);
+    await this.write(values);
   }
 
   async configured(provider: string): Promise<boolean> {
     return Boolean(await this.get(provider));
   }
 
-  async source(provider: string): Promise<"saved" | "environment" | "none"> {
-    if (await this.get(provider)) return "saved";
-    if (provider === "deepseek" && process.env.DEEPSEEK_API_KEY)
-      return "environment";
-    return "none";
+  /** 解密结果缓存在主进程内存里，保存或删除密钥时失效。 */
+  private decrypted: Record<string, string> | undefined;
+
+  /** 全部已保存的明文密钥，只用于同步给后台进程，不进入渲染器或事件。 */
+  async all(): Promise<Record<string, string>> {
+    if (!this.encryptionAvailable()) return {};
+    if (this.decrypted) return this.decrypted;
+    const keys: Record<string, string> = {};
+    for (const [provider, encrypted] of Object.entries(await this.read()))
+      try {
+        keys[provider] = safeStorage.decryptString(
+          Buffer.from(encrypted, "base64"),
+        );
+      } catch {
+        // 无法解密的旧条目视为未保存。
+      }
+    this.decrypted = keys;
+    return keys;
   }
 
-  async resolve(provider: string): Promise<string | undefined> {
-    return (
-      (await this.get(provider)) ??
-      (provider === "deepseek" ? process.env.DEEPSEEK_API_KEY : undefined)
-    );
+  async savedProviders(): Promise<string[]> {
+    return Object.keys(await this.read());
   }
 }

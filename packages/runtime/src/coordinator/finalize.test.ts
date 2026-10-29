@@ -15,7 +15,7 @@ import { fixture, waitFor } from "./test-helpers.js";
 
 const CHAPTER = "老周倒在质库后墙下，再没有起来。\n";
 
-/** 观察者：先提一条事实，再写摘要，最后收尾；评审：说明无矛盾。 */
+/** 史官：先提一条事实，再写摘要，最后收尾；评审：说明无矛盾。 */
 const script = (context: {
   messages: Array<{ role: string; content: unknown }>;
 }) => {
@@ -65,7 +65,7 @@ async function projectEvents(root: string) {
 }
 
 describe("定稿动作", () => {
-  it("定稿：观察者抽取待确认事实并写摘要，记录定稿，链路可回放", async () => {
+  it("定稿：史官抽取待确认事实并写摘要，记录定稿，链路可回放", async () => {
     const f = await fixture(script as never);
     try {
       await mkdir(path.join(f.project, "chapters"), { recursive: true });
@@ -136,7 +136,7 @@ describe("定稿动作", () => {
     }
   });
 
-  it("打开“定稿后自动评审”后，观察者之后接着评审", async () => {
+  it("打开“定稿后自动评审”后，史官之后接着评审", async () => {
     const f = await fixture(script as never);
     try {
       await mkdir(path.join(f.project, "chapters"), { recursive: true });

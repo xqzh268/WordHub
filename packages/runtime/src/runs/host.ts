@@ -22,10 +22,6 @@ export function createRunHost(
       ...deps.configuredTools,
       ...(deps.request.toolRoundTrip ? [deps.echoTool] : []),
     ],
-    getApiKey: () =>
-      deps.request.apiKey ??
-      process.env.DEEPSEEK_API_KEY ??
-      process.env.WORDHUB_DEEPSEEK_API_KEY,
     maxTurns: deps.definition?.maxTurns ?? 20,
     onCheckpoint: async (messages) => {
       state.activeModelForSnapshot = {

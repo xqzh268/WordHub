@@ -1,5 +1,6 @@
 import type { Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "../types.js";
+import type { CustomProviderInput } from "../models/providers.js";
 import type { RunRequest } from "./run-types.js";
 
 export type RuntimeRequest =
@@ -83,16 +84,31 @@ export type RuntimeRequest =
       type: "run.approve";
       runId: string;
       approved: boolean;
-      apiKey?: string;
       requestId: string;
     }
   | { type: "settings.models"; projectPath?: string; requestId: string }
   | {
       type: "settings.testConnection";
       provider: string;
-      apiKey?: string;
+      model?: string;
+      projectPath?: string;
       requestId: string;
     }
+  | { type: "settings.providers"; projectPath?: string; requestId: string }
+  | {
+      type: "settings.addProvider";
+      preset?: string;
+      custom?: CustomProviderInput;
+      replace?: boolean;
+      requestId: string;
+    }
+  | {
+      type: "settings.removeProvider";
+      id: string;
+      projectPath?: string;
+      requestId: string;
+    }
+  | { type: "credentials.sync"; keys: Record<string, string> }
   | {
       type: "run.estimate";
       prompt: string;
@@ -110,13 +126,12 @@ export type RuntimeRequest =
       requestId: string;
     }
   | RunRequest
-  | { type: "run.resume"; runId: string; apiKey?: string; requestId: string }
+  | { type: "run.resume"; runId: string; requestId: string }
   | {
       type: "challenge.decide";
       workflowId: string;
       threadId: string;
       decision: "accept" | "keep";
-      apiKey?: string;
       requestId: string;
     }
   | {
@@ -127,7 +142,6 @@ export type RuntimeRequest =
       questionId: string;
       value: string;
       requestId: string;
-      apiKey?: string;
       mode?: "live" | "mock";
     }
   | {
@@ -136,7 +150,6 @@ export type RuntimeRequest =
       sessionId: string;
       intakeId: string;
       requestId: string;
-      apiKey?: string;
       mode?: "live" | "mock";
     }
   | { type: "abort"; runId: string };

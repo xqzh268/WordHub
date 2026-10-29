@@ -48,8 +48,8 @@ export const AGENTS: AgentMeta[] = [
   },
   {
     id: "observer",
-    name: "观察者",
-    glyph: "观",
+    name: "史官",
+    glyph: "史",
     color: "var(--agent-observer)",
     role: "抽取人物、事实与关系",
     model: "deepseek-flash",
@@ -57,7 +57,7 @@ export const AGENTS: AgentMeta[] = [
   },
 ];
 
-/** 侧栏与 @ 名单里列出的 Agent：观察者只作为“定稿”动作的内部步骤，不单独对话。 */
+/** 侧栏与 @ 名单里列出的 Agent：史官只作为“定稿”动作的内部步骤，不单独对话。 */
 export const LISTED_AGENTS: AgentMeta[] = AGENTS.filter(
   (agent) => agent.id !== "observer",
 );

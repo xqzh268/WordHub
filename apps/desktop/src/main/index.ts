@@ -29,10 +29,13 @@ const worker = new PiWorkerHost((event) =>
   mainWindow?.webContents.send("wordhub:event", event),
 );
 const credentials = new ElectronCredentialStore();
-const inheritedDeepSeekKey = (): string | undefined =>
-  process.env.DEEPSEEK_API_KEY ?? process.env.WORDHUB_DEEPSEEK_API_KEY;
-const resolveDeepSeekKey = async (): Promise<string | undefined> =>
-  (await credentials.resolve("deepseek")) ?? inheritedDeepSeekKey();
+// 保存的密钥在每次请求前同步给后台进程；各Provider的环境变量由Pi在后台进程里读取。
+worker.setCredentialSource(async () => ({
+  ...(process.env.WORDHUB_DEEPSEEK_API_KEY
+    ? { deepseek: process.env.WORDHUB_DEEPSEEK_API_KEY }
+    : {}),
+  ...(await credentials.all()),
+}));
 
 // 自绘标题栏：窗口控制按钮由系统叠加绘制，颜色需与渲染进程的主题 token 保持一致。
 const TITLEBAR_HEIGHT = 44;
@@ -215,7 +218,6 @@ function registerIpc(): void {
           rawPrompt: payload.rawPrompt,
           agentId: payload.agentId,
           mentions: payload.mentions,
-          apiKey: await resolveDeepSeekKey(),
           mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
           projectPath: payload.projectPath ?? linkedFolder ?? undefined,
           projectId: payload.projectId ?? projectId,
@@ -247,7 +249,6 @@ function registerIpc(): void {
         return await worker.request<CommandResults["run.resume"]>({
           type: "run.resume",
           runId: payload.runId,
-          apiKey: await resolveDeepSeekKey(),
         });
       }
       if (command === "run.approve") {
@@ -256,7 +257,6 @@ function registerIpc(): void {
           type: "run.approve",
           runId: payload.runId,
           approved: payload.approved,
-          apiKey: await resolveDeepSeekKey(),
         });
       }
       if (command === "challenge.decide") {
@@ -266,7 +266,6 @@ function registerIpc(): void {
           workflowId: payload.workflowId,
           threadId: payload.threadId,
           decision: payload.decision,
-          apiKey: await resolveDeepSeekKey(),
         });
       }
       if (command === "intake.answer") {
@@ -278,7 +277,6 @@ function registerIpc(): void {
           intakeId: payload.intakeId,
           questionId: payload.questionId,
           value: payload.value,
-          apiKey: await resolveDeepSeekKey(),
           mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
         });
       }
@@ -289,16 +287,13 @@ function registerIpc(): void {
           projectId: payload.projectId,
           sessionId: payload.sessionId,
           intakeId: payload.intakeId,
-          apiKey: await resolveDeepSeekKey(),
           mode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
         });
       }
       if (command === "settings.credentialStatus") {
         return {
-          provider: "deepseek",
-          configured: (await credentials.source("deepseek")) !== "none",
-          source: await credentials.source("deepseek"),
           encryptionAvailable: credentials.encryptionAvailable(),
+          saved: await credentials.savedProviders(),
         } as CommandResults["settings.credentialStatus"];
       }
       if (command === "settings.setCredential") {
@@ -307,6 +302,37 @@ function registerIpc(): void {
         if (!payload.secret.trim()) throw new Error("密钥不能为空");
         await credentials.set(payload.provider, payload.secret.trim());
         return { saved: true } as CommandResults["settings.setCredential"];
+      }
+      if (command === "settings.deleteCredential") {
+        const payload =
+          request.payload as CommandPayloads["settings.deleteCredential"];
+        await credentials.delete(payload.provider);
+        return { deleted: true } as CommandResults["settings.deleteCredential"];
+      }
+      if (command === "settings.providers") {
+        return await worker.request<CommandResults["settings.providers"]>({
+          type: "settings.providers",
+          projectPath: linkedFolder ?? undefined,
+        });
+      }
+      if (command === "settings.addProvider") {
+        const payload =
+          request.payload as CommandPayloads["settings.addProvider"];
+        return await worker.request<CommandResults["settings.addProvider"]>({
+          type: "settings.addProvider",
+          preset: payload.preset,
+          custom: payload.custom,
+          replace: payload.replace,
+        });
+      }
+      if (command === "settings.removeProvider") {
+        const payload =
+          request.payload as CommandPayloads["settings.removeProvider"];
+        return await worker.request<CommandResults["settings.removeProvider"]>({
+          type: "settings.removeProvider",
+          id: payload.id,
+          projectPath: linkedFolder ?? undefined,
+        });
       }
       if (command === "settings.models") {
         return await worker.request<CommandResults["settings.models"]>({
@@ -341,10 +367,8 @@ function registerIpc(): void {
         return await worker.request<CommandResults["settings.testConnection"]>({
           type: "settings.testConnection",
           provider: payload.provider,
-          apiKey:
-            payload.provider === "deepseek"
-              ? await resolveDeepSeekKey()
-              : await credentials.resolve(payload.provider),
+          model: payload.model,
+          projectPath: linkedFolder ?? undefined,
         });
       }
       if (command === "app.setTheme") {

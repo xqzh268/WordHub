@@ -63,7 +63,7 @@ export type State = Prefs & {
   /** 项目 chapters/ 目录下的章节（磁盘为准），按章号排序 */
   chapters: ChapterInfo[];
   activeChapter: string | null;
-  /** 观察者抽取的事实（待确认 / 已确认 / 已驳回），来自事件日志投影 */
+  /** 史官抽取的事实（待确认 / 已确认 / 已驳回），来自事件日志投影 */
   facts: NovelFact[];
   summaries: ChapterSummary[];
   finalized: string[];
@@ -369,7 +369,7 @@ export const useWorkbench = create<State>((set, get) => {
               kind: "notice",
               id: uid("estimate"),
               at: Date.now(),
-              text: `${estimate.label ?? "本次运行"}预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元（运行不设上限）。`,
+              text: `${estimate.label ?? "本次运行"}预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元（运行不设上限）。${estimate.unpricedModels?.length ? `注意：${estimate.unpricedModels.join("、")}的价格未知，这部分费用未计入，可在设置里为它填写价格。` : ""}`,
             },
           ]);
         await window.wordhub.invoke("run.start", {

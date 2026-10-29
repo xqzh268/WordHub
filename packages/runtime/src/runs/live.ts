@@ -14,13 +14,6 @@ import { echoTool } from "./echo-tool.js";
 import { hasPendingEscalation } from "./escalation.js";
 export function createRunLoop(deps: RunLoopDeps) {
   async function runLive(request: RunRequest): Promise<void> {
-    if (
-      request.mode !== "mock" &&
-      !request.apiKey &&
-      !process.env.DEEPSEEK_API_KEY &&
-      !process.env.WORDHUB_DEEPSEEK_API_KEY
-    )
-      throw new Error("DeepSeek密钥未配置");
     const store = await deps.ensureRunContext(request);
     const runtime = await deps.resolveAgent(request);
     const runtimeModels =
@@ -35,6 +28,13 @@ export function createRunLoop(deps: RunLoopDeps) {
           runtime.modelRef.provider +
           "/" +
           runtime.modelRef.id,
+      );
+    if (
+      request.mode !== "mock" &&
+      !(await runtimeModels.getAuth(runtime.modelRef.provider))
+    )
+      throw new Error(
+        `${runtime.modelRef.provider}的API密钥未配置，请在设置页添加`,
       );
     const agentId = runtime.definition?.name ?? request.agentId ?? "writer";
     const snapshot = request.resume

@@ -1,10 +1,24 @@
 import { Monitor, Moon, Sun } from "lucide-react";
+import type { CommandResults } from "@wordhub/contracts";
+import { ProviderSettings } from "./ProviderSettings";
 import { motion } from "motion/react";
 import type { ThemePreference } from "@wordhub/contracts";
 import { AGENTS } from "../lib/agents";
 import { useWorkbench, type ReadingFont } from "../state/store";
 import { Seal } from "./Seal";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+type ModelData = CommandResults["settings.models"];
+
+/** 换模型时尽量沿用原思考强度；不支持就取接近的高档，而不是退到列表第一项（常是 off）。 */
+function pickReasoning(supported: string[], current: string): string {
+  if (supported.includes(current) || supported.length === 0) return current;
+  return (
+    ["high", "medium", "low"].find((level) => supported.includes(level)) ??
+    supported[0] ??
+    current
+  );
+}
 
 const THEMES: { id: ThemePreference; label: string; Icon: typeof Sun }[] = [
   { id: "light", label: "宣纸", Icon: Sun },
@@ -49,39 +63,14 @@ export function SettingsView() {
       .then((prefs) => setAutoReview(prefs.autoReviewOnFinalize))
       .catch(() => undefined);
   }, [projectId]);
-  const [secret, setSecret] = useState("");
-  const [credentialState, setCredentialState] = useState<{
-    configured: boolean;
-    source?: "saved" | "environment" | "none";
-    encryptionAvailable: boolean;
-  } | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [connectionMessage, setConnectionMessage] = useState("");
-  const [modelData, setModelData] = useState<Awaited<
-    ReturnType<NonNullable<typeof window.wordhub>["invoke"]>
-  > | null>(null);
-
-  useEffect(() => {
-    void window.wordhub
-      ?.invoke("settings.credentialStatus", undefined)
-      .then((result) => setCredentialState(result));
+  const [modelData, setModelData] = useState<ModelData | null>(null);
+  const [modelFilter, setModelFilter] = useState("");
+  const reloadModels = useCallback(() => {
     void window.wordhub
       ?.invoke("settings.models", undefined)
       .then((result) => setModelData(result));
   }, []);
-
-  const saveCredential = async () => {
-    if (!secret.trim()) return;
-    await window.wordhub?.invoke("settings.setCredential", {
-      provider: "deepseek",
-      secret,
-    });
-    setSecret("");
-    setSaved(true);
-    setCredentialState((state) =>
-      state ? { ...state, configured: true, source: "saved" } : state,
-    );
-  };
+  useEffect(reloadModels, [reloadModels]);
 
   return (
     <div className="page selectable" data-testid="settings">
@@ -91,61 +80,7 @@ export function SettingsView() {
           <p>让写作的环境，贴近你习惯的纸。</p>
         </header>
 
-        <section className="panel-section">
-          <h2>服务商与密钥</h2>
-          <div className="field">
-            <div className="field-label">
-              <strong>DeepSeek</strong>
-              <span>
-                {credentialState?.encryptionAvailable === false
-                  ? "系统安全存储不可用"
-                  : credentialState?.source === "environment"
-                    ? "使用系统环境变量密钥"
-                    : credentialState?.configured
-                      ? "密钥已加密保存"
-                      : "尚未配置密钥"}
-              </span>
-            </div>
-            <div className="credential-row">
-              <input
-                className="text-input mono"
-                type="password"
-                value={secret}
-                onChange={(event) => {
-                  setSecret(event.target.value);
-                  setSaved(false);
-                }}
-                placeholder="输入API key，不会回显"
-                aria-label="DeepSeek API key"
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => void saveCredential()}
-                disabled={
-                  !secret.trim() ||
-                  credentialState?.encryptionAvailable === false
-                }
-              >
-                {saved ? "已保存" : "保存"}
-              </button>
-              <button
-                className="btn"
-                onClick={() =>
-                  void window.wordhub
-                    ?.invoke("settings.testConnection", {
-                      provider: "deepseek",
-                    })
-                    .then((result) => setConnectionMessage(result.message))
-                }
-              >
-                测试连接
-              </button>
-            </div>
-            {connectionMessage && (
-              <p className="section-note">{connectionMessage}</p>
-            )}
-          </div>
-        </section>
+        <ProviderSettings onChanged={reloadModels} />
 
         <section className="panel-section">
           <h2>写作流程</h2>
@@ -167,7 +102,7 @@ export function SettingsView() {
           </label>
           <p className="section-note">
             {projectId
-              ? "章节定稿（观察者抽取事实、写摘要）之后，自动再跑一轮评审。默认关闭。"
+              ? "章节定稿（史官抽取事实、写摘要）之后，自动再跑一轮评审。默认关闭。"
               : "先链接一个项目文件夹，才能设置项目级的写作流程。"}
           </p>
         </section>
@@ -245,10 +180,73 @@ export function SettingsView() {
         <section className="panel-section">
           <h2>模型分配</h2>
           <p className="section-note">
-            模型和思考强度保存到当前项目的`.wordhub/agent-models.json`。
+            为每个 Agent 选择服务商下的模型和思考强度。已链接项目时保存到项目的
+            `.wordhub/agent-models.json`，否则保存为全局默认。史官在你点“定稿”时抽取事实、写章节摘要。
           </p>
+          <div className="credential-row" style={{ marginBottom: 12 }}>
+            <input
+              className="text-input"
+              value={modelFilter}
+              onChange={(event) => setModelFilter(event.target.value)}
+              placeholder="筛选模型（名称或ID）"
+              aria-label="筛选模型"
+            />
+            <select
+              className="text-input"
+              value=""
+              onChange={(event) => {
+                const value = event.target.value;
+                const slash = value.indexOf("/");
+                if (slash < 1 || !modelData) return;
+                const provider = value.slice(0, slash);
+                const id = value.slice(slash + 1);
+                const supported =
+                  modelData.providers
+                    .find((item) => item.id === provider)
+                    ?.models.find((item) => item.id === id)
+                    ?.supportedReasoning ?? [];
+                // 必须顺序提交：每次都是读-改-写同一个 agent-models.json，并发会互相覆盖。
+                void (async () => {
+                  for (const agent of modelData.agents)
+                    await window.wordhub?.invoke("settings.setAgentModel", {
+                      agentId: agent.id,
+                      model: {
+                        provider,
+                        id,
+                        reasoning: pickReasoning(
+                          supported,
+                          agent.model.reasoning,
+                        ),
+                      },
+                    });
+                  reloadModels();
+                })();
+              }}
+              aria-label="全部角色使用同一模型"
+            >
+              <option value="">全部角色改用…</option>
+              {(modelData?.providers ?? []).map((provider) => (
+                <optgroup key={provider.id} label={provider.label}>
+                  {provider.models
+                    .filter((model) =>
+                      `${model.label} ${model.id}`
+                        .toLowerCase()
+                        .includes(modelFilter.trim().toLowerCase()),
+                    )
+                    .map((model) => (
+                      <option
+                        key={`${provider.id}/${model.id}`}
+                        value={`${provider.id}/${model.id}`}
+                      >
+                        {model.label}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
           <ul className="model-table" role="list">
-            {(modelData && "agents" in modelData
+            {(modelData
               ? modelData.agents
               : AGENTS.map((agent) => ({
                   id: agent.id,
@@ -261,12 +259,9 @@ export function SettingsView() {
                   source: "builtin",
                 }))
             ).map((agent) => {
-              const provider =
-                modelData && "providers" in modelData
-                  ? modelData.providers.find(
-                      (item) => item.id === agent.model.provider,
-                    )
-                  : undefined;
+              const provider = modelData?.providers.find(
+                (item) => item.id === agent.model.provider,
+              );
               const selectedModel = provider?.models.find(
                 (item) => item.id === agent.model.id,
               );
@@ -283,12 +278,7 @@ export function SettingsView() {
                     agentId: agent.id,
                     model,
                   })
-                  .then(
-                    () =>
-                      void window.wordhub
-                        ?.invoke("settings.models", undefined)
-                        .then((result) => setModelData(result)),
-                  );
+                  .then(reloadModels);
               return (
                 <li key={agent.id}>
                   <Seal
@@ -306,37 +296,47 @@ export function SettingsView() {
                     className="text-input mono"
                     value={`${agent.model.provider}/${agent.model.id}`}
                     onChange={(event) => {
-                      const [provider, id] = event.target.value.split("/");
-                      if (!provider || !id) return;
-                      const providerModel =
-                        modelData && "providers" in modelData
-                          ? modelData.providers
-                              .find((item) => item.id === provider)
-                              ?.models.find((item) => item.id === id)
-                          : undefined;
-                      const supported = providerModel?.supportedReasoning ?? [];
-                      const reasoning = supported.includes(
-                        agent.model.reasoning as (typeof supported)[number],
-                      )
-                        ? agent.model.reasoning
-                        : (supported[0] ?? agent.model.reasoning);
-                      saveModel({ provider, id, reasoning });
+                      // 模型ID本身可含"/"（如OpenRouter），只按第一个"/"拆分。
+                      const value = event.target.value;
+                      const slash = value.indexOf("/");
+                      const provider = value.slice(0, slash);
+                      const id = value.slice(slash + 1);
+                      if (slash < 1 || !id) return;
+                      const providerModel = modelData?.providers
+                        .find((item) => item.id === provider)
+                        ?.models.find((item) => item.id === id);
+                      saveModel({
+                        provider,
+                        id,
+                        reasoning: pickReasoning(
+                          providerModel?.supportedReasoning ?? [],
+                          agent.model.reasoning,
+                        ),
+                      });
                     }}
                     aria-label={`${agent.displayName}模型`}
                   >
-                    {(modelData && "providers" in modelData
-                      ? modelData.providers
-                      : []
-                    ).flatMap((provider) =>
-                      provider.models.map((model) => (
-                        <option
-                          key={`${provider.id}/${model.id}`}
-                          value={`${provider.id}/${model.id}`}
-                        >
-                          {model.label}
-                        </option>
-                      )),
-                    )}
+                    {(modelData?.providers ?? []).map((provider) => (
+                      <optgroup key={provider.id} label={provider.label}>
+                        {provider.models
+                          .filter(
+                            (model) =>
+                              (provider.id === agent.model.provider &&
+                                model.id === agent.model.id) ||
+                              `${model.label} ${model.id}`
+                                .toLowerCase()
+                                .includes(modelFilter.trim().toLowerCase()),
+                          )
+                          .map((model) => (
+                            <option
+                              key={`${provider.id}/${model.id}`}
+                              value={`${provider.id}/${model.id}`}
+                            >
+                              {model.label}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
                   </select>
                   <select
                     className="text-input mono"

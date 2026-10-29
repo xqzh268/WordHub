@@ -92,7 +92,6 @@ export type GenerateDraftOptions = {
   models: Models;
   model: Model<Api>;
   reasoning: ReasoningLevel;
-  apiKey?: string;
   answers: IntakeAnswer;
   signal?: AbortSignal;
   /** 解析失败时的重试次数，默认 1 */
@@ -118,7 +117,6 @@ export async function generateDraft(
         ],
       },
       {
-        apiKey: options.apiKey,
         reasoning: options.reasoning === "off" ? undefined : options.reasoning,
         signal: options.signal,
       },

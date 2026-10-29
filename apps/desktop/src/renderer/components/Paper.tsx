@@ -126,7 +126,7 @@ export function PaperPane() {
             className={`btn finalize-btn ${isFinalized ? "done" : ""}`}
             data-testid="finalize"
             disabled={busy || !activeChapter}
-            title="观察者会抽取待确认的事实并写章节摘要"
+            title="史官会抽取待确认的事实并写章节摘要"
             onClick={() => activeChapter && void send(`定稿 ${activeChapter}`)}
           >
             {isFinalized ? "重新定稿" : "定稿"}
@@ -228,7 +228,7 @@ function FactsPanel() {
       <Soft
         icon={<BookOpenText size={22} strokeWidth={1.25} />}
         title="还没有事实"
-        text="章节定稿时，观察者会把人物状态、新名词与伏笔整理成待确认的候选事实，由你确认或驳回。"
+        text="章节定稿时，史官会把人物状态、新名词与伏笔整理成待确认的候选事实，由你确认或驳回。"
       />
     );
   const chapters = [

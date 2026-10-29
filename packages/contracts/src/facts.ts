@@ -1,6 +1,6 @@
 import type { Event } from "./domain.js";
 
-/** 观察者抽取的事实类别（M4.5）。 */
+/** 史官抽取的事实类别（M4.5）。 */
 export const FACT_KINDS = [
   "character_state",
   "term",
@@ -31,7 +31,7 @@ export type NovelFact = {
   proposedAt: string;
   decidedAt?: string;
   runId?: string;
-  /** 观察者对不确定之处的备注 */
+  /** 史官对不确定之处的备注 */
   note?: string;
 };
 

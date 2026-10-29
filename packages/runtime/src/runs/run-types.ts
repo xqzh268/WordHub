@@ -12,7 +12,6 @@ export type RunRequest = {
   rawPrompt?: string;
   agentId?: string;
   mentions?: string[];
-  apiKey?: string;
   model?: string;
   reasoning?: string;
   mode?: "live" | "mock";
