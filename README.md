@@ -17,7 +17,7 @@
 
 当前可以链接中文路径的写作文件夹、创建会话、调用角色Agent、运行写手→编辑或评审流程、处理升级裁决，以及查看工具、用量和上下文来源。事件日志、运行快照和正文修订持久化到本地，支持已覆盖场景下的审批恢复和冲突保留。
 
-详细实现范围和验收缺口见[M4进展](docs/m4-progress.md)。全量自动化通过不等于小说创作质量、跨章一致性或M4完整产品验收通过。
+详细实现范围和验收缺口见[M4进展](docs/m4-progress.md)，多服务商验收见[providers-acceptance](docs/providers-acceptance.md)。全量自动化通过不等于小说创作质量、跨章一致性或M4完整产品验收通过。
 
 ## 本地启动
 
@@ -103,6 +103,7 @@ npm run build:desktop
 npm run test:desktop
 npm run test:layout
 npm run test:m1:e2e
+npm run test:providers:e2e
 ```
 
 2026-10-13重新验证的结果见[M4验证记录](docs/m4-progress.md#验证记录)。桌面相关脚本依赖已构建的`out/`。
@@ -115,10 +116,11 @@ npm run test:m1:e2e
 $env:WORDHUB_REQUIRE_LIVE = "1"
 npm run test:m3:live
 npm run test:m3:neutral
+npm run test:providers:live
 Remove-Item Env:WORDHUB_REQUIRE_LIVE -ErrorAction SilentlyContinue
 ```
 
-`test:m3:live`检查质询、裁决、返工、章节文字和工作流终态；`test:m3:neutral`只给评审事实与评审意图，默认重复三次，度量检出率与误报率。未配置密钥时默认跳过；设置`WORDHUB_REQUIRE_LIVE=1`后会明确失败。应用内保存的密钥不会自动提供给这些脚本。
+`test:providers:live`在应用进程没有内置密钥的前提下，只用设置页添加的自定义服务商完成写章、定稿与强杀后审批恢复。`test:m3:live`检查质询、裁决、返工、章节文字和工作流终态；`test:m3:neutral`只给评审事实与评审意图，默认重复三次，度量检出率与误报率。未配置密钥时默认跳过；设置`WORDHUB_REQUIRE_LIVE=1`后会明确失败。应用内保存的密钥不会自动提供给这些脚本。
 
 [常规CI](.github/workflows/ci.yml)在Windows运行确定性门禁；[中立评测夜间任务](.github/workflows/m3-neutral-nightly.yml)配置为北京时间每日02:30，由GitHub Actions调度，需要仓库Secret `DEEPSEEK_API_KEY`。[M3完整真实回归](.github/workflows/m3-live-manual.yml)保持手动触发。工作流文件已提供，远端运行结果须在Actions中另行确认。
 
