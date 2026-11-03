@@ -264,5 +264,6 @@ describe("导出：字体列表", () => {
     const fonts = await listInstalledFonts();
     expect(Array.isArray(fonts)).toBe(true);
     if (process.platform === "win32") expect(fonts.length).toBeGreaterThan(0);
-  });
+    // PowerShell 冷启动加载 .NET 在 CI 上可能要好几秒，超过 vitest 默认的 5 秒；函数本身给了 15 秒。
+  }, 30000);
 });
