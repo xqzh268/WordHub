@@ -24,15 +24,15 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-m1-e2e-"));
 const storageRoot = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
 fs.mkdirSync(folder, { recursive: true });
-fs.mkdirSync(path.join(folder, ".wordhub", "agents", "writer"), {
+fs.mkdirSync(path.join(folder, ".wordhub", "agents", "scribe"), {
   recursive: true,
 });
 fs.writeFileSync(
-  path.join(folder, ".wordhub", "agents", "writer", "AGENT.md"),
+  path.join(folder, ".wordhub", "agents", "scribe", "AGENT.md"),
   `---
-name: writer
-displayName: 写手
-description: M1审批恢复测试写手
+name: scribe
+displayName: 抄写
+description: M1审批恢复测试：写入前需确认的自建 Agent
 model: { provider: deepseek, id: deepseek-flash, reasoning: low }
 tools: [bible.read, doc.write]
 write: write
@@ -257,7 +257,7 @@ try {
   // ── 审批恢复：审批中强杀，不带环境密钥重开后批准 ────────
   await page.fill(
     '[data-testid="composer-input"]',
-    "@写手 请写入第一章，验证审批恢复。",
+    "@抄写 请写入第一章，验证审批恢复。",
   );
   await page.click('[data-testid="send"]');
   await page.waitForSelector(".approval:not(.resolved)", { timeout: 8000 });
@@ -309,6 +309,9 @@ try {
     JSON.stringify({ ok: failed.length === 0, findings }, null, 2),
   );
   console.log(`\n${findings.length - failed.length}/${findings.length} 通过`);
-  fs.rmSync(tmp, { recursive: true, force: true });
+  // 应用刚关闭时 Windows 可能还锁着文件（EPERM）；清理失败不应让已通过的测试变红。用异步 rm（Node 24 的 rmSync 删中文路径会崩）。
+  await fs.promises
+    .rm(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 400 })
+    .catch(() => undefined);
   if (failed.length) process.exitCode = 1;
 }

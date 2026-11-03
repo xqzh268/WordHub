@@ -1,7 +1,7 @@
 import { ChevronsUpDown, FolderPlus, Plus, RotateCw } from "lucide-react";
 import type { CommandResults } from "@wordhub/contracts";
 import { useCallback, useEffect, useState } from "react";
-import { type AgentMeta, allAgents, WORKER_LABEL } from "../lib/agents";
+import { allAgents, customAgentsFromModels, WORKER_LABEL } from "../lib/agents";
 import { AgentForm } from "./AgentForm";
 import { pickReasoning, shortModel } from "../lib/models";
 import { useWorkbench } from "../state/store";
@@ -36,24 +36,19 @@ export function SessionPanel() {
       .then((data) => {
         setModelData(data);
         // 项目里自建的 Agent：登记到渲染端注册表，名字、头像、@ 才能认出它们
-        const custom: AgentMeta[] = data.agents
-          .filter((agent) => agent.source === "project")
-          .map((agent) => ({
-            id: agent.id,
-            name: agent.displayName,
-            glyph:
-              agent.avatar?.glyph || Array.from(agent.displayName)[0] || "?",
-            color: agent.avatar?.color || "var(--ink-3)",
-            role: agent.description ?? "自建 Agent",
-            model: agent.model.id,
-            reasoning: agent.model.reasoning,
-          }));
-        useWorkbench.getState().setCustomAgents(custom);
+        useWorkbench
+          .getState()
+          .setCustomAgents(customAgentsFromModels(data.agents));
       })
       .catch(() => undefined);
   }, []);
   // 切换项目、设置页或这里改了模型后重新读取；项目文件夹不同，逐 Agent 配置也可能不同。
   useEffect(reloadModels, [reloadModels, modelsVersion, project.folder]);
+  // 回到窗口时重新读取：在外部编辑器里新增或修改了 AGENT.md，不用重启就能看到
+  useEffect(() => {
+    window.addEventListener("focus", reloadModels);
+    return () => window.removeEventListener("focus", reloadModels);
+  }, [reloadModels]);
 
   const working = (agentId: string): boolean =>
     sessions.some((session) =>

@@ -38,7 +38,7 @@ const folder = path.join(tmp, "写作", "长安夜");
 fs.mkdirSync(path.join(folder, "chapters"), { recursive: true });
 fs.mkdirSync(path.join(folder, ".wordhub", "bible"), { recursive: true });
 fs.writeFileSync(
-  path.join(folder, ".wordhub", "bible", "bible.md"),
+  path.join(folder, ".wordhub", "bible", "setting.md"),
   "# 设定\n主角裴照是不良人，左撇子，惯用横刀。故事发生在唐代长安崇仁坊。\n",
   "utf8",
 );
@@ -172,7 +172,7 @@ try {
   console.log("\n[A] 写手读设定集并写入章节");
   await say(
     page,
-    "@写手 请先读一下设定集（文件名 bible.md），再把约六十字的第一章开头写进文件 chapters/第一章.md。完成后只回复“已写入”。",
+    "@写手 请先读一下设定集（文件名 setting.md），再把约六十字的第一章开头写进文件 chapters/第一章.md。完成后只回复“已写入”。",
   );
   let ev = events();
   check(
@@ -265,14 +265,14 @@ try {
 
   // ── C. 需确认的写入：批准 ───────────────────────────────
   console.log("\n[C] 需要确认的写入：批准");
-  const override = path.join(folder, ".wordhub", "agents", "writer");
+  const override = path.join(folder, ".wordhub", "agents", "scribe");
   fs.mkdirSync(override, { recursive: true });
   fs.writeFileSync(
     path.join(override, "AGENT.md"),
     `---
-name: writer
-displayName: 写手
-description: 项目级覆盖：写入前需要确认。
+name: scribe
+displayName: 抄写
+description: 自建 Agent：写入前需要确认。
 model: { provider: deepseek, id: deepseek-flash, reasoning: low }
 tools: [doc.read, doc.write, bible.read, history.search]
 write: write
@@ -281,13 +281,13 @@ confirmBeforeWrite: true
 memoryScopes: { read: [bible, outline, chapters], write: [] }
 maxTurns: 8
 ---
-你是写手。需要写文件时必须使用写文件工具，不要只在回复里贴正文。
+你是抄写员。需要写文件时必须使用写文件工具，不要只在回复里贴正文。
 `,
     "utf8",
   );
   await say(
     page,
-    "@写手 请把“第二章开头：雨夜”写进文件 chapters/第二章.md，写完后只回复“已写入”。",
+    "@抄写 请把“第二章开头：雨夜”写进文件 chapters/第二章.md，写完后只回复“已写入”。",
     { wait: "approval" },
   );
   check("C1 批准前文件未落盘", !exists("chapters/第二章.md"));
@@ -352,7 +352,7 @@ maxTurns: 8
 
   // ── D. 需确认的写入：拒绝 ───────────────────────────────
   console.log("\n[D] 需要确认的写入：拒绝");
-  await say(page, "@写手 请把“第三章开头：晨雾”写进文件 chapters/第三章.md。", {
+  await say(page, "@抄写 请把“第三章开头：晨雾”写进文件 chapters/第三章.md。", {
     wait: "approval",
   });
   await page.click('.approval:not(.resolved) button:has-text("拒绝")');
@@ -370,7 +370,7 @@ maxTurns: 8
 
   // ── E. 审批等待中强杀 ───────────────────────────────────
   console.log("\n[E] 审批等待中强杀应用，重开后");
-  await say(page, "@写手 请把“第四章开头：残月”写进文件 chapters/第四章.md。", {
+  await say(page, "@抄写 请把“第四章开头：残月”写进文件 chapters/第四章.md。", {
     wait: "approval",
   });
   const fourthApprovalRunId = ofType(events(), "approval.requested").at(

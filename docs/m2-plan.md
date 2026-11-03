@@ -60,7 +60,7 @@ packages/novel/agents/   五个内置角色的 AGENT.md（先写简版提示词�
 
 **2.1 AGENT.md 加载（1 天）**
 - 用 [agent-config.schema.json](../packages/contracts/src/schema/agent-config.schema.json)（v2）校验 frontmatter；解析正文为系统提示。
-- 内置五角色放在 `packages/novel/agents/`，用户自建的放在 `.wordhub/agents/<name>/AGENT.md`，同名时项目内的优先。
+- 内置五角色放在 `packages/novel/agents/`，用户自建的放在 `.wordhub/agents/<name>/AGENT.md`，同名时项目内的优先。**（2026-11-04 起已废止：项目级 Agent 不得与内置同名，同名文件被忽略并提示，见 [M5 进展](m5-progress.md)。）**
 - 校验失败的文件在界面上显示原因，不影响其他 Agent。
 - 验收：五个内置文件通过校验；坏文件被拒绝并给出行号级提示。
 

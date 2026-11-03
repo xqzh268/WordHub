@@ -9,6 +9,8 @@ import type {
 } from "@wordhub/contracts";
 import {
   type AgentMeta,
+  agentByName,
+  customAgentsFromModels,
   registerCustomAgents,
   routeMessage,
 } from "../lib/agents";
@@ -92,6 +94,8 @@ export type State = Prefs & {
   /** 项目里自建的 Agent 展示信息（内置的在 lib/agents） */
   customAgents: AgentMeta[];
   setCustomAgents(list: AgentMeta[]): void;
+  /** 重新读取项目里的自建 Agent（手写或外部新增的 AGENT.md 不用重启就能生效） */
+  refreshAgents(): Promise<void>;
   setPaperEditing(editing: boolean): void;
   bumpModels(): void;
   newSession(): Promise<void>;
@@ -160,6 +164,16 @@ export const useWorkbench = create<State>((set, get) => {
     setCustomAgents(list) {
       registerCustomAgents(list);
       set({ customAgents: list });
+    },
+    async refreshAgents() {
+      if (!window.wordhub) return;
+      try {
+        const data = await window.wordhub.invoke("settings.models", undefined);
+        get().setCustomAgents(customAgentsFromModels(data.agents));
+        get().bumpModels();
+      } catch {
+        // 读取失败时保持现有登记
+      }
     },
     setPaperEditing(editing) {
       set({ paperEditing: editing });
@@ -359,6 +373,9 @@ export const useWorkbench = create<State>((set, get) => {
       const trimmed = text.trim();
       const state = get();
       if (!trimmed || state.activeRunId) return;
+      // 开头的 @名字 不认识：可能是刚手写/外部新增了 AGENT.md，先刷新一次再路由
+      const mention = /^@(\S+)/u.exec(trimmed)?.[1];
+      if (mention && !agentByName(mention)) await get().refreshAgents();
       const { agent, body } = routeMessage(trimmed);
       const runId = uid("run");
       const now = Date.now();

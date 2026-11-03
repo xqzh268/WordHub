@@ -352,6 +352,50 @@ try {
       !(note ?? "").includes("AGENT.md"),
     note ?? "",
   );
+  // ── 应用运行中手写新增 AGENT.md：@ 它时自动刷新，不用重启 ─────────
+  const handDir = path.join(folder, ".wordhub", "agents", "handmade");
+  fs.mkdirSync(handDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(handDir, "AGENT.md"),
+    [
+      "---",
+      "name: handmade",
+      "displayName: 手写助手",
+      "description: 在外部编辑器里手写的 Agent",
+      "model: { provider: deepseek, id: deepseek-flash, reasoning: low }",
+      "tools: [doc.read]",
+      "write: none",
+      "writeScopes: []",
+      "memoryScopes: { read: [chapters], write: [] }",
+      "maxTurns: 4",
+      "---",
+      "你是手写助手。",
+    ].join("\n"),
+  );
+  await page.fill('[data-testid="composer-input"]', "@手写助手 你好");
+  await page.click('[data-testid="send"]');
+  // 发送前会先异步刷新 Agent 列表：等侧栏出现新条目，再等这次运行结束
+  await page
+    .waitForSelector('[data-testid="agent-handmade"]', { timeout: 10000 })
+    .catch(() => undefined);
+  await page
+    .waitForSelector('[data-testid="stop"]', { timeout: 10000 })
+    .catch(() => undefined);
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid="stop"]') === null,
+    null,
+    { timeout: 20000 },
+  );
+  const handChat = await page.evaluate(
+    () =>
+      document.querySelector("[data-testid='chat']")?.textContent ??
+      document.body.innerText,
+  );
+  check(
+    "运行中手写新增的 AGENT.md：@ 它时被识别，回复显示为“手写助手”",
+    handChat.includes("手写助手") &&
+      (await page.locator('[data-testid="agent-handmade"]').count()) === 1,
+  );
   check(
     "内置 Agent 不受影响",
     (await page.locator('[data-testid="agent-writer"]').count()) === 1,

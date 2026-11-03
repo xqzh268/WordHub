@@ -129,3 +129,27 @@ export const WORKER_LABEL: Record<string, string> = {
   stopped: "后台已停止",
   crashed: "后台已崩溃",
 };
+
+/** settings.models 的结果里，项目级（自建）Agent 对应的展示信息。 */
+export function customAgentsFromModels(
+  agents: Array<{
+    id: string;
+    displayName: string;
+    description?: string;
+    avatar?: { glyph?: string; color?: string };
+    model: { id: string; reasoning: string };
+    source: string;
+  }>,
+): AgentMeta[] {
+  return agents
+    .filter((agent) => agent.source === "project")
+    .map((agent) => ({
+      id: agent.id,
+      name: agent.displayName,
+      glyph: agent.avatar?.glyph || Array.from(agent.displayName)[0] || "?",
+      color: agent.avatar?.color || "var(--ink-3)",
+      role: agent.description ?? "自建 Agent",
+      model: agent.model.id,
+      reasoning: agent.model.reasoning,
+    }));
+}
