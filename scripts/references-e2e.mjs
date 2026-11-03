@@ -247,10 +247,15 @@ try {
   // 每种格式都能读到正确的章节与中文正文
   const openByTitle = async (title) => {
     await page.locator(".ref-card", { hasText: title }).first().click();
+    // 等阅读栏标题换成这本书（只等“有段落”会读到上一本书还没被替换掉的旧文字）
     await page.waitForFunction(
-      () => document.querySelector('[data-testid="ref-text"] p') !== null,
-      null,
-      { timeout: 10000 },
+      (name) =>
+        document
+          .querySelector(".refs-reader-head small")
+          ?.textContent?.includes(`《${name}》`) &&
+        document.querySelector('[data-testid="ref-text"] p') !== null,
+      title,
+      { timeout: 15000 },
     );
   };
   const textNow = async () =>
