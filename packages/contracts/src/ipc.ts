@@ -12,6 +12,8 @@ export type WorkspaceCommand =
   | "chapter.write"
   | "chapter.undo"
   | "chapter.revisions"
+  | "export.fonts"
+  | "export.run"
   | "chapter.watch"
   | "fact.list"
   | "fact.decide"
@@ -76,6 +78,15 @@ export interface CommandPayloads {
   "chapter.write": { projectId: string; path: string; content: string; expectedHash?: string | null; sessionId?: string };
   "chapter.undo": { projectId: string; path: string; sessionId?: string };
   "chapter.revisions": { projectId: string; path: string };
+  "export.fonts": undefined;
+  "export.run": {
+    scope: "chapter" | "book";
+    chapterPath?: string;
+    format: "docx" | "txt-utf8" | "txt-gb18030";
+    fonts?: { body?: string; heading?: string; latin?: string };
+    bodySizePt?: number;
+    lineSpacing?: number;
+  };
   "chapter.watch": { projectId: string };
   "fact.list": { projectId: string };
   "fact.decide": { projectId: string; factId: string; decision: "confirm" | "reject" };
@@ -134,6 +145,8 @@ export interface CommandResults {
   "chapter.read": ChapterContent;
   "chapter.write": { relativePath: string; contentHash: string; revision: { id: string; revisionNo: number; author: { type: string; id: string }; createdAt: string } };
   "chapter.undo": { relativePath: string; contentHash: string; revision: { id: string; revisionNo: number; author: { type: string; id: string }; createdAt: string } };
+  "export.fonts": { presets: string[]; installed: string[] };
+  "export.run": { canceled: boolean; path?: string; bytes?: number; chapters?: number };
   "chapter.revisions": { revisions: Array<{ id: string; revisionNo: number; status: string; contentHash: string; author: { type: string; id: string }; createdAt: string }> };
   "chapter.watch": { watching: boolean };
   "fact.list": { facts: NovelFact[]; summaries: ChapterSummary[]; finalized: string[] };

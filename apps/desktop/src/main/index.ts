@@ -185,6 +185,48 @@ function registerIpc(): void {
             : {}),
         });
       }
+      if (command === "export.fonts")
+        return await worker.request<CommandResults["export.fonts"]>({
+          type: "export.fonts",
+        });
+      if (command === "export.run") {
+        const payload = request.payload as CommandPayloads["export.run"];
+        if (!linkedFolder) throw new Error("请先链接写作文件夹");
+        const extension = payload.format === "docx" ? "docx" : "txt";
+        const baseName =
+          payload.scope === "chapter" && payload.chapterPath
+            ? path.basename(payload.chapterPath).replace(/\.[^.]+$/u, "")
+            : projectName;
+        const choice = await dialog.showSaveDialog({
+          defaultPath: path.join(linkedFolder, `${baseName}.${extension}`),
+          filters: [
+            payload.format === "docx"
+              ? { name: "Word 文档", extensions: ["docx"] }
+              : { name: "文本文件", extensions: ["txt"] },
+          ],
+        });
+        if (choice.canceled || !choice.filePath)
+          return { canceled: true } as CommandResults["export.run"];
+        const done = await worker.request<{
+          path: string;
+          bytes: number;
+          chapters: number;
+        }>({
+          type: "export.run",
+          folder: linkedFolder,
+          scope: payload.scope,
+          chapterPath: payload.chapterPath,
+          format: payload.format,
+          outPath: choice.filePath,
+          bookTitle: projectName,
+          docx: {
+            fonts: payload.fonts,
+            bodySizePt: payload.bodySizePt,
+            lineSpacing: payload.lineSpacing,
+          },
+        });
+        return { canceled: false, ...done } as CommandResults["export.run"];
+      }
       if (command === "project.prefs.get") {
         const payload = request.payload as CommandPayloads["project.prefs.get"];
         return await worker.request<CommandResults["project.prefs.get"]>({

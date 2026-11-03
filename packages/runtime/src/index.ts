@@ -14,6 +14,10 @@ export * from "./coordinator/workflow.js";
 export * from "./coordinator/workflow-runner.js";
 export * from "./budget/estimate.js";
 export * from "./chapters/service.js";
+export * from "./export/docx.js";
+export * from "./export/fonts.js";
+export * from "./export/run.js";
+export * from "./export/txt.js";
 export * from "./editor/checks.js";
 export * from "./types.js";
 

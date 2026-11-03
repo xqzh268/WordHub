@@ -114,6 +114,28 @@ try {
   );
   check("默认是阅读视图，没有编辑器", (await editorLoc(page).count()) === 0);
 
+  // 窄窗口下工具栏不挤压换行：按钮保持单行高度，状态文字不被竖排
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].setSize(906, 720),
+  );
+  await sleep(600);
+  const toolbarBoxes = await page.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        ".paper-edit-toolbar .btn, .paper-edit-toolbar .save-state",
+      ),
+    ].map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { text: el.textContent?.trim(), w: rect.width, h: rect.height };
+    }),
+  );
+  check(
+    "窄窗口下编辑工具栏的按钮和状态文字不被压成竖排",
+    toolbarBoxes.length >= 3 &&
+      toolbarBoxes.every((box) => box.h <= 34 && box.w >= 36),
+    JSON.stringify(toolbarBoxes),
+  );
+
   // ── 1. 编辑后立刻点“完成”（早于 1.2 秒自动保存）也不丢 ───────────
   await startEdit(page);
   check(

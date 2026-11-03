@@ -35,9 +35,9 @@
 .prose p.revised, .prose p.flagged { margin-inline: -14px; padding-inline: 14px; border-radius: 3px; }
 .prose p.revised { background: linear-gradient(90deg, color-mix(in srgb, var(--author) 11%, transparent), transparent 88%); box-shadow: inset 2px 0 0 var(--author); }
 .prose p.flagged { background: linear-gradient(90deg, transparent, var(--danger-soft) 10%, var(--danger-soft) 90%, transparent); }
-.paper-edit-toolbar { display: flex; align-items: center; gap: 8px; max-width: 640px; margin: -20px auto 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--paper-sheet) 92%, var(--bg-sunken)); font-family: var(--font-ui); font-size: 12px; }
-.paper-edit-toolbar .btn { display: inline-flex; align-items: center; gap: 5px; height: 27px; padding: 0 10px; }
-.save-state { margin-left: auto; color: var(--ink-3); }
+.paper-edit-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; max-width: 640px; margin: -20px auto 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--paper-sheet) 92%, var(--bg-sunken)); font-family: var(--font-ui); font-size: 12px; }
+.paper-edit-toolbar .btn { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 27px; padding: 0 10px; white-space: nowrap; }
+.save-state { margin-left: auto; color: var(--ink-3); white-space: nowrap; }
 .save-dirty, .save-conflict, .save-error { color: var(--danger, #a63c2f); }
 .save-saving { color: var(--accent-ink); }
 .paper-editor { max-width: 640px; margin: 0 auto; }
@@ -63,9 +63,9 @@
 .soft-empty h3 { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--ink-2); }
 .soft-empty p { font-family: var(--font-serif); font-size: 13.5px; line-height: 1.9; }
 
-.chapter-nav { flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 20px 0; }
-.chapter-nav button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--ink-3); }
-.chapter-nav button:hover:not(:disabled) { background: var(--hover, rgba(127, 127, 127, 0.12)); color: var(--ink-1, inherit); }
+.chapter-nav { position: relative; z-index: 30; flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 20px 0; }
+.chapter-nav > button:not(.finalize-btn) { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--ink-3); }
+.chapter-nav > button:not(.finalize-btn):hover:not(:disabled) { background: var(--hover, rgba(127, 127, 127, 0.12)); color: var(--ink-1, inherit); }
 .chapter-nav button:disabled { opacity: 0.35; cursor: default; }
 .chapter-nav select { max-width: 60%; height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink-2, inherit); font: inherit; font-size: 12.5px; text-overflow: ellipsis; }
 
@@ -91,3 +91,15 @@
 
 .chapter-nav select { background: var(--bg-raised); color: var(--ink-1); }
 .chapter-nav select option { background: var(--bg-raised); color: var(--ink-1); }
+
+.export-wrap { flex: none; }
+.export-panel { position: absolute; z-index: 20; right: 12px; top: 42px; width: min(340px, calc(100% - 24px)); padding: 12px 14px; display: grid; gap: 8px; border-radius: 10px; background: var(--bg-canvas); box-shadow: 0 0 0 1px var(--line-strong), 0 8px 24px rgba(0, 0, 0, 0.12); font-family: var(--font-ui); font-size: 12px; }
+.export-panel label { display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 8px; color: var(--ink-3); }
+.export-panel .text-input { width: 100%; }
+.export-note { margin: 0; color: var(--ink-4); line-height: 1.5; }
+.export-actions { display: flex; justify-content: flex-end; }
+.export-message { margin: 0; word-break: break-all; }
+.export-message.ok { color: var(--ink-2); }
+.export-message.bad { color: var(--danger, #a63c2f); }
+.export-wrap .finalize-btn { display: inline-flex; align-items: center; gap: 5px; margin-left: 0; }
+.export-panel .btn { width: auto; height: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; }

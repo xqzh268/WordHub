@@ -1,5 +1,6 @@
 import type { Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "../types.js";
+import type { ExportRequest } from "../export/run.js";
 import type { CustomProviderInput } from "../models/providers.js";
 import type { RunRequest } from "./run-types.js";
 
@@ -66,6 +67,8 @@ export type RuntimeRequest =
       requestId: string;
     }
   | { type: "chapter.watch"; projectId: string; requestId: string }
+  | { type: "export.fonts"; requestId: string }
+  | ({ type: "export.run"; requestId: string } & ExportRequest)
   | { type: "fact.list"; projectId: string; requestId: string }
   | { type: "project.prefs.get"; projectId: string; requestId: string }
   | {

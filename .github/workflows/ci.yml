@@ -26,3 +26,6 @@ jobs:
       - run: npm run test:m1:e2e
       - run: npm run test:chapters:e2e
       - run: npm run test:facts:e2e
+      - run: npm run test:providers:e2e
+      - run: npm run test:paper:e2e
+      - run: npm run test:export:e2e

@@ -11,6 +11,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { agentById } from "../lib/agents";
+import { ExportPanel } from "./ExportPanel";
 import { formatUpdated, neighborChapter } from "../state/chapters";
 import { FACT_KIND_LABELS, type NovelFact } from "@wordhub/contracts";
 import { useWorkbench } from "../state/store";
@@ -141,6 +142,7 @@ export function PaperPane() {
           >
             {isFinalized ? "重新定稿" : "定稿"}
           </button>
+          <ExportPanel activeChapter={activeChapter} disabled={editingPaper} />
         </nav>
       )}
 

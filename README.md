@@ -14,7 +14,7 @@
 | M4.2：固定顺序上下文 | 五层注入、人物筛选、500–800字完整句尾窗口、复杂章号大纲匹配和 faux 实际请求验证已接入；真实模型全流程重跑待补 |
 | M4.3：确定性编辑检查 | 字数、AI腔词、对话占比、连续四字成语检查及事件提示已接入；当前提示不阻断工作流 |
 | M4.4–M4.7 | 分类评审、事实表、定稿动作和空项目前三章真实回归已接入；M4.7历史回归为19/20，正在收尾性能与命名验证 |
-| M5.1：可编辑纸面 | Tiptap/ProseMirror Markdown子集编辑、哈希基线保存、冲突提示、revision撤销已接入；Electron与真实模型验收见[M5进展](docs/m5-progress.md) |
+| M5.1–M5.2：可编辑纸面与导出 | Tiptap/ProseMirror Markdown子集编辑、哈希基线保存、冲突提示、revision撤销，以及DOCX/TXT导出已接入；Electron与真实模型验收见[M5进展](docs/m5-progress.md) |
 
 当前可以链接中文路径的写作文件夹、创建会话、调用角色Agent、运行写手→编辑或评审流程、处理升级裁决，以及查看工具、用量和上下文来源。事件日志、运行快照和正文修订持久化到本地，支持已覆盖场景下的审批恢复和冲突保留。
 
@@ -87,7 +87,7 @@ Remove-Item Env:WORDHUB_MOCK -ErrorAction SilentlyContinue
 
 SQLite、事件、运行快照和正文版本保存在应用数据目录，Windows默认路径为`%APPDATA%\WordHub\projects\<projectId>`。它们与链接的写作文件夹分开保存；备份时需要同时保留两处数据。
 
-写入范围由Agent权限和项目路径检查控制，拒绝目录穿越与符号链接访问。正文写入经过快照、哈希校验和原子替换；外部改动或并发冲突保留可追溯版本。正文编辑通过受控保存通道进入revision；DOCX/TXT导出与自建Agent表单仍待后续M5子阶段交付。
+写入范围由Agent权限和项目路径检查控制，拒绝目录穿越与符号链接访问。正文写入经过快照、哈希校验和原子替换；外部改动或并发冲突保留可追溯版本。正文编辑通过受控保存通道进入revision；导出（Word与文本，字体可选本机已安装字体）已接入；自建Agent表单仍待M5.3交付。
 
 ## 验证
 
@@ -106,6 +106,7 @@ npm run test:layout
 npm run test:m1:e2e
 npm run test:providers:e2e
 npm run test:paper:e2e
+npm run test:export:e2e
 ```
 
 2026-10-13重新验证的结果见[M4验证记录](docs/m4-progress.md#验证记录)。桌面相关脚本依赖已构建的`out/`。
@@ -144,7 +145,7 @@ Remove-Item Env:WORDHUB_REQUIRE_LIVE -ErrorAction SilentlyContinue
 
 M4收尾聚焦第三章写作耗时诊断、章节规范命名的真实模型验证，以及上下文构建的真实注入复核；本轮不做评审模型档位对照。首个真实题材沿用《长安夜》的唐代悬疑；当前样例只有少量回归文字，完整人物与情节设定需审阅确认后扩写。
 
-References/Graph产品闭环、DOCX/TXT导出、自建Agent表单和发行打包仍在计划中。技术spike与预览界面不代表这些功能已完成。
+References/Graph产品闭环、自建Agent表单和发行打包仍在计划中。技术spike与预览界面不代表这些功能已完成。
 
 ## 文档、贡献与许可
 

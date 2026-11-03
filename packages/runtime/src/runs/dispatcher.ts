@@ -1,3 +1,5 @@
+import { PRESET_FONTS, listInstalledFonts } from "../export/fonts.js";
+import { exportChapters } from "../export/run.js";
 import {
   ControlledFileWriter,
   WordHubStore,
@@ -177,6 +179,22 @@ export function createRequestHandler(deps: DispatcherDeps) {
           request.requestId,
           await readChapter(folder, request.path),
         );
+        return;
+      }
+      if (request.type === "export.fonts") {
+        sendResponse(request.requestId, {
+          presets: PRESET_FONTS,
+          installed: await listInstalledFonts(),
+        });
+        return;
+      }
+      if (request.type === "export.run") {
+        const {
+          type: _type,
+          requestId: _requestId,
+          ...exportRequest
+        } = request;
+        sendResponse(request.requestId, await exportChapters(exportRequest));
         return;
       }
       if (request.type === "chapter.write") {
