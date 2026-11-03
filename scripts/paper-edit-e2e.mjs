@@ -79,10 +79,18 @@ async function link(app, page) {
       filePaths: [chosen],
     });
   }, folder);
-  if ((await page.locator('[data-testid="link-folder"]').count()) > 0)
-    await page.click('[data-testid="link-folder"]');
+  // 重启后应用可能自己恢复上次链接的项目，而且在慢机器上恢复发生在“检查按钮在不在”和“点击”之间：
+  // 先等到两种状态之一，再点；按钮中途消失（已恢复）就不点。
+  await page.waitForSelector(
+    '[data-testid="link-folder"], [data-testid="project-card"]',
+    { timeout: 20000 },
+  );
+  if ((await page.locator('[data-testid="project-card"]').count()) === 0)
+    await page
+      .click('[data-testid="link-folder"]', { timeout: 5000 })
+      .catch(() => undefined);
   await page.waitForSelector('[data-testid="project-card"]', {
-    timeout: 10000,
+    timeout: 20000,
   });
   await page.waitForSelector('[data-testid="paper-sheet"]');
 }
