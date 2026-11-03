@@ -64,6 +64,16 @@ type DispatcherDeps = {
   resumeRun: (runId: string) => Promise<void>;
 };
 
+/** 渲染端的写入/撤销只允许落在 chapters/ 下的 Markdown 文件，不能借此改设定、偏好等其他项目文件。 */
+export function assertChapterPath(relativePath: string): void {
+  const normalized = relativePath.replaceAll("\\", "/");
+  if (
+    !/^chapters\/[^/]+\.(?:md|markdown)$/iu.test(normalized) ||
+    normalized.includes("..")
+  )
+    throw new Error(`只能编辑 chapters/ 下的 Markdown 章节：${relativePath}`);
+}
+
 export function createRequestHandler(deps: DispatcherDeps) {
   // 同一时间只监听当前打开项目的 chapters/ 目录。
   const chapterWatchers = new Map<string, () => void>();
@@ -167,6 +177,52 @@ export function createRequestHandler(deps: DispatcherDeps) {
           request.requestId,
           await readChapter(folder, request.path),
         );
+        return;
+      }
+      if (request.type === "chapter.write") {
+        assertChapterPath(request.path);
+        const store = await recoverProjectFiles(request.projectId);
+        const result = await new ControlledFileWriter(
+          store,
+          request.projectId,
+          request.folderPath,
+        ).writeText({
+          relativePath: request.path,
+          content: request.content,
+          expectedHash: request.expectedHash,
+          sessionId: request.sessionId,
+          author: { type: "user", id: "user" },
+        });
+        sendResponse(request.requestId, result);
+        return;
+      }
+      if (request.type === "chapter.undo") {
+        assertChapterPath(request.path);
+        const store = await recoverProjectFiles(request.projectId);
+        const result = await new ControlledFileWriter(
+          store,
+          request.projectId,
+          request.folderPath,
+        ).undo({
+          artifactId: `file:${request.path.replaceAll("\\", "/")}`,
+          relativePath: request.path,
+          sessionId: request.sessionId,
+          author: { type: "user", id: "user" },
+        });
+        sendResponse(request.requestId, result);
+        return;
+      }
+      if (request.type === "chapter.revisions") {
+        const store = await recoverProjectFiles(request.projectId);
+        sendResponse(request.requestId, {
+          revisions: store
+            .listRevisions(
+              request.projectId,
+              `file:${request.path.replaceAll("\\", "/")}`,
+            )
+            .slice(-12)
+            .reverse(),
+        });
         return;
       }
       if (request.type === "chapter.watch") {

@@ -41,6 +41,30 @@ export type RuntimeRequest =
       path: string;
       requestId: string;
     }
+  | {
+      type: "chapter.write";
+      projectId: string;
+      folderPath: string;
+      path: string;
+      content: string;
+      expectedHash?: `sha256:${string}` | null;
+      sessionId?: string;
+      requestId: string;
+    }
+  | {
+      type: "chapter.undo";
+      projectId: string;
+      folderPath: string;
+      path: string;
+      sessionId?: string;
+      requestId: string;
+    }
+  | {
+      type: "chapter.revisions";
+      projectId: string;
+      path: string;
+      requestId: string;
+    }
   | { type: "chapter.watch"; projectId: string; requestId: string }
   | { type: "fact.list"; projectId: string; requestId: string }
   | { type: "project.prefs.get"; projectId: string; requestId: string }

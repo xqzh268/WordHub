@@ -1,4 +1,4 @@
-// 纸面绑定项目文件的端到端检查：章节列表、磁盘内容、外部编辑自动刷新、增删章节、只读。
+// 纸面绑定项目文件的端到端检查：章节列表、编辑保存、冲突保护、外部编辑自动刷新、增删章节。
 // 用法：npm run build:desktop && node scripts/chapters-e2e.mjs
 // 说明：mock 后台（不调用模型），存储根目录与项目目录都放在临时目录；系统文件夹对话框被替换为固定路径。
 import fs from "node:fs";
@@ -132,6 +132,68 @@ try {
   check("切换到第一章，显示第一章正文", await sheetHas("暮鼓三百声"));
   check("切换章节后不再显示其他章节", await sheetGone("回到崇仁坊"));
 
+  await page.click('[data-testid="edit-paper"]');
+  const editor = page.locator(
+    '[data-testid="paper-sheet"] .paper-editor-content',
+  );
+  await page.waitForSelector(
+    '[data-testid="paper-sheet"] .paper-editor-content[contenteditable="true"]',
+    { timeout: 3000 },
+  );
+  await editor.fill("暮鼓三百声，长安闭坊。\n\n作者直接改过这一段。");
+  await page
+    .waitForFunction(
+      () =>
+        document.querySelector(".save-state")?.textContent?.includes("保存"),
+      null,
+      { timeout: 2000 },
+    )
+    .catch(() => undefined);
+  const editedFile = path.join(chapterDir, "第一章.md");
+  const editDeadline = Date.now() + 8000;
+  while (Date.now() < editDeadline) {
+    if (fs.readFileSync(editedFile, "utf8").includes("作者直接改过这一段"))
+      break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  check(
+    "进入编辑模式并自动保存",
+    await page
+      .waitForFunction(
+        () =>
+          document
+            .querySelector(".save-state")
+            ?.textContent?.includes("已保存"),
+        null,
+        { timeout: 8000 },
+      )
+      .then(
+        () =>
+          fs.readFileSync(editedFile, "utf8").includes("作者直接改过这一段"),
+        () => false,
+      ),
+  );
+  await page.click('[data-testid="finish-edit"]');
+
+  await page.click('[data-testid="edit-paper"]');
+  await editor.fill("我的本地版本。");
+  fs.writeFileSync(
+    path.join(chapterDir, "第一章.md"),
+    "# 第一章 暮鼓\n\n外部版本先写入。",
+    "utf8",
+  );
+  check(
+    "编辑期间外部修改出现冲突提示",
+    await page
+      .waitForSelector('[data-testid="paper-conflict"]', { timeout: 8000 })
+      .then(
+        () => true,
+        () => false,
+      ),
+  );
+  await page.getByRole("button", { name: "载入新版本" }).click();
+  await page.click('[data-testid="finish-edit"]');
+
   fs.writeFileSync(
     path.join(chapterDir, "第一章.md"),
     "# 第一章 暮鼓\n\n暮鼓三百声，长安闭坊。\n\n我在外面的编辑器里加了一段。",
@@ -165,12 +227,10 @@ try {
     await sheetGone("我在外面的编辑器里加了一段", 8000),
   );
 
-  const editable = await page
-    .locator(
-      '[data-testid="paper-sheet"] [contenteditable="true"], [data-testid="paper-sheet"] textarea',
-    )
-    .count();
-  check("纸面只读（没有可编辑区域）", editable === 0);
+  check(
+    "纸面默认回到只读模式",
+    (await page.locator('[data-testid="edit-paper"]').count()) === 1,
+  );
 
   await fsp.rm(chapterDir, { recursive: true, force: true });
   fs.mkdirSync(chapterDir);

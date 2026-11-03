@@ -151,13 +151,38 @@ function registerIpc(): void {
       if (
         command === "chapter.list" ||
         command === "chapter.read" ||
+        command === "chapter.write" ||
+        command === "chapter.undo" ||
+        command === "chapter.revisions" ||
         command === "chapter.watch"
       ) {
-        const payload = request.payload as { projectId: string; path?: string };
+        const payload = request.payload as {
+          projectId: string;
+          path?: string;
+          content?: string;
+          expectedHash?: string | null;
+          sessionId?: string;
+        };
         return await worker.request({
           type: command,
           projectId: payload.projectId,
-          ...(command === "chapter.read" ? { path: payload.path } : {}),
+          ...(command !== "chapter.list" && command !== "chapter.watch"
+            ? { path: payload.path }
+            : {}),
+          ...(command === "chapter.write"
+            ? {
+                folderPath: linkedFolder ?? "",
+                content: payload.content,
+                expectedHash: payload.expectedHash,
+                sessionId: payload.sessionId ?? activeSessionId,
+              }
+            : {}),
+          ...(command === "chapter.undo"
+            ? {
+                folderPath: linkedFolder ?? "",
+                sessionId: payload.sessionId ?? activeSessionId,
+              }
+            : {}),
         });
       }
       if (command === "project.prefs.get") {

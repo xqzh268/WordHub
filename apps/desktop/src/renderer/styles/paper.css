@@ -35,6 +35,20 @@
 .prose p.revised, .prose p.flagged { margin-inline: -14px; padding-inline: 14px; border-radius: 3px; }
 .prose p.revised { background: linear-gradient(90deg, color-mix(in srgb, var(--author) 11%, transparent), transparent 88%); box-shadow: inset 2px 0 0 var(--author); }
 .prose p.flagged { background: linear-gradient(90deg, transparent, var(--danger-soft) 10%, var(--danger-soft) 90%, transparent); }
+.paper-edit-toolbar { display: flex; align-items: center; gap: 8px; max-width: 640px; margin: -20px auto 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--paper-sheet) 92%, var(--bg-sunken)); font-family: var(--font-ui); font-size: 12px; }
+.paper-edit-toolbar .btn { display: inline-flex; align-items: center; gap: 5px; height: 27px; padding: 0 10px; }
+.save-state { margin-left: auto; color: var(--ink-3); }
+.save-dirty, .save-conflict, .save-error { color: var(--danger, #a63c2f); }
+.save-saving { color: var(--accent-ink); }
+.paper-editor { max-width: 640px; margin: 0 auto; }
+.paper-editor-content { outline: none; min-height: 420px; }
+.paper-editor-content h1, .paper-editor-content h2, .paper-editor-content h3 { text-align: center; font-family: var(--font-display); font-weight: 500; }
+.paper-editor-content p { position: relative; text-indent: 2em; text-align: justify; text-justify: inter-ideograph; }
+.paper-editor-content blockquote { margin: 1em 0; padding-left: 1em; border-left: 2px solid var(--line-strong); color: var(--ink-2); }
+.paper-editor-content hr { border: 0; border-top: 1px solid var(--line-strong); margin: 1.5em auto; width: 28%; }
+.paper-conflict { max-width: 640px; margin: 0 auto 14px; padding: 12px 14px; display: grid; gap: 6px; border: 1px solid var(--danger, #a63c2f); border-radius: 10px; background: var(--danger-soft); font-family: var(--font-ui); font-size: 12px; }
+.paper-conflict > div { display: flex; gap: 8px; flex-wrap: wrap; }
+.paper-conflict pre { max-height: 180px; overflow: auto; padding: 8px; white-space: pre-wrap; color: var(--ink-2); background: color-mix(in srgb, var(--paper-sheet) 75%, transparent); }
 .margin-pin { position: absolute; right: -48px; top: 6px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; text-indent: 0; font: 700 11px/1 "Noto Serif SC Variable", serif; color: var(--seal-glyph); background: var(--agent-reviewer); box-shadow: 0 0 0 3px var(--paper-sheet); cursor: default; }
 .margin-pin.tip::after { left: auto; right: calc(100% + 10px); transform: translate(4px, -50%); }
 .margin-pin.tip:hover::after { transform: translate(0, -50%); }

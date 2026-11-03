@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   applyChatEvent,
   ControlledFileWriter,
+  contentHash,
   createChatProjectionState,
   ExternalFileWatcher,
   projectChat,
@@ -422,6 +423,55 @@ describe("WordHub M1 store", () => {
     expect(changes).toContain("章节.md");
   });
 
+  it("磁盘上尚无修订记录的既有文件：基于当前磁盘内容的第一次写入成功，原文留作修订可撤销", async () => {
+    const { store, project, session, folder } = await makeProject();
+    const writer = new ControlledFileWriter(store, project.id, folder);
+    const file = path.join(folder, "chapters", "第一章.md");
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, "作者事先放进来的原文", "utf8");
+    const result = await writer.writeText({
+      relativePath: "chapters/第一章.md",
+      content: "作者改后的版本",
+      expectedHash: contentHash("作者事先放进来的原文"),
+      sessionId: session.id,
+      author: { type: "user", id: "user" },
+    });
+    expect(await readFile(file, "utf8")).toBe("作者改后的版本");
+    expect(result.revision.author).toEqual({ type: "user", id: "user" });
+    // 原文被保存成修订，撤销能回到它
+    await writer.undo({
+      artifactId: "file:chapters/第一章.md",
+      relativePath: "chapters/第一章.md",
+      sessionId: session.id,
+    });
+    expect(await readFile(file, "utf8")).toBe("作者事先放进来的原文");
+  });
+  it("既有文件上带过期、为空或缺失的expectedHash仍被拒绝，磁盘不被改动", async () => {
+    const { store, project, session, folder } = await makeProject();
+    const writer = new ControlledFileWriter(store, project.id, folder);
+    const cases: Array<[string, `sha256:${string}` | null | undefined]> = [
+      ["过期", contentHash("别的内容")],
+      ["为空", null],
+      ["缺失", undefined],
+    ];
+    // 每种情况用独立文件：被拒绝时外部版本会被存成修订，同一文件的后续写入就不再算“未见过”。
+    for (const [name, expectedHash] of cases) {
+      const relativePath = `chapters/${name}.md`;
+      const file = path.join(folder, relativePath);
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, "磁盘原文", "utf8");
+      await expect(
+        writer.writeText({
+          relativePath,
+          content: "不该写入",
+          expectedHash,
+          sessionId: session.id,
+        }),
+        name,
+      ).rejects.toThrow();
+      expect(await readFile(file, "utf8"), name).toBe("磁盘原文");
+    }
+  });
   it("外部修改后，受控写入不得静默覆盖用户的改动", async () => {
     const { store, project, session, folder } = await makeProject();
     const writer = new ControlledFileWriter(store, project.id, folder);

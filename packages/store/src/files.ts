@@ -343,7 +343,12 @@ export class ControlledFileWriter {
     const diskHash = disk ? contentHash(disk) : null;
     const stale =
       input.expectedHash !== undefined && input.expectedHash !== diskHash;
-    if (external || stale) {
+    // 调用方明确基于磁盘上这一版内容来写（expectedHash 与磁盘一致）时，不算冲突：
+    // 磁盘上尚无修订记录的既有文件（新链接的项目、别处放进来的稿子）上的第一次写入就是这种情况。
+    // 外部版本照样存成修订，撤销可以回到它；没有传 expectedHash 的调用仍按原规则拒绝。
+    const basedOnDisk =
+      input.expectedHash !== undefined && input.expectedHash === diskHash;
+    if ((external && !basedOnDisk) || stale) {
       if (input.conflictPolicy === "keep-both") {
         const extension = path.extname(input.relativePath);
         const sibling = `${input.relativePath.slice(0, input.relativePath.length - extension.length)}.agent-${createId("copy")}${extension}`;

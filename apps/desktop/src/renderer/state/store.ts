@@ -83,6 +83,9 @@ export type State = Prefs & {
   mention(agentName: string): void;
   /** 模型配置有变化（设置页或侧栏切换）后递增，侧栏据此重新读取 */
   modelsVersion: number;
+  /** 纸面正在编辑：此时不切换章节，避免丢掉未保存的修改 */
+  paperEditing: boolean;
+  setPaperEditing(editing: boolean): void;
   bumpModels(): void;
   newSession(): Promise<void>;
   selectSession(id: string): void;
@@ -145,6 +148,10 @@ export const useWorkbench = create<State>((set, get) => {
     chapters: [],
     activeChapter: null,
     modelsVersion: 0,
+    paperEditing: false,
+    setPaperEditing(editing) {
+      set({ paperEditing: editing });
+    },
     bumpModels() {
       set((state) => ({ modelsVersion: state.modelsVersion + 1 }));
     },
@@ -217,7 +224,9 @@ export const useWorkbench = create<State>((set, get) => {
     },
 
     // 以磁盘为准：刷新章节列表，决定显示哪一章，必要时重读正文。
-    async syncChapters(preferred) {
+    async syncChapters(requested) {
+      // 编辑中不被 Agent 写入或“第N章”提示带到别的章节
+      const preferred = get().paperEditing ? undefined : requested;
       const projectId = get().project.id;
       if (!projectId || !window.wordhub || get().demo) return;
       try {
@@ -248,6 +257,7 @@ export const useWorkbench = create<State>((set, get) => {
         set({
           paper: paperFromText(file.path, file.content, {
             mtimeMs: file.mtimeMs,
+            contentHash: file.contentHash,
           }),
         });
       } catch {

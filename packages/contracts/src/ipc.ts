@@ -9,6 +9,9 @@ export type WorkspaceCommand =
   | "chat.list"
   | "chapter.list"
   | "chapter.read"
+  | "chapter.write"
+  | "chapter.undo"
+  | "chapter.revisions"
   | "chapter.watch"
   | "fact.list"
   | "fact.decide"
@@ -70,6 +73,9 @@ export interface CommandPayloads {
   "chat.list": { projectId: string; sessionId: string };
   "chapter.list": { projectId: string };
   "chapter.read": { projectId: string; path: string };
+  "chapter.write": { projectId: string; path: string; content: string; expectedHash?: string | null; sessionId?: string };
+  "chapter.undo": { projectId: string; path: string; sessionId?: string };
+  "chapter.revisions": { projectId: string; path: string };
   "chapter.watch": { projectId: string };
   "fact.list": { projectId: string };
   "fact.decide": { projectId: string; factId: string; decision: "confirm" | "reject" };
@@ -126,6 +132,9 @@ export interface CommandResults {
   "chat.list": { events: unknown[]; items: unknown[] };
   "chapter.list": { chapters: ChapterInfo[] };
   "chapter.read": ChapterContent;
+  "chapter.write": { relativePath: string; contentHash: string; revision: { id: string; revisionNo: number; author: { type: string; id: string }; createdAt: string } };
+  "chapter.undo": { relativePath: string; contentHash: string; revision: { id: string; revisionNo: number; author: { type: string; id: string }; createdAt: string } };
+  "chapter.revisions": { revisions: Array<{ id: string; revisionNo: number; status: string; contentHash: string; author: { type: string; id: string }; createdAt: string }> };
   "chapter.watch": { watching: boolean };
   "fact.list": { facts: NovelFact[]; summaries: ChapterSummary[]; finalized: string[] };
   "fact.decide": { factId: string; status: "confirmed" | "rejected" };

@@ -15,6 +15,9 @@ export type PaperDoc = {
   /** 来自磁盘时才有：相对路径与读取时的修改时间，用于判断是否需要重读 */
   path?: string;
   mtimeMs?: number;
+  contentHash?: string;
+  /** 原始 Markdown，供编辑器无损保存支持的子集。 */
+  source?: string;
 };
 
 const escapeRegExp = (value: string): string =>
@@ -24,7 +27,7 @@ const escapeRegExp = (value: string): string =>
 export function paperFromText(
   filePath: string,
   text: string,
-  meta: { mtimeMs?: number } = {},
+  meta: { mtimeMs?: number; contentHash?: string } = {},
 ): PaperDoc {
   const name = filePath.split(/[\\/]/u).at(-1) ?? filePath;
   const stem = name.replace(/\.(?:md|markdown|txt)$/iu, "") || "当前章节";
@@ -65,6 +68,8 @@ export function paperFromText(
     })),
     path: filePath.replaceAll("\\", "/"),
     mtimeMs: meta.mtimeMs,
+    contentHash: meta.contentHash,
+    source: text.replaceAll("\r\n", "\n"),
   };
 }
 
