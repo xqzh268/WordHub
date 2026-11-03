@@ -172,6 +172,17 @@ export class AgentRegistry {
             file,
             source,
           );
+          // 项目里的 AGENT.md 不能顶替内置 Agent：否则克隆来的项目可以悄悄换掉写手/评审的工具和写权限。
+          if (
+            source === "project" &&
+            this.definitions.get(definition.name)?.source === "builtin"
+          ) {
+            this.errors.set(
+              file,
+              `项目级 Agent 不能与内置 Agent 同名（${definition.name}），已忽略；请改个标识`,
+            );
+            continue;
+          }
           this.definitions.set(definition.name, definition);
           if (definition.write !== "none" && !definition.writeScopes?.length)
             this.warnings.set(file, "未声明writeScopes，禁止一切写入");

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
 import {
@@ -212,27 +212,6 @@ describe("产品工作流入口", () => {
         );
       return fauxAssistantMessage("等待裁决。", { stopReason: "stop" });
     });
-    await mkdir(path.join(f.project, ".wordhub/agents/reviewer"), {
-      recursive: true,
-    });
-    await writeFile(
-      path.join(f.project, ".wordhub/agents/reviewer/AGENT.md"),
-      `---
-name: reviewer
-displayName: 评审
-description: 测试质询
-model: { provider: deepseek, id: deepseek-flash, reasoning: low }
-tools: [doc.read, bible.read, challenge.raise, challenge.reply]
-write: none
-writeScopes: []
-confirmBeforeWrite: false
-memoryScopes: { read: [bible, chapters], write: [] }
-maxTurns: 8
----
-提出两轮质询后等待裁决。
-`,
-      "utf8",
-    );
     try {
       await f.executor.handle({
         type: "run",

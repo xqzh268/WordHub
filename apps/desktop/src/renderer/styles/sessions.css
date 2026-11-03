@@ -68,3 +68,4 @@
 .agent-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .agent-form-actions .spacer { flex: 1; }
 .agent-form-actions .btn { width: auto; height: 30px; padding: 0 14px; display: inline-flex; align-items: center; }
+.agent-config-error { margin: 4px 8px 6px; padding: 6px 8px; border-radius: 6px; background: var(--danger-soft); color: var(--danger, #a63c2f); font-size: 11.5px; line-height: 1.5; }

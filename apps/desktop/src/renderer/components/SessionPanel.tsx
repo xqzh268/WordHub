@@ -9,6 +9,13 @@ import { Seal } from "./Seal";
 
 type ModelData = CommandResults["settings.models"];
 
+/** 错误信息形如“<路径>/AGENT.md: <原因>”，界面只显示原因。 */
+const agentErrorReason = (error: string): string => {
+  const marker = "AGENT.md: ";
+  const index = error.indexOf(marker);
+  return index >= 0 ? error.slice(index + marker.length) : error;
+};
+
 export function SessionPanel() {
   const project = useWorkbench((s) => s.project);
   const sessions = useWorkbench((s) => s.sessions);
@@ -268,6 +275,22 @@ export function SessionPanel() {
               </li>
             );
           })}
+          {(modelData?.errors?.length ?? 0) > 0 && (
+            <li>
+              <p
+                className="agent-config-error"
+                role="status"
+                data-testid="agent-config-errors"
+                title={modelData?.errors?.join("\n")}
+              >
+                有 {modelData?.errors?.length} 个 Agent 配置没有生效：
+                {agentErrorReason(modelData?.errors?.[0] ?? "")}
+                {(modelData?.errors?.length ?? 0) > 1
+                  ? "（另有更多，悬停查看）"
+                  : ""}
+              </p>
+            </li>
+          )}
           <li>
             <button
               className="agent-row add"

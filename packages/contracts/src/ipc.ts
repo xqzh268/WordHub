@@ -218,7 +218,7 @@ export interface CommandResults {
   };
   "settings.addProvider": { saved: boolean };
   "settings.removeProvider": { saved: boolean };
-  "settings.models": { agents: Array<{ id: string; displayName: string; description?: string; avatar?: { glyph?: string; color?: string }; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }> };
+  "settings.models": { agents: Array<{ id: string; displayName: string; description?: string; avatar?: { glyph?: string; color?: string }; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }>; errors?: string[] };
   "settings.setAgentModel": { saved: boolean };
   "settings.testConnection": { ok: boolean; message: string };
   "app.setTheme": { applied: boolean };
