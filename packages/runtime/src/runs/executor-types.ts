@@ -1,5 +1,6 @@
 import type { Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "../types.js";
+import type { AgentFormInput } from "../agents/custom.js";
 import type { ExportRequest } from "../export/run.js";
 import type { CustomProviderInput } from "../models/providers.js";
 import type { RunRequest } from "./run-types.js";
@@ -68,6 +69,21 @@ export type RuntimeRequest =
     }
   | { type: "chapter.watch"; projectId: string; requestId: string }
   | { type: "export.fonts"; requestId: string }
+  | { type: "agent.catalog"; requestId: string }
+  | { type: "agent.get"; projectPath: string; name: string; requestId: string }
+  | {
+      type: "agent.save";
+      projectPath: string;
+      mode: "create" | "update";
+      agent: AgentFormInput;
+      requestId: string;
+    }
+  | {
+      type: "agent.delete";
+      projectPath: string;
+      name: string;
+      requestId: string;
+    }
   | ({ type: "export.run"; requestId: string } & ExportRequest)
   | { type: "fact.list"; projectId: string; requestId: string }
   | { type: "project.prefs.get"; projectId: string; requestId: string }

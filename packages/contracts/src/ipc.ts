@@ -13,6 +13,10 @@ export type WorkspaceCommand =
   | "chapter.undo"
   | "chapter.revisions"
   | "export.fonts"
+  | "agent.catalog"
+  | "agent.get"
+  | "agent.save"
+  | "agent.delete"
   | "export.run"
   | "chapter.watch"
   | "fact.list"
@@ -38,6 +42,22 @@ export type WorkspaceCommand =
   | "settings.setAgentModel"
   | "settings.testConnection"
   | "app.setTheme";
+
+/** 自建 Agent 表单（与 runtime 的 AgentFormInput 同形） */
+export interface AgentFormPayload {
+  name: string;
+  displayName: string;
+  description: string;
+  prompt: string;
+  model: { provider: string; id: string; reasoning: string };
+  tools: string[];
+  write: "none" | "propose" | "write";
+  writeScopes: string[];
+  readScopes: string[];
+  confirmBeforeWrite: boolean;
+  maxTurns: number;
+  avatar?: { glyph?: string; color?: string };
+}
 
 export interface WorkspaceSnapshot {
   projectId?: string;
@@ -79,6 +99,10 @@ export interface CommandPayloads {
   "chapter.undo": { projectId: string; path: string; sessionId?: string };
   "chapter.revisions": { projectId: string; path: string };
   "export.fonts": undefined;
+  "agent.catalog": undefined;
+  "agent.get": { name: string };
+  "agent.save": { mode: "create" | "update"; agent: AgentFormPayload };
+  "agent.delete": { name: string };
   "export.run": {
     scope: "chapter" | "book";
     chapterPath?: string;
@@ -146,6 +170,10 @@ export interface CommandResults {
   "chapter.write": { relativePath: string; contentHash: string; revision: { id: string; revisionNo: number; author: { type: string; id: string }; createdAt: string } };
   "chapter.undo": { relativePath: string; contentHash: string; revision: { id: string; revisionNo: number; author: { type: string; id: string }; createdAt: string } };
   "export.fonts": { presets: string[]; installed: string[] };
+  "agent.catalog": { tools: string[]; writeScopes: string[]; readScopes: string[] };
+  "agent.get": AgentFormPayload;
+  "agent.save": { name: string };
+  "agent.delete": { deleted: boolean };
   "export.run": { canceled: boolean; path?: string; bytes?: number; chapters?: number };
   "chapter.revisions": { revisions: Array<{ id: string; revisionNo: number; status: string; contentHash: string; author: { type: string; id: string }; createdAt: string }> };
   "chapter.watch": { watching: boolean };
@@ -190,7 +218,7 @@ export interface CommandResults {
   };
   "settings.addProvider": { saved: boolean };
   "settings.removeProvider": { saved: boolean };
-  "settings.models": { agents: Array<{ id: string; displayName: string; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }> };
+  "settings.models": { agents: Array<{ id: string; displayName: string; description?: string; avatar?: { glyph?: string; color?: string }; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }> };
   "settings.setAgentModel": { saved: boolean };
   "settings.testConnection": { ok: boolean; message: string };
   "app.setTheme": { applied: boolean };

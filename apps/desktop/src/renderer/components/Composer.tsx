@@ -1,7 +1,7 @@
 import { ArrowUp, AtSign, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { LISTED_AGENTS, routeMessage, type AgentMeta } from "../lib/agents";
+import { listedAgents, routeMessage, type AgentMeta } from "../lib/agents";
 import { useWorkbench } from "../state/store";
 import { Seal } from "./Seal";
 
@@ -18,6 +18,7 @@ function activeMention(
 
 export function Composer() {
   const text = useWorkbench((s) => s.composer);
+  const customAgents = useWorkbench((s) => s.customAgents);
   const setText = useWorkbench((s) => s.setComposer);
   const send = useWorkbench((s) => s.send);
   const abort = useWorkbench((s) => s.abort);
@@ -34,9 +35,9 @@ export function Composer() {
   const candidates = useMemo<AgentMeta[]>(
     () =>
       mention
-        ? LISTED_AGENTS.filter((agent) => agent.name.startsWith(mention.query))
+        ? listedAgents().filter((agent) => agent.name.startsWith(mention.query))
         : [],
-    [mention],
+    [mention, customAgents],
   );
   const target = routeMessage(text).agent;
 

@@ -1,3 +1,11 @@
+import {
+  FORM_TOOLS,
+  READ_SCOPE_CHOICES,
+  WRITE_SCOPE_CHOICES,
+  deleteProjectAgent,
+  readProjectAgentForm,
+  saveProjectAgent,
+} from "../agents/custom.js";
 import { PRESET_FONTS, listInstalledFonts } from "../export/fonts.js";
 import { exportChapters } from "../export/run.js";
 import {
@@ -179,6 +187,45 @@ export function createRequestHandler(deps: DispatcherDeps) {
           request.requestId,
           await readChapter(folder, request.path),
         );
+        return;
+      }
+      if (request.type === "agent.catalog") {
+        sendResponse(request.requestId, {
+          tools: [...FORM_TOOLS],
+          writeScopes: [...WRITE_SCOPE_CHOICES],
+          readScopes: [...READ_SCOPE_CHOICES],
+        });
+        return;
+      }
+      if (request.type === "agent.get") {
+        sendResponse(
+          request.requestId,
+          await readProjectAgentForm(
+            request.projectPath,
+            modelSettings.agentRoot,
+            request.name,
+          ),
+        );
+        return;
+      }
+      if (request.type === "agent.save") {
+        const saved = await saveProjectAgent({
+          projectPath: request.projectPath,
+          builtinRoot: modelSettings.agentRoot,
+          config: await modelSettings.config(request.projectPath),
+          input: request.agent,
+          mode: request.mode,
+        });
+        sendResponse(request.requestId, { name: saved.name });
+        return;
+      }
+      if (request.type === "agent.delete") {
+        await deleteProjectAgent(
+          request.projectPath,
+          modelSettings.agentRoot,
+          request.name,
+        );
+        sendResponse(request.requestId, { deleted: true });
         return;
       }
       if (request.type === "export.fonts") {

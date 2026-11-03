@@ -42,3 +42,29 @@
 
 .sessions-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-3); }
 .sessions-foot .icon-btn { margin-left: auto; }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(30, 24, 18, 0.38); }
+.modal-scrim { position: absolute; inset: 0; background: transparent; cursor: default; }
+.agent-form { position: relative; width: min(560px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; padding: 18px 22px 16px; display: grid; gap: 10px; border-radius: 12px; background: var(--bg-canvas); box-shadow: 0 0 0 1px var(--line-strong), 0 16px 48px rgba(0, 0, 0, 0.25); font-family: var(--font-ui); font-size: 12.5px; }
+.agent-form h2 { margin: 0 0 4px; font-size: 15px; }
+.agent-form label { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; color: var(--ink-3); }
+.agent-form label:has(select + select) { grid-template-columns: 84px 1fr 130px; }
+.agent-form label.top { align-items: start; }
+.agent-form .text-input { width: 100%; }
+.agent-form fieldset { margin: 0; padding: 8px 10px; display: grid; gap: 4px; border: 1px solid var(--line); border-radius: 8px; }
+.agent-form legend { padding: 0 6px; color: var(--ink-3); }
+.agent-form label.check { display: flex; align-items: flex-start; gap: 6px; color: var(--ink-2); }
+.agent-form label.check small { display: block; color: var(--ink-4); }
+.agent-form label.check.inline { display: inline-flex; margin-left: 10px; }
+.agent-form .avatar-row { display: flex; align-items: center; gap: 10px; color: var(--ink-3); }
+.agent-form .avatar-row .text-input { flex: none; width: 56px; text-align: center; }
+.agent-form .scope-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 2px 0 0 2px; color: var(--ink-3); }
+.agent-form .scope-row > span { flex: none; }
+.agent-form .swatches { display: inline-flex; gap: 6px; }
+.agent-form .swatches button { width: 20px; height: 20px; border-radius: 50%; box-shadow: 0 0 0 1px var(--line-strong); }
+.agent-form .swatches button.on { box-shadow: 0 0 0 2px var(--bg-canvas), 0 0 0 4px var(--ink-2); }
+.agent-form .section-note { margin: 0; color: var(--ink-4); line-height: 1.55; }
+.agent-form .section-note.bad { color: var(--danger, #a63c2f); }
+.agent-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.agent-form-actions .spacer { flex: 1; }
+.agent-form-actions .btn { width: auto; height: 30px; padding: 0 14px; display: inline-flex; align-items: center; }

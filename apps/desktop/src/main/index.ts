@@ -185,6 +185,27 @@ function registerIpc(): void {
             : {}),
         });
       }
+      if (command === "agent.catalog")
+        return await worker.request<CommandResults["agent.catalog"]>({
+          type: "agent.catalog",
+        });
+      if (
+        command === "agent.get" ||
+        command === "agent.save" ||
+        command === "agent.delete"
+      ) {
+        if (!linkedFolder)
+          throw new Error("请先链接写作文件夹，自建 Agent 保存在项目里");
+        const payload = request.payload as
+          | CommandPayloads["agent.get"]
+          | CommandPayloads["agent.save"]
+          | CommandPayloads["agent.delete"];
+        return await worker.request({
+          type: command,
+          projectPath: linkedFolder,
+          ...payload,
+        });
+      }
       if (command === "export.fonts")
         return await worker.request<CommandResults["export.fonts"]>({
           type: "export.fonts",

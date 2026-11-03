@@ -7,7 +7,11 @@ import type {
   ThemePreference,
   WorkspaceSnapshot,
 } from "@wordhub/contracts";
-import { routeMessage } from "../lib/agents";
+import {
+  type AgentMeta,
+  registerCustomAgents,
+  routeMessage,
+} from "../lib/agents";
 import { DEMO_CHAPTER, DEMO_PROJECT, demoSessions } from "../lib/demo";
 import { handleApproval } from "./approvalHandlers";
 import { handleIntake } from "./intakeHandlers";
@@ -85,6 +89,9 @@ export type State = Prefs & {
   modelsVersion: number;
   /** 纸面正在编辑：此时不切换章节，避免丢掉未保存的修改 */
   paperEditing: boolean;
+  /** 项目里自建的 Agent 展示信息（内置的在 lib/agents） */
+  customAgents: AgentMeta[];
+  setCustomAgents(list: AgentMeta[]): void;
   setPaperEditing(editing: boolean): void;
   bumpModels(): void;
   newSession(): Promise<void>;
@@ -149,6 +156,11 @@ export const useWorkbench = create<State>((set, get) => {
     activeChapter: null,
     modelsVersion: 0,
     paperEditing: false,
+    customAgents: [],
+    setCustomAgents(list) {
+      registerCustomAgents(list);
+      set({ customAgents: list });
+    },
     setPaperEditing(editing) {
       set({ paperEditing: editing });
     },

@@ -53,6 +53,10 @@ export class ModelSettings {
     private readonly projects: ProjectService,
     private readonly builtinRoot: string,
   ) {}
+  /** 内置 Agent 目录，自建 Agent 校验重名时用。 */
+  get agentRoot(): string {
+    return this.builtinRoot;
+  }
   private get globalFile(): string {
     return path.join(this.projects.storageRoot, "models.json");
   }

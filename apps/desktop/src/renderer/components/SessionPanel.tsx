@@ -1,7 +1,8 @@
 import { ChevronsUpDown, FolderPlus, Plus, RotateCw } from "lucide-react";
 import type { CommandResults } from "@wordhub/contracts";
 import { useCallback, useEffect, useState } from "react";
-import { AGENTS, WORKER_LABEL } from "../lib/agents";
+import { type AgentMeta, allAgents, WORKER_LABEL } from "../lib/agents";
+import { AgentForm } from "./AgentForm";
 import { pickReasoning, shortModel } from "../lib/models";
 import { useWorkbench } from "../state/store";
 import { Seal } from "./Seal";
@@ -15,14 +16,33 @@ export function SessionPanel() {
   const worker = useWorkbench((s) => s.worker);
   const activeRunId = useWorkbench((s) => s.activeRunId);
   const modelsVersion = useWorkbench((s) => s.modelsVersion);
+  useWorkbench((s) => s.customAgents);
   const sessionActions = useWorkbench.getState();
   const [modelData, setModelData] = useState<ModelData | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
+  /** 打开中的自建 Agent 表单："new" 新建，其余为正在编辑的标识 */
+  const [formFor, setFormFor] = useState<string | null>(null);
 
   const reloadModels = useCallback(() => {
     void window.wordhub
       ?.invoke("settings.models", undefined)
-      .then(setModelData)
+      .then((data) => {
+        setModelData(data);
+        // 项目里自建的 Agent：登记到渲染端注册表，名字、头像、@ 才能认出它们
+        const custom: AgentMeta[] = data.agents
+          .filter((agent) => agent.source === "project")
+          .map((agent) => ({
+            id: agent.id,
+            name: agent.displayName,
+            glyph:
+              agent.avatar?.glyph || Array.from(agent.displayName)[0] || "?",
+            color: agent.avatar?.color || "var(--ink-3)",
+            role: agent.description ?? "自建 Agent",
+            model: agent.model.id,
+            reasoning: agent.model.reasoning,
+          }));
+        useWorkbench.getState().setCustomAgents(custom);
+      })
       .catch(() => undefined);
   }, []);
   // 切换项目、设置页或这里改了模型后重新读取；项目文件夹不同，逐 Agent 配置也可能不同。
@@ -116,7 +136,7 @@ export function SessionPanel() {
           <span>Agents</span>
         </div>
         <ul className="agent-list" role="list">
-          {AGENTS.map((agent) => {
+          {allAgents().map((agent) => {
             const configured = modelData?.agents.find(
               (item) => item.id === agent.id,
             )?.model;
@@ -175,6 +195,17 @@ export function SessionPanel() {
                 </div>
                 {pickerFor === agent.id && configured && (
                   <div className="agent-picker" data-testid="agent-picker">
+                    {modelData?.agents.find((item) => item.id === agent.id)
+                      ?.source === "project" && (
+                      <button
+                        type="button"
+                        className="btn"
+                        data-testid={`agent-edit-${agent.id}`}
+                        onClick={() => setFormFor(agent.id)}
+                      >
+                        编辑这个 Agent…
+                      </button>
+                    )}
                     <select
                       className="text-input mono"
                       value={`${configured.provider}/${configured.id}`}
@@ -240,8 +271,14 @@ export function SessionPanel() {
           <li>
             <button
               className="agent-row add"
-              disabled
-              title="自建 Agent 将在 M5 开放"
+              data-testid="agent-new"
+              disabled={!project.folder || !modelData}
+              title={
+                project.folder
+                  ? "新建一个只属于这个项目的 Agent"
+                  : "先链接写作文件夹：自建 Agent 保存在项目里"
+              }
+              onClick={() => setFormFor("new")}
             >
               <span className="seal-add">
                 <Plus size={13} strokeWidth={1.5} />
@@ -271,6 +308,13 @@ export function SessionPanel() {
           </button>
         )}
       </footer>
+      {formFor && modelData && (
+        <AgentForm
+          models={modelData}
+          editing={formFor === "new" ? null : formFor}
+          onClose={() => setFormFor(null)}
+        />
+      )}
     </aside>
   );
 }

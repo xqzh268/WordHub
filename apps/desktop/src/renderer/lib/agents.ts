@@ -57,16 +57,33 @@ export const AGENTS: AgentMeta[] = [
   },
 ];
 
+/** 项目里自建的 Agent（来自 .wordhub/agents），由侧栏读到后登记；内置的在上面的 AGENTS。 */
+let customAgents: AgentMeta[] = [];
+export function registerCustomAgents(list: AgentMeta[]): void {
+  customAgents = list;
+}
+export const allAgents = (): AgentMeta[] => [...AGENTS, ...customAgents];
+
 /** @ 名单里列出的 Agent：史官只作为“定稿”动作的内部步骤，不单独对话（侧栏仍列出，可查看和切换模型）。 */
-export const LISTED_AGENTS: AgentMeta[] = AGENTS.filter(
-  (agent) => agent.id !== "observer",
-);
+export const listedAgents = (): AgentMeta[] =>
+  allAgents().filter((agent) => agent.id !== "observer");
+
+/** 未登记的 id（例如已删除的自建 Agent 留在历史里）显示为中性占位，不冒充别的 Agent。 */
+const unknownAgent = (id: string): AgentMeta => ({
+  id,
+  name: id,
+  glyph: "?",
+  color: "var(--ink-4)",
+  role: "已不存在的 Agent",
+  model: "",
+  reasoning: "",
+});
 
 export const agentById = (id: string): AgentMeta =>
-  AGENTS.find((agent) => agent.id === id) ?? AGENTS[0]!;
+  allAgents().find((agent) => agent.id === id) ?? unknownAgent(id);
 
 export const agentByName = (name: string): AgentMeta | undefined =>
-  AGENTS.find((agent) => agent.name === name);
+  allAgents().find((agent) => agent.name === name);
 
 /** 解析消息开头的 @mention，未指定时交给纲领（协调器默认入口）。 */
 export function routeMessage(text: string): { agent: AgentMeta; body: string } {
@@ -98,7 +115,7 @@ const TASK_KIND_LABELS: Record<string, string> = {
 /** 任务行的显示名：「写手 · 撰写」。 */
 export const taskLabel = (agentId?: string, kind?: string): string => {
   const agent = agentId
-    ? AGENTS.find((item) => item.id === agentId || item.name === agentId)
+    ? allAgents().find((item) => item.id === agentId || item.name === agentId)
     : undefined;
   const action = kind ? (TASK_KIND_LABELS[kind] ?? kind) : "";
   return [agent?.name, action].filter(Boolean).join(" · ") || "Agent任务";

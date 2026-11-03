@@ -43,6 +43,8 @@ const enter = {
 };
 
 export function ChatPane() {
+  // 自建 Agent 登记后重新渲染，历史消息里的名字和头像才能对上
+  useWorkbench((s) => s.customAgents);
   const session = useWorkbench((s) =>
     s.sessions.find((x) => x.id === s.activeSessionId),
   );

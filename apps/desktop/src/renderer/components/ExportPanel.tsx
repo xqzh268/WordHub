@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CommandPayloads } from "@wordhub/contracts";
+import { cleanIpcError } from "../lib/errors";
 
 type Format = CommandPayloads["export.run"]["format"];
 type Scope = CommandPayloads["export.run"]["scope"];
@@ -103,7 +104,7 @@ export function ExportPanel({
     } catch (error) {
       setMessage({
         ok: false,
-        text: error instanceof Error ? error.message : String(error),
+        text: cleanIpcError(error),
       });
     } finally {
       setBusy(false);

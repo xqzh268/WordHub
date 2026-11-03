@@ -31,6 +31,8 @@
     "test:providers:e2e": "node scripts/providers-e2e.mjs",
     "test:paper:e2e": "node scripts/paper-edit-e2e.mjs",
     "test:export:e2e": "node scripts/export-e2e.mjs",
+    "test:agent:e2e": "node scripts/agent-form-e2e.mjs",
+    "test:agent:live": "node scripts/agent-form-live-e2e.mjs",
     "test:paper:live": "node scripts/paper-edit-live-e2e.mjs",
     "test:providers:live": "node scripts/providers-live-e2e.mjs",
     "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",

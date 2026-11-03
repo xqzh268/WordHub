@@ -29,3 +29,4 @@ jobs:
       - run: npm run test:providers:e2e
       - run: npm run test:paper:e2e
       - run: npm run test:export:e2e
+      - run: npm run test:agent:e2e

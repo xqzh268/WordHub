@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { CommandPayloads, CommandResults } from "@wordhub/contracts";
+import { cleanIpcError } from "../lib/errors";
 
 type ProviderList = CommandResults["settings.providers"];
 type ProviderItem = ProviderList["providers"][number];
@@ -117,8 +118,7 @@ export function ProviderSettings({
     await refresh();
     onChanged();
   };
-  const fail = (cause: unknown) =>
-    setError(cause instanceof Error ? cause.message : String(cause));
+  const fail = (cause: unknown) => setError(cleanIpcError(cause));
 
   const saveSecret = async (id: string) => {
     const secret = secrets[id]?.trim();
@@ -132,7 +132,7 @@ export function ProviderSettings({
       note(id, "密钥已加密保存");
       await refresh();
     } catch (cause) {
-      note(id, cause instanceof Error ? cause.message : String(cause));
+      note(id, cleanIpcError(cause));
     }
   };
   const removeSecret = async (id: string) => {
