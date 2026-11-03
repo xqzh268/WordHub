@@ -10,6 +10,12 @@ import {
 import { createBuiltinTools, type WriteToolInput } from "./builtin.js";
 import type { AgentDefinition } from "../types.js";
 import { verifyCitations } from "./citations.js";
+import {
+  getReference,
+  listReferences,
+  readReferenceChapter,
+  searchReferences,
+} from "../references/library.js";
 
 export const bibleRelative = (input: string): string =>
   input
@@ -135,6 +141,40 @@ export function projectTools(input: {
     proposeDocument: proposal,
     proposeBible: (value) =>
       proposal(value, `.wordhub/bible/${bibleRelative(value.path)}`),
+    referenceList: async (referenceId) => {
+      if (referenceId) {
+        const meta = await getReference(input.projectPath, referenceId);
+        return {
+          id: meta.id,
+          title: meta.title,
+          author: meta.author,
+          chapters: meta.chapters.map((chapter) => ({
+            id: chapter.id,
+            title: chapter.title,
+            chars: chapter.chars,
+          })),
+        };
+      }
+      return (await listReferences(input.projectPath)).map((meta) => ({
+        id: meta.id,
+        title: meta.title,
+        author: meta.author,
+        format: meta.format,
+        chapterCount: meta.chapters.length,
+        totalChars: meta.totalChars,
+      }));
+    },
+    referenceSearch: async (value) =>
+      searchReferences(input.projectPath, value.query, {
+        referenceId: value.referenceId,
+      }),
+    referenceRead: async (value) =>
+      readReferenceChapter(
+        input.projectPath,
+        value.referenceId,
+        value.chapterId,
+        { start: value.start, end: value.end },
+      ),
     searchHistory: async (query) =>
       input.store.searchEvents(input.projectId, query).map(summary),
     getHistory: async (seq) => {

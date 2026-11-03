@@ -21,6 +21,9 @@ export const FORM_TOOLS = [
   "doc.propose",
   "bible.propose",
   "question.ask",
+  "reference.list",
+  "reference.search",
+  "reference.read",
 ] as const;
 const WRITE_TOOLS = new Set(["doc.write", "doc.propose", "bible.propose"]);
 
@@ -29,7 +32,12 @@ export const WRITE_SCOPE_CHOICES = [
   "chapters/**",
   ".wordhub/bible/**",
 ] as const;
-export const READ_SCOPE_CHOICES = ["bible", "outline", "chapters"] as const;
+export const READ_SCOPE_CHOICES = [
+  "bible",
+  "outline",
+  "chapters",
+  "references",
+] as const;
 
 const RESERVED_NAMES = new Set([
   "planner",
@@ -156,6 +164,11 @@ export function validateAgentForm(
     (scope) => !(READ_SCOPE_CHOICES as readonly string[]).includes(scope),
   );
   if (badRead.length) fail(`不支持的读取范围：${badRead.join("、")}`);
+  if (
+    tools.some((tool) => tool.startsWith("reference.")) &&
+    !readScopes.includes("references")
+  )
+    fail("使用参考库工具需要把读取范围选上“参考库”");
   if (
     !Number.isInteger(input.maxTurns) ||
     input.maxTurns < 1 ||

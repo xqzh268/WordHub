@@ -1,3 +1,21 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import {
+  STYLE_SAMPLES_FILE,
+  STYLE_SAMPLE_LIMITS,
+  addStyleSample,
+  parseStyleSamples,
+  removeStyleSample,
+} from "../references/style.js";
+import {
+  deleteReference,
+  importReference,
+  listReferences,
+  quoteFromRange,
+  readReferenceChapter,
+  searchReferences,
+} from "../references/library.js";
+import { contentHash } from "@wordhub/store";
 import {
   FORM_TOOLS,
   READ_SCOPE_CHOICES,
@@ -82,6 +100,21 @@ export function assertChapterPath(relativePath: string): void {
     normalized.includes("..")
   )
     throw new Error(`只能编辑 chapters/ 下的 Markdown 章节：${relativePath}`);
+}
+
+/** 读取文风示范文件及其内容哈希；不存在返回 undefined。 */
+async function readStyleSamplesFile(
+  folder: string,
+): Promise<{ text: string; hash: ReturnType<typeof contentHash> } | undefined> {
+  const data = await readFile(path.join(folder, STYLE_SAMPLES_FILE)).catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    },
+  );
+  return data
+    ? { text: data.toString("utf8"), hash: contentHash(data) }
+    : undefined;
 }
 
 export function createRequestHandler(deps: DispatcherDeps) {
@@ -187,6 +220,123 @@ export function createRequestHandler(deps: DispatcherDeps) {
           request.requestId,
           await readChapter(folder, request.path),
         );
+        return;
+      }
+      if (request.type === "reference.list") {
+        sendResponse(request.requestId, {
+          references: await listReferences(request.folder),
+        });
+        return;
+      }
+      if (request.type === "reference.import") {
+        const imported: Array<{
+          id: string;
+          title: string;
+          duplicate: boolean;
+        }> = [];
+        const failed: Array<{ name: string; error: string }> = [];
+        for (const file of request.files)
+          try {
+            const result = await importReference(request.folder, file);
+            imported.push({
+              id: result.meta.id,
+              title: result.meta.title,
+              duplicate: result.duplicate,
+            });
+          } catch (error) {
+            failed.push({
+              name: path.basename(file),
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        sendResponse(request.requestId, { canceled: false, imported, failed });
+        return;
+      }
+      if (request.type === "reference.read") {
+        // 界面整章阅读不受 Agent 单次读取上限约束
+        sendResponse(
+          request.requestId,
+          await readReferenceChapter(
+            request.folder,
+            request.referenceId,
+            request.chapterId,
+            {},
+            { maxChars: 2_000_000 },
+          ),
+        );
+        return;
+      }
+      if (request.type === "reference.search") {
+        sendResponse(request.requestId, {
+          hits: await searchReferences(request.folder, request.query, {
+            referenceId: request.referenceId,
+            limit: 100,
+          }),
+        });
+        return;
+      }
+      if (request.type === "reference.delete") {
+        await deleteReference(request.folder, request.referenceId);
+        sendResponse(request.requestId, { deleted: true });
+        return;
+      }
+      if (request.type === "reference.styleSamples") {
+        const existing = await readStyleSamplesFile(request.folder);
+        sendResponse(request.requestId, {
+          samples: existing ? parseStyleSamples(existing.text) : [],
+          limits: STYLE_SAMPLE_LIMITS,
+        });
+        return;
+      }
+      if (
+        request.type === "reference.addStyleSample" ||
+        request.type === "reference.removeStyleSample"
+      ) {
+        const existing = await readStyleSamplesFile(request.folder);
+        let content: string;
+        if (request.type === "reference.addStyleSample") {
+          const quote = await quoteFromRange(
+            request.folder,
+            request.referenceId,
+            request.chapterId,
+            request.start,
+            request.end,
+          );
+          content = addStyleSample(existing?.text, {
+            source: "《" + quote.referenceTitle + "》" + quote.chapterTitle,
+            anchor:
+              request.referenceId +
+              "/" +
+              request.chapterId +
+              "/" +
+              request.start +
+              "-" +
+              request.end,
+            text: quote.quote,
+          });
+        } else {
+          if (!existing) throw new Error("还没有文风示范");
+          content = removeStyleSample(existing.text, request.index);
+        }
+        const store = await recoverProjectFiles(request.projectId);
+        await new ControlledFileWriter(
+          store,
+          request.projectId,
+          request.folder,
+          {
+            allowBible: true,
+          },
+        ).writeText({
+          relativePath: STYLE_SAMPLES_FILE,
+          content,
+          // 以读到的版本为基线：读完到写入之间文件被别处改过会被拒绝，不会覆盖
+          expectedHash: existing ? existing.hash : null,
+          sessionId: request.sessionId,
+          author: { type: "user", id: "user" },
+        });
+        sendResponse(request.requestId, {
+          count: parseStyleSamples(content).length,
+        });
         return;
       }
       if (request.type === "agent.catalog") {

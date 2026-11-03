@@ -18,6 +18,14 @@ export type WorkspaceCommand =
   | "agent.save"
   | "agent.delete"
   | "export.run"
+  | "reference.list"
+  | "reference.import"
+  | "reference.read"
+  | "reference.search"
+  | "reference.delete"
+  | "reference.styleSamples"
+  | "reference.addStyleSample"
+  | "reference.removeStyleSample"
   | "chapter.watch"
   | "fact.list"
   | "fact.decide"
@@ -57,6 +65,26 @@ export interface AgentFormPayload {
   confirmBeforeWrite: boolean;
   maxTurns: number;
   avatar?: { glyph?: string; color?: string };
+}
+
+export interface ReferenceMetaPayload {
+  id: string;
+  title: string;
+  author?: string;
+  format: "txt" | "md" | "epub" | "docx" | "pdf";
+  originalName: string;
+  importedAt: string;
+  totalChars: number;
+  chapters: Array<{ id: string; index: number; title: string; chars: number }>;
+}
+
+export interface ReferenceHitPayload {
+  referenceId: string;
+  referenceTitle: string;
+  chapterId: string;
+  chapterTitle: string;
+  offset: number;
+  snippet: string;
 }
 
 export interface WorkspaceSnapshot {
@@ -103,6 +131,14 @@ export interface CommandPayloads {
   "agent.get": { name: string };
   "agent.save": { mode: "create" | "update"; agent: AgentFormPayload };
   "agent.delete": { name: string };
+  "reference.list": undefined;
+  "reference.import": undefined;
+  "reference.read": { referenceId: string; chapterId: string };
+  "reference.search": { query: string; referenceId?: string };
+  "reference.delete": { referenceId: string };
+  "reference.styleSamples": undefined;
+  "reference.addStyleSample": { referenceId: string; chapterId: string; start: number; end: number };
+  "reference.removeStyleSample": { index: number };
   "export.run": {
     scope: "chapter" | "book";
     chapterPath?: string;
@@ -174,6 +210,18 @@ export interface CommandResults {
   "agent.get": AgentFormPayload;
   "agent.save": { name: string };
   "agent.delete": { deleted: boolean };
+  "reference.list": { references: ReferenceMetaPayload[] };
+  "reference.import": {
+    canceled: boolean;
+    imported: Array<{ id: string; title: string; duplicate: boolean }>;
+    failed: Array<{ name: string; error: string }>;
+  };
+  "reference.read": { referenceId: string; referenceTitle: string; chapterId: string; chapterTitle: string; totalChars: number; start: number; end: number; text: string };
+  "reference.search": { hits: ReferenceHitPayload[] };
+  "reference.delete": { deleted: boolean };
+  "reference.styleSamples": { samples: Array<{ source: string; anchor?: string; text: string }>; limits: { count: number; minChars: number; maxChars: number } };
+  "reference.addStyleSample": { count: number };
+  "reference.removeStyleSample": { count: number };
   "export.run": { canceled: boolean; path?: string; bytes?: number; chapters?: number };
   "chapter.revisions": { revisions: Array<{ id: string; revisionNo: number; status: string; contentHash: string; author: { type: string; id: string }; createdAt: string }> };
   "chapter.watch": { watching: boolean };

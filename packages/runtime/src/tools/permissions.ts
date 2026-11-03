@@ -15,6 +15,9 @@ export const BUILTIN_TOOLS: ToolDescriptor[] = [
   { name: "history.get", kind: "read" },
   { name: "challenge.raise", kind: "system" },
   { name: "challenge.reply", kind: "system" },
+  { name: "reference.list", kind: "read" },
+  { name: "reference.search", kind: "read" },
+  { name: "reference.read", kind: "read" },
   { name: "question.ask", kind: "system" },
   { name: "fact.propose", kind: "system" },
   { name: "chapter.summarize", kind: "system" },
@@ -43,6 +46,12 @@ export class PermissionGuard {
     const tool = this.tools.find((item) => item.name === toolName);
     if (!tool || !agent.tools.includes(toolName))
       throw new PermissionDeniedError(toolName, "Agent未声明此工具");
+    // 参考库是单独的读取范围：声明了工具还要在 memoryScopes.read 里声明 references
+    if (
+      toolName.startsWith("reference.") &&
+      !agent.memoryScopes.read.includes("references")
+    )
+      throw new PermissionDeniedError(toolName, "Agent没有参考库的读取范围");
     if (tool.kind !== "write") return;
     const level: WriteLevel = agent.write;
     if (level === "none")

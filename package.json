@@ -32,6 +32,8 @@
     "test:paper:e2e": "node scripts/paper-edit-e2e.mjs",
     "test:export:e2e": "node scripts/export-e2e.mjs",
     "test:agent:e2e": "node scripts/agent-form-e2e.mjs",
+    "test:references:e2e": "node scripts/references-e2e.mjs",
+    "test:references:live": "node scripts/references-live-e2e.mjs",
     "test:agent:live": "node scripts/agent-form-live-e2e.mjs",
     "test:paper:live": "node scripts/paper-edit-live-e2e.mjs",
     "test:providers:live": "node scripts/providers-live-e2e.mjs",
@@ -64,6 +66,8 @@
     "foliate-js": "1.0.1",
     "iconv-lite": "^0.7.3",
     "jsdom": "26.1.0",
+    "jszip": "^3.10.2",
+    "pdfjs-dist": "^5.7.284",
     "superdoc": "2.20.0",
     "yaml": "2.8.1",
     "yauzl": "3.2.1"

@@ -69,6 +69,18 @@ export type BuiltinToolRuntime = {
     chapter: string;
     summary: string;
   }): Promise<{ chapter: string }>;
+  /** 参考库：不带 referenceId 时列出所有资料；带 referenceId 时列出该资料的章节 */
+  referenceList?(referenceId?: string): Promise<unknown>;
+  referenceSearch?(input: {
+    query: string;
+    referenceId?: string;
+  }): Promise<unknown>;
+  referenceRead?(input: {
+    referenceId: string;
+    chapterId: string;
+    start?: number;
+    end?: number;
+  }): Promise<unknown>;
   questionAsk?(input: {
     target: string;
     question: string;
@@ -172,6 +184,44 @@ const summaryParameters = Type.Object({
     maxLength: 800,
     description: "本章摘要：发生了什么、人物状态变化、留下的悬念，300字以内",
   }),
+});
+const referenceListParameters = Type.Object({
+  referenceId: Type.Optional(
+    Type.String({
+      pattern: "^ref-[0-9a-f]{12}$",
+      description:
+        "资料标识；不填则列出参考库里的所有资料，填了则列出这份资料的章节",
+    }),
+  ),
+});
+const referenceSearchParameters = Type.Object({
+  query: Type.String({
+    minLength: 1,
+    maxLength: 100,
+    description: "要找的字词（子串匹配，不区分大小写）",
+  }),
+  referenceId: Type.Optional(
+    Type.String({
+      pattern: "^ref-[0-9a-f]{12}$",
+      description: "只在这份资料里找；不填则全部资料",
+    }),
+  ),
+});
+const referenceReadParameters = Type.Object({
+  referenceId: Type.String({ pattern: "^ref-[0-9a-f]{12}$" }),
+  chapterId: Type.String({
+    pattern: "^[0-9]{4}$",
+    description: "章节标识，如 0003，来自 reference.list / reference.search",
+  }),
+  start: Type.Optional(
+    Type.Integer({ minimum: 0, description: "起始字符偏移，默认 0" }),
+  ),
+  end: Type.Optional(
+    Type.Integer({
+      minimum: 1,
+      description: "结束字符偏移；单次最多返回 2 万字，超出的用 start 续读",
+    }),
+  ),
 });
 const questionParameters = Type.Object({
   target: Type.String({ minLength: 1, maxLength: 64 }),
@@ -330,6 +380,41 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
         ? textResult(JSON.stringify(await runtime.chapterSummarize(params)))
         : textResult("当前运行时未提供摘要能力", { isError: true }),
   };
+  const referenceList: AgentTool<typeof referenceListParameters> = {
+    name: "reference.list",
+    label: "列出参考库",
+    description:
+      "列出参考库里的资料（书名、作者、章数）；传 referenceId 则列出该资料的章节。参考库是作者放进来的参考小说/资料，只读。",
+    parameters: referenceListParameters,
+    execute: async (_id, params) =>
+      runtime.referenceList
+        ? textResult(
+            JSON.stringify(await runtime.referenceList(params.referenceId)),
+          )
+        : textResult("当前运行时未提供参考库", { isError: true }),
+  };
+  const referenceSearch: AgentTool<typeof referenceSearchParameters> = {
+    name: "reference.search",
+    label: "检索参考库",
+    description:
+      "在参考库里按字词全文检索，返回出处（资料、章节、偏移）和前后文片段，最多 30 条。找到后用 reference.read 读原文。",
+    parameters: referenceSearchParameters,
+    execute: async (_id, params) =>
+      runtime.referenceSearch
+        ? textResult(JSON.stringify(await runtime.referenceSearch(params)))
+        : textResult("当前运行时未提供参考库", { isError: true }),
+  };
+  const referenceRead: AgentTool<typeof referenceReadParameters> = {
+    name: "reference.read",
+    label: "阅读参考库章节",
+    description:
+      "读取参考库里某章（或其中一段）的原文。引用时请注明资料名与章节，并且只借鉴笔法、节奏与结构，不得照抄原句或情节。",
+    parameters: referenceReadParameters,
+    execute: async (_id, params) =>
+      runtime.referenceRead
+        ? textResult(JSON.stringify(await runtime.referenceRead(params)))
+        : textResult("当前运行时未提供参考库", { isError: true }),
+  };
   const questionAsk: AgentTool<typeof questionParameters> = {
     name: "question.ask",
     label: "向Agent提问",
@@ -350,6 +435,9 @@ export function createBuiltinTools(runtime: BuiltinToolRuntime): AgentTool[] {
     historyGet,
     ...(runtime.challengeRaise ? [challengeRaise] : []),
     ...(runtime.challengeReply ? [challengeReply] : []),
+    ...(runtime.referenceList ? [referenceList] : []),
+    ...(runtime.referenceSearch ? [referenceSearch] : []),
+    ...(runtime.referenceRead ? [referenceRead] : []),
     ...(runtime.questionAsk ? [questionAsk] : []),
     ...(runtime.factPropose ? [factPropose] : []),
     ...(runtime.chapterSummarize ? [chapterSummarize] : []),

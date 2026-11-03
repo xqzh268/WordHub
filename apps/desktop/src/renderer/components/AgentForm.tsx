@@ -12,6 +12,8 @@ const READ_TOOLS: Array<{ name: string; label: string }> = [
   { name: "history.search", label: "搜对话记录" },
   { name: "history.get", label: "查看历史详情" },
   { name: "question.ask", label: "向我提问" },
+  // 一个勾选对应参考库的三个只读工具（列出、检索、阅读）
+  { name: "reference.read", label: "查阅参考库" },
 ];
 const WRITE_LEVELS: Array<{
   id: AgentFormPayload["write"];
@@ -34,6 +36,7 @@ const READ_SCOPES: Array<{ id: string; label: string }> = [
   { id: "chapters", label: "章节" },
   { id: "bible", label: "设定集" },
   { id: "outline", label: "大纲" },
+  { id: "references", label: "参考库" },
 ];
 const COLORS = [
   "#3f6b8f",
@@ -68,7 +71,11 @@ type Draft = {
 
 /** 写入类工具由“写权限 + 写入范围”推出，避免勾出自相矛盾的组合。 */
 function deriveTools(draft: Draft): string[] {
-  const tools = [...draft.readTools];
+  const tools = draft.readTools.flatMap((tool) =>
+    tool === "reference.read"
+      ? ["reference.list", "reference.search", "reference.read"]
+      : [tool],
+  );
   if (draft.write === "none") return tools;
   if (draft.writeScopes.includes("chapters/**"))
     tools.push(draft.write === "write" ? "doc.write" : "doc.propose");
@@ -177,7 +184,10 @@ export function AgentForm({
           tools,
           write: draft.write,
           writeScopes: draft.write === "none" ? [] : draft.writeScopes,
-          readScopes: draft.readScopes,
+          // 勾选了参考库工具就带上参考库读取范围，免得提交后被校验拒绝
+          readScopes: draft.readTools.includes("reference.read")
+            ? [...new Set([...draft.readScopes, "references"])]
+            : draft.readScopes,
           confirmBeforeWrite: draft.confirmBeforeWrite,
           maxTurns: Number(draft.maxTurns),
           avatar: { glyph, color: draft.color },

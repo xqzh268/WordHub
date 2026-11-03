@@ -41,3 +41,5 @@ jobs:
         timeout-minutes: 8
       - run: npm run test:agent:e2e
         timeout-minutes: 8
+      - run: npm run test:references:e2e
+        timeout-minutes: 8

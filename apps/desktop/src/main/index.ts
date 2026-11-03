@@ -206,6 +206,45 @@ function registerIpc(): void {
           ...payload,
         });
       }
+      if (command.startsWith("reference.")) {
+        if (!linkedFolder)
+          throw new Error("请先链接写作文件夹：参考库保存在项目里");
+        if (command === "reference.import") {
+          // 文件路径只来自系统对话框，渲染端不能指定
+          const choice = await dialog.showOpenDialog({
+            title: "导入参考资料",
+            properties: ["openFile", "multiSelections"],
+            filters: [
+              {
+                name: "参考资料（TXT、Markdown、EPUB、DOCX、PDF）",
+                extensions: ["txt", "md", "markdown", "epub", "docx", "pdf"],
+              },
+            ],
+          });
+          if (choice.canceled || choice.filePaths.length === 0)
+            return {
+              canceled: true,
+              imported: [],
+              failed: [],
+            } as CommandResults["reference.import"];
+          return await worker.request<CommandResults["reference.import"]>({
+            type: "reference.import",
+            folder: linkedFolder,
+            files: choice.filePaths,
+          });
+        }
+        const payload = (request.payload ?? {}) as Record<string, unknown>;
+        // 渲染端的载荷先展开，folder / type / projectId 由主进程最后写入，不能被覆盖
+        return await worker.request({
+          ...payload,
+          type: command,
+          folder: linkedFolder,
+          ...(command === "reference.addStyleSample" ||
+          command === "reference.removeStyleSample"
+            ? { projectId, sessionId: activeSessionId }
+            : {}),
+        });
+      }
       if (command === "export.fonts")
         return await worker.request<CommandResults["export.fonts"]>({
           type: "export.fonts",

@@ -69,6 +69,53 @@ export type RuntimeRequest =
     }
   | { type: "chapter.watch"; projectId: string; requestId: string }
   | { type: "export.fonts"; requestId: string }
+  | { type: "reference.list"; folder: string; requestId: string }
+  | {
+      type: "reference.import";
+      folder: string;
+      files: string[];
+      requestId: string;
+    }
+  | {
+      type: "reference.read";
+      folder: string;
+      referenceId: string;
+      chapterId: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.search";
+      folder: string;
+      query: string;
+      referenceId?: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.delete";
+      folder: string;
+      referenceId: string;
+      requestId: string;
+    }
+  | { type: "reference.styleSamples"; folder: string; requestId: string }
+  | {
+      type: "reference.addStyleSample";
+      folder: string;
+      projectId: string;
+      sessionId?: string;
+      referenceId: string;
+      chapterId: string;
+      start: number;
+      end: number;
+      requestId: string;
+    }
+  | {
+      type: "reference.removeStyleSample";
+      folder: string;
+      projectId: string;
+      sessionId?: string;
+      index: number;
+      requestId: string;
+    }
   | { type: "agent.catalog"; requestId: string }
   | { type: "agent.get"; projectPath: string; name: string; requestId: string }
   | {

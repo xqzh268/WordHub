@@ -7,6 +7,7 @@ import {
   projectSummaries,
 } from "@wordhub/contracts";
 import { safeProjectTarget, type WordHubStore } from "@wordhub/store";
+import { parseStyleSamples } from "../references/style.js";
 import { ContextBuilder } from "./builder.js";
 import type { AgentDefinition, ContextLayer } from "../types.js";
 
@@ -15,6 +16,8 @@ const BIBLE_FILES = {
   characters: "characters.md",
   style: "style.md",
 } as const;
+
+const STYLE_SAMPLES_NAME = "style-samples.md";
 
 const chapterNumber = (text: string): number | undefined => {
   const match = text.match(
@@ -306,6 +309,26 @@ export async function collectProjectContextLayers(input: {
         text: style.text,
         tokenBudget: 800,
       });
+    // 文风示范（作者从参考库里挑的片段）：只给会写正文的 Agent 和纲领
+    const writes =
+      input.agent.name === "planner" ||
+      input.agent.tools.some(
+        (tool) => tool === "doc.write" || tool === "doc.propose",
+      );
+    if (writes) {
+      const samples = await readBibleFile(
+        input.projectPath,
+        STYLE_SAMPLES_NAME,
+      );
+      if (samples?.text.trim() && parseStyleSamples(samples.text).length)
+        layers.push({
+          id: "style-samples",
+          kind: "bible",
+          sourcePath: samples.path,
+          text: samples.text,
+          tokenBudget: 1400,
+        });
+    }
   }
   return layers;
 }

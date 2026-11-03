@@ -8,6 +8,7 @@ import "./styles/layout.css";
 import "./styles/sessions.css";
 import "./styles/chat.css";
 import "./styles/paper.css";
+import "./styles/references.css";
 import "./styles/pages.css";
 import { App } from "./App";
 
