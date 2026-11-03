@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 import { writeTestModelOverrides } from "./lib/test-models.mjs";
+import { closeApp } from "./lib/close-app.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -271,7 +272,7 @@ try {
   check("润色：事件里记录了权限拒绝", denied);
 
   // ── 3. 重启后仍在 ──────────────────────────────────────────
-  await app.close();
+  await closeApp(app);
   ({ app, page } = await launch());
   await app.evaluate(({ dialog }, chosen) => {
     dialog.showOpenDialog = async () => ({
@@ -298,7 +299,7 @@ try {
 } catch (error) {
   check("脚本异常", false, String(error?.stack ?? error).slice(0, 700));
 }
-await app?.close().catch(() => undefined);
+await closeApp(app);
 const failed = report.checks.filter((c) => !c.passed);
 fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
 fs.writeFileSync(

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { _electron } from "playwright";
+import { closeApp } from "./lib/close-app.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const electronBinary = createRequire(import.meta.url)("electron");
@@ -216,7 +217,7 @@ try {
 } catch (error) {
   problems.push(String(error?.stack ?? error));
 }
-await app.close();
+await closeApp(app);
 
 // 重启后配置保留
 ({ app, page } = await launch());
@@ -259,6 +260,6 @@ try {
 } catch (error) {
   problems.push(String(error?.stack ?? error));
 }
-await app.close();
+await closeApp(app);
 console.log(JSON.stringify({ ok: problems.length === 0, problems }, null, 2));
 process.exit(problems.length ? 1 : 0);

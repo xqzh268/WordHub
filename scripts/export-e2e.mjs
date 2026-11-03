@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import iconv from "iconv-lite";
 import JSZip from "jszip";
 import { _electron } from "playwright";
+import { closeApp } from "./lib/close-app.mjs";
 
 const { ELECTRON_RUN_AS_NODE, DEEPSEEK_API_KEY, ...baseEnv } = process.env;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -269,7 +270,7 @@ try {
 } catch (error) {
   check("脚本异常", false, String(error?.stack ?? error).slice(0, 600));
 }
-await app?.close().catch(() => undefined);
+await closeApp(app);
 const failed = findings.filter((item) => !item.passed);
 fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
 fs.writeFileSync(

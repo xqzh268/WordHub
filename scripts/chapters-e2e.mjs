@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
+import { closeApp } from "./lib/close-app.mjs";
 
 const cleanEnv = () => {
   const {
@@ -240,7 +241,7 @@ try {
     await sheet.innerText(),
   );
 } finally {
-  await app?.close().catch(() => undefined);
+  await closeApp(app);
   const failed = findings.filter((f) => !f.passed);
   fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
   fs.writeFileSync(

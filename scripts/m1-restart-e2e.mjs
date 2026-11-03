@@ -9,6 +9,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
+import { closeApp } from "./lib/close-app.mjs";
 
 const cleanEnv = () => {
   const {
@@ -300,7 +301,7 @@ try {
       fs.readFileSync(resumedFile, "utf8").length > 0,
     fs.existsSync(resumedFile) ? fs.readFileSync(resumedFile, "utf8") : "",
   );
-  await app.close();
+  await closeApp(app);
 } finally {
   const failed = findings.filter((f) => !f.passed);
   fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });

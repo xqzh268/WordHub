@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { closeApp } from "./lib/close-app.mjs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
@@ -128,7 +129,7 @@ try {
     }
   }
 } finally {
-  await app.close().catch(() => {});
+  await closeApp(app);
 }
 
 const result = { ok: problems.length === 0, problems };

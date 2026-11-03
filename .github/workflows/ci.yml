@@ -7,6 +7,8 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
+    # 兜底：任何步骤卡住也不会占满默认的 6 小时
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,11 +24,20 @@ jobs:
       - run: npm run test:m1:store
       - run: npm run build:desktop
       - run: npm run test:desktop
+        timeout-minutes: 8
       - run: npm run test:layout
+        timeout-minutes: 8
       - run: npm run test:m1:e2e
+        timeout-minutes: 8
       - run: npm run test:chapters:e2e
+        timeout-minutes: 8
       - run: npm run test:facts:e2e
+        timeout-minutes: 8
       - run: npm run test:providers:e2e
+        timeout-minutes: 8
       - run: npm run test:paper:e2e
+        timeout-minutes: 8
       - run: npm run test:export:e2e
+        timeout-minutes: 8
       - run: npm run test:agent:e2e
+        timeout-minutes: 8

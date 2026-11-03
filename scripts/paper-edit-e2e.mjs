@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
+import { closeApp } from "./lib/close-app.mjs";
 
 const { ELECTRON_RUN_AS_NODE, DEEPSEEK_API_KEY, ...baseEnv } = process.env;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -263,7 +264,7 @@ try {
   await editorLoc(page).fill("第一章\n\n重启前保存的内容。");
   await page.click('[data-testid="finish-edit"]');
   await waitFile((text) => text.includes("重启前保存"), 6000);
-  await app.close();
+  await closeApp(app);
   ({ app, page } = await launch());
   await link(app, page);
   await page.selectOption('[data-testid="chapter-select"]', {
@@ -287,7 +288,7 @@ try {
   );
 
   // ── 7. Agent 运行期间纸面只读 ──────────────────────────────────
-  await app.close();
+  await closeApp(app);
   ({ app, page } = await launch({ WORDHUB_MOCK_TOKEN_RATE: "3" }));
   await link(app, page);
   await page.selectOption('[data-testid="chapter-select"]', {
@@ -314,7 +315,7 @@ try {
     `${String(error?.stack ?? error).slice(0, 400)} | 工具栏：${toolbar} | 磁盘：${JSON.stringify(disk)}`,
   );
 }
-await app?.close().catch(() => undefined);
+await closeApp(app);
 const failed = findings.filter((item) => !item.passed);
 fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
 fs.writeFileSync(

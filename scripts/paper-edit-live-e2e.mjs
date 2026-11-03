@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 import { writeTestModelOverrides } from "./lib/test-models.mjs";
+import { closeApp } from "./lib/close-app.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -175,7 +176,7 @@ try {
 } catch (error) {
   check("脚本异常", false, String(error?.stack ?? error).slice(0, 600));
 }
-await app?.close().catch(() => undefined);
+await closeApp(app);
 const failed = report.checks.filter((c) => !c.passed);
 fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
 fs.writeFileSync(
