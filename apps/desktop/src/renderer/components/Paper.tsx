@@ -594,7 +594,11 @@ function FactsPanel() {
                   >
                     <div className="fact-head">
                       <span className="tag">{FACT_KIND_LABELS[fact.kind]}</span>
-                      <strong>{fact.subject}</strong>
+                      <strong>
+                        {fact.kind === "relation"
+                          ? `${fact.subject} →${fact.relation}→ ${fact.object}`
+                          : fact.subject}
+                      </strong>
                       <span className="fact-status">
                         {STATUS_LABELS[fact.status]}
                       </span>

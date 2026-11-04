@@ -4,7 +4,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import type { AppEvent } from "@wordhub/contracts";
 import { ChatPane } from "./components/Chat";
 import { PaperPane } from "./components/Paper";
-import { GraphView } from "./components/Placeholder";
+import { GraphView } from "./components/graph/Graph";
 import { ReferencesView } from "./components/References";
 import { Rail } from "./components/Rail";
 import { SessionPanel } from "./components/SessionPanel";

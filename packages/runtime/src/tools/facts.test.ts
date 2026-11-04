@@ -251,3 +251,99 @@ describe("上下文：已确认事实与章节摘要", () => {
     expect(layers.find((l) => l.id === "summaries")).toBeUndefined();
   });
 });
+
+describe("fact.propose：人物关系", () => {
+  type Tool = {
+    name: string;
+    execute: (
+      id: string,
+      p: unknown,
+    ) => Promise<{ content: { text: string }[] }>;
+  };
+  const relationInput = {
+    kind: "relation",
+    subject: "裴照",
+    object: "老周",
+    relation: "旧识",
+    statement: "裴照与老周是旧识",
+    chapter: "chapters/第五章.md",
+    quote: "老周倒在质库后墙下",
+  };
+
+  it("记下两端与关系名；缺 object / relation 或两端相同会被拒绝", async () => {
+    const t = await setup();
+    const propose = (t.tools as unknown as { tools: Tool[] }).tools.find(
+      (x) => x.name === "fact.propose",
+    );
+    await propose?.execute("1", relationInput);
+    const [fact] = projectFacts(t.store.listEvents(t.project.id));
+    expect(fact).toMatchObject({
+      kind: "relation",
+      subject: "裴照",
+      object: "老周",
+      relation: "旧识",
+    });
+    await expect(
+      propose?.execute("2", { ...relationInput, object: undefined }),
+    ).rejects.toThrow(/object/u);
+    await expect(
+      propose?.execute("3", { ...relationInput, object: "裴照" }),
+    ).rejects.toThrow(/同一个人/u);
+    expect(t.emitted.filter((e) => e.type === "fact.proposed")).toHaveLength(1);
+  });
+
+  it("同一对人物同一句话但关系名不同，算两条；完全相同只记一次", async () => {
+    const t = await setup();
+    const propose = (t.tools as unknown as { tools: Tool[] }).tools.find(
+      (x) => x.name === "fact.propose",
+    );
+    await propose?.execute("1", relationInput);
+    await propose?.execute("2", relationInput);
+    await propose?.execute("3", { ...relationInput, relation: "仇敌" });
+    expect(t.emitted.filter((e) => e.type === "fact.proposed")).toHaveLength(2);
+  });
+
+  it("非关系事实里多给的 object / relation 不入库", async () => {
+    const t = await setup();
+    const propose = (t.tools as unknown as { tools: Tool[] }).tools.find(
+      (x) => x.name === "fact.propose",
+    );
+    await propose?.execute("1", {
+      ...relationInput,
+      kind: "character_state",
+    });
+    const event = t.emitted.find((e) => e.type === "fact.proposed");
+    expect(event?.payload.object).toBeUndefined();
+    expect(event?.payload.relation).toBeUndefined();
+  });
+
+  it("已确认的关系进入上下文时带两端与关系名", async () => {
+    const t = await setup();
+    const propose = (t.tools as unknown as { tools: Tool[] }).tools.find(
+      (x) => x.name === "fact.propose",
+    );
+    await propose?.execute("1", relationInput);
+    const [fact] = projectFacts(t.store.listEvents(t.project.id));
+    t.store.appendEvent({
+      id: "ev_confirm",
+      schemaVersion: 1,
+      occurredAt: new Date().toISOString(),
+      projectId: t.project.id,
+      sessionId: t.store.listSessions(t.project.id)[0]?.id ?? "",
+      runId: "run1",
+      type: "fact.confirmed",
+      actor: { type: "user", id: "user" },
+      payload: { factId: fact?.id },
+    } as never);
+    const layers = await collectProjectContextLayers({
+      store: t.store,
+      projectId: t.project.id,
+      projectPath: t.projectPath,
+      agent,
+      prompt: "写第六章",
+    } as never);
+    expect(layers.find((l) => l.id === "facts")?.text).toContain(
+      "裴照 →旧识→ 老周",
+    );
+  });
+});

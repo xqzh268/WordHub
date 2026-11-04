@@ -263,6 +263,15 @@ export function projectTools(input: {
       const chapter = value.chapter.replaceAll("\\", "/");
       if (!/^chapters\//u.test(chapter))
         throw new Error("事实的出处必须是 chapters/ 下的章节文件。");
+      const isRelation = value.kind === "relation";
+      const object = value.object?.trim();
+      const relation = value.relation?.trim();
+      if (isRelation && (!object || !relation))
+        throw new Error(
+          "人物关系必须同时给出 object（另一端人物）和 relation（关系名）。",
+        );
+      if (isRelation && object === value.subject.trim())
+        throw new Error("人物关系的两端不能是同一个人。");
       await verifyCitations(input.projectPath, "style", [
         { source: chapter, quote: value.quote },
       ]);
@@ -272,11 +281,20 @@ export function projectTools(input: {
           fact.status !== "rejected" &&
           fact.chapter === chapter &&
           fact.subject === value.subject &&
-          fact.statement === value.statement,
+          fact.statement === value.statement &&
+          (fact.object ?? "") === (isRelation ? object : "") &&
+          (fact.relation ?? "") === (isRelation ? relation : ""),
       );
       if (same) return { factId: same.id, duplicate: true };
       const factId = `fact_${input.runId}_${Date.now().toString(36)}_${existing.length}`;
-      input.event("fact.proposed", { factId, ...value, chapter });
+      // 只有关系事实才带 object / relation，别的类别里多给的字段不入库
+      const { object: _o, relation: _r, ...rest } = value;
+      input.event("fact.proposed", {
+        factId,
+        ...rest,
+        ...(isRelation ? { object, relation } : {}),
+        chapter,
+      });
       return { factId };
     },
     chapterSummarize: async (value) => {

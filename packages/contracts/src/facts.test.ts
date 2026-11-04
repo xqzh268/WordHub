@@ -101,3 +101,28 @@ describe("projectSummaries / projectFinalized", () => {
     expect([...set]).toEqual(["chapters/第一章.md", "chapters/第二章.md"]);
   });
 });
+
+describe("relation 事实", () => {
+  it("带两端与关系名才算数，缺了就丢弃", () => {
+    const facts = projectFacts([
+      proposed("r1", {
+        kind: "relation",
+        subject: "裴照",
+        object: "苏晚",
+        relation: "同伴",
+      }),
+      proposed("r2", { kind: "relation", subject: "裴照" }),
+      proposed("r3", { kind: "relation", subject: "裴照", object: "苏晚" }),
+    ]);
+    expect(facts.map((fact) => fact.id)).toEqual(["r1"]);
+    expect(facts[0]).toMatchObject({ object: "苏晚", relation: "同伴" });
+  });
+
+  it("非 relation 事实不带 object / relation", () => {
+    const [fact] = projectFacts([
+      proposed("f9", { object: "多余", relation: "多余" }),
+    ]);
+    expect(fact?.object).toBeUndefined();
+    expect(fact?.relation).toBeUndefined();
+  });
+});

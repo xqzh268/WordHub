@@ -6,6 +6,7 @@ export const FACT_KINDS = [
   "term",
   "foreshadow",
   "event",
+  "relation",
 ] as const;
 export type FactKind = (typeof FACT_KINDS)[number];
 
@@ -14,6 +15,7 @@ export const FACT_KIND_LABELS: Record<FactKind, string> = {
   term: "新名词",
   foreshadow: "伏笔",
   event: "关键事件",
+  relation: "人物关系",
 };
 
 export type NovelFactStatus = "proposed" | "confirmed" | "rejected";
@@ -23,6 +25,10 @@ export type NovelFact = {
   id: string;
   kind: FactKind;
   subject: string;
+  /** 仅 relation：关系的另一端（subject → object） */
+  object?: string;
+  /** 仅 relation：关系名，如“师徒”“仇敌”“夫妻” */
+  relation?: string;
   statement: string;
   /** 相对路径，如 chapters/第五章.md */
   chapter: string;
@@ -68,10 +74,15 @@ export function projectFacts(events: readonly Event[]): NovelFact[] {
         !FACT_KINDS.includes(kind as FactKind)
       )
         continue;
+      const object = asString(payload.object)?.trim();
+      const relation = asString(payload.relation)?.trim();
+      // 关系必须有两端和关系名；缺了就不是一条可画的关系
+      if (kind === "relation" && (!object || !relation)) continue;
       facts.set(id, {
         id,
         kind: kind as FactKind,
         subject,
+        ...(kind === "relation" ? { object, relation } : {}),
         statement,
         chapter,
         quote,

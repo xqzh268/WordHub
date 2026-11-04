@@ -280,7 +280,11 @@ export async function collectProjectContextLayers(input: {
         text: facts
           .map(
             (fact) =>
-              `- [${fact.chapter}·${FACT_KIND_LABELS[fact.kind]}] ${fact.subject}：${fact.statement}（原文：“${fact.quote}”）`,
+              `- [${fact.chapter}·${FACT_KIND_LABELS[fact.kind]}] ${
+                fact.kind === "relation"
+                  ? `${fact.subject} →${fact.relation}→ ${fact.object}`
+                  : fact.subject
+              }：${fact.statement}（原文：“${fact.quote}”）`,
           )
           .join("\n"),
         tokenBudget: 1200,

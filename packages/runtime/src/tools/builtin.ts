@@ -60,6 +60,8 @@ export type BuiltinToolRuntime = {
   factPropose?(input: {
     kind: FactKind;
     subject: string;
+    object?: string;
+    relation?: string;
     statement: string;
     chapter: string;
     quote: string;
@@ -150,7 +152,7 @@ const factParameters = Type.Object({
     FACT_KINDS.map((item) => Type.Literal(item)),
     {
       description:
-        "character_state人物状态（死亡/受伤/身份变化/位置等） / term新名词 / foreshadow伏笔 / event关键事件",
+        "character_state人物状态（死亡/受伤/身份变化/位置等） / term新名词 / foreshadow伏笔 / event关键事件 / relation人物关系（两个人物之间，需同时给 object 与 relation）",
     },
   ),
   subject: Type.String({
@@ -158,6 +160,21 @@ const factParameters = Type.Object({
     maxLength: 80,
     description: "事实的主体：人物名、名词本身、伏笔的称呼",
   }),
+  object: Type.Optional(
+    Type.String({
+      minLength: 1,
+      maxLength: 80,
+      description: "仅 relation：关系的另一端人物名（subject → object）",
+    }),
+  ),
+  relation: Type.Optional(
+    Type.String({
+      minLength: 1,
+      maxLength: 20,
+      description:
+        "仅 relation：关系名，用 2–6 个字，如师徒、夫妻、仇敌、同伴、主仆",
+    }),
+  ),
   statement: Type.String({
     minLength: 1,
     maxLength: 300,

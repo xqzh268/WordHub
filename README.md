@@ -111,6 +111,7 @@ npm run test:paper:e2e
 npm run test:export:e2e
 npm run test:agent:e2e
 npm run test:references:e2e
+npm run test:graph:e2e
 ```
 
 2026-10-13重新验证的结果见[M4验证记录](docs/m4-progress.md#验证记录)。桌面相关脚本依赖已构建的`out/`。
@@ -127,6 +128,7 @@ npm run test:providers:live
 npm run test:paper:live
 npm run test:agent:live
 npm run test:references:live
+npm run test:graph:live
 Remove-Item Env:WORDHUB_REQUIRE_LIVE -ErrorAction SilentlyContinue
 ```
 
