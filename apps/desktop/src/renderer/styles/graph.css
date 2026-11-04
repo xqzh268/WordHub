@@ -48,3 +48,61 @@
 .graph-jump { margin-left: auto; font-size: 11.5px; color: var(--accent-ink); }
 .graph-jump:hover { text-decoration: underline; }
 @media (max-width: 980px) { .graph-body { grid-template-columns: minmax(0, 1fr) 240px; } .graph-slider input[type="range"] { width: 140px; } }
+
+/* 采访 */
+.graph-tabs { display: flex; gap: 4px; margin: -4px 0 12px; padding: 2px; border-radius: 8px; background: var(--bg-sunken); }
+.graph-tabs button { flex: 1; height: 26px; border-radius: 6px; font-size: 12.5px; color: var(--ink-3); }
+.graph-tabs button.on { background: var(--bg-raised); color: var(--ink-1); box-shadow: var(--shadow-raised); font-weight: 600; }
+.interview { display: grid; gap: 10px; align-content: start; }
+.interview-scope { margin: 0; font-size: 12px; line-height: 1.7; color: var(--ink-3); }
+.interview-scope strong { color: var(--ink-1); }
+.interview-modes { display: flex; gap: 4px; }
+.interview-modes button { flex: 1; height: 26px; border-radius: 6px; font-size: 12px; color: var(--ink-3); box-shadow: 0 0 0 1px var(--line-strong); }
+.interview-modes button.on { color: var(--accent-ink); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.interview-log { display: grid; gap: 10px; max-height: 46vh; overflow-y: auto; padding: 2px; }
+.interview-empty { margin: 0; font-size: 12px; line-height: 1.8; color: var(--ink-4); }
+.turn { display: grid; gap: 4px; padding: 8px 10px; border-radius: 8px; background: var(--bg-sunken); }
+.turn.user { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.turn b { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+.turn p { margin: 0; font-family: var(--font-serif); font-size: 13.5px; line-height: 1.85; color: var(--ink-1); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cite { margin-left: 1px; padding: 0 3px; border-radius: 4px; font-size: 10px; color: var(--accent-ink); background: var(--accent-soft); cursor: help; }
+.interview-basis { margin: 2px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 11.5px; color: var(--ink-3); line-height: 1.6; }
+.interview-basis span { color: var(--accent-ink); }
+.interview-basis q { display: block; color: var(--ink-4); }
+.turn p.interview-warning { padding: 4px 8px; border-radius: 6px; font-family: var(--font-ui); font-size: 12px; line-height: 1.6; color: var(--danger); background: var(--danger-soft); }
+.interview-busy { margin: 0; font-size: 12px; color: var(--ink-4); }
+.interview-form { display: grid; gap: 6px; }
+.interview-form textarea { resize: vertical; min-height: 52px; font-family: var(--font-ui); line-height: 1.6; }
+.interview-send { justify-self: end; display: inline-flex; align-items: center; gap: 6px; width: auto; }
+.interview-send:disabled { opacity: 0.5; }
+.interview-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.interview-tools .btn { display: inline-flex; align-items: center; gap: 5px; width: auto; }
+.interview-tools .btn:disabled { opacity: 0.45; }
+.interview-saved { font-size: 11.5px; color: var(--ok); overflow-wrap: anywhere; }
+
+/* 推演 */
+.graph-sim-btn { display: inline-flex; align-items: center; gap: 5px; width: auto; height: 28px; }
+.graph-sim-btn.on { color: var(--accent-ink); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.sim { display: grid; gap: 10px; align-content: start; }
+.sim h2 { margin: 0; display: flex; align-items: center; gap: 6px; font-family: var(--font-display); font-size: 18px; font-weight: 500; letter-spacing: 0.1em; }
+.sim-field { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; min-width: 0; font-size: 12px; color: var(--ink-3); }
+.sim-field legend { padding: 0; margin-bottom: 4px; font-size: 12px; color: var(--ink-3); }
+.sim-field textarea { resize: vertical; font-family: var(--font-ui); line-height: 1.6; }
+.sim-inline { display: flex; align-items: center; gap: 8px; }
+.sim-inline select { width: auto; min-width: 80px; height: 28px; }
+.sim-people { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.sim-start { display: inline-flex; align-items: center; gap: 6px; width: auto; }
+.sim-start:disabled { opacity: 0.5; }
+.sim-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 40vh; overflow-y: auto; }
+.sim-log li { padding: 8px 10px; border-radius: 8px; background: var(--bg-sunken); display: grid; gap: 4px; }
+.sim-log small { color: var(--accent-ink); font-weight: 600; }
+.sim-log p { margin: 0; font-family: var(--font-serif); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.sim-intent summary { cursor: pointer; font-size: 11.5px; color: var(--ink-4); }
+.sim-intent p { color: var(--ink-3); }
+.sim-report { display: grid; gap: 6px; padding: 10px 12px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.sim-report h3 { margin: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 600; }
+.sim-report pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-serif); font-size: 13px; line-height: 1.85; color: var(--ink-1); }
+.sim-inline select { padding: 0 28px 0 10px; line-height: 28px; box-sizing: border-box; }
+.sim-log { max-height: none; overflow: visible; }
+.interview-saved { flex: 1 1 100%; }
+.interview-saved { display: block; width: 100%; flex: 0 0 100%; word-break: break-all; overflow-wrap: anywhere; }

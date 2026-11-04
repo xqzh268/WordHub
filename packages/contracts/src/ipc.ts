@@ -39,6 +39,12 @@ export type WorkspaceCommand =
   | "chapter.watch"
   | "fact.list"
   | "fact.decide"
+  | "graph.interview"
+  | "graph.interviewSave"
+  | "graph.simulateEstimate"
+  | "graph.simulateStep"
+  | "graph.simulateReport"
+  | "graph.simulateSave"
   | "project.prefs.get"
   | "project.prefs.set"
   | "run.start"
@@ -60,6 +66,20 @@ export type WorkspaceCommand =
   | "settings.setAgentModel"
   | "settings.testConnection"
   | "app.setTheme";
+
+export interface SimulationBasePayload {
+  projectId: string;
+  /** 起点章节的相对路径 */
+  chapter: string;
+  premise?: string;
+  participants: string[];
+}
+export interface SimulationEntryPayload {
+  round: number;
+  name: string;
+  action: string;
+  intent?: string;
+}
 
 /** 自建 Agent 表单（与 runtime 的 AgentFormInput 同形） */
 export interface AgentFormPayload {
@@ -221,6 +241,36 @@ export interface CommandPayloads {
   "chapter.watch": { projectId: string };
   "fact.list": { projectId: string };
   "fact.decide": { projectId: string; factId: string; decision: "confirm" | "reject" };
+  "graph.interview": {
+    projectId: string;
+    node: string;
+    chapter: string;
+    mode: "character" | "author";
+    question: string;
+    history: Array<{ role: "user" | "character"; text: string }>;
+  };
+  "graph.simulateEstimate": SimulationBasePayload & { rounds: number };
+  "graph.simulateStep": SimulationBasePayload & {
+    node: string;
+    round: number;
+    rounds: number;
+    log: SimulationEntryPayload[];
+  };
+  "graph.simulateReport": SimulationBasePayload & {
+    log: SimulationEntryPayload[];
+  };
+  "graph.simulateSave": SimulationBasePayload & {
+    rounds: number;
+    log: SimulationEntryPayload[];
+    report: string;
+  };
+  "graph.interviewSave": {
+    projectId: string;
+    node: string;
+    chapter: string;
+    mode: "character" | "author";
+    turns: Array<{ role: "user" | "character"; text: string; basis?: string[] }>;
+  };
   "project.prefs.get": { projectId: string };
   "project.prefs.set": { projectId: string; autoReviewOnFinalize?: boolean };
   "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
@@ -308,6 +358,39 @@ export interface CommandResults {
   "chapter.watch": { watching: boolean };
   "fact.list": { facts: NovelFact[]; summaries: ChapterSummary[]; finalized: string[] };
   "fact.decide": { factId: string; status: "confirmed" | "rejected" };
+  "graph.interview": {
+    answer: string;
+    basis: Array<{
+      ref: string;
+      factId: string;
+      chapter: string;
+      kind: NovelFact["kind"];
+      statement: string;
+      quote: string;
+    }>;
+    warnings: string[];
+    usage: { input: number; output: number; total: number; cost?: number };
+    model: string;
+  };
+  "graph.interviewSave": { path: string };
+  "graph.simulateEstimate": {
+    calls: number;
+    inputTokens: number;
+    outputTokens: number;
+  };
+  "graph.simulateStep": {
+    action: string;
+    intent?: string;
+    warnings: string[];
+    usage: { input: number; output: number; total: number; cost?: number };
+    model: string;
+  };
+  "graph.simulateReport": {
+    report: string;
+    usage: { input: number; output: number; total: number; cost?: number };
+    model: string;
+  };
+  "graph.simulateSave": { path: string };
   "project.prefs.get": { autoReviewOnFinalize: boolean };
   "project.prefs.set": { autoReviewOnFinalize: boolean };
   "run.start": { runId: string; projectId?: string; sessionId?: string };

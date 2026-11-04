@@ -21,6 +21,7 @@ import { createRequestHandler } from "./dispatcher.js";
 import { createRunSupport } from "./support.js";
 import { createWorkflowService } from "../coordinator/product.js";
 import { createNovelIntakeService } from "../novel/intake.js";
+import { createGraphService } from "../graph/service.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
   const post = options.post;
@@ -69,6 +70,43 @@ export function createRunExecutor(options: ExecutorOptions) {
       (
         context.messages[0] as { toolsAdded?: Array<{ name: string }> }
       ).toolsAdded?.map((tool) => tool.name) ?? [];
+    // 人物采访（模拟模式）：固定回答，便于端到端检查依据标注与越界提示
+    const textOfMessage = (message: unknown): string => {
+      const content = (message as { content?: unknown } | undefined)?.content;
+      if (typeof content === "string") return content;
+      if (Array.isArray(content))
+        return content
+          .map((block) =>
+            block && typeof block === "object" && "text" in block
+              ? String((block as { text: unknown }).text)
+              : "",
+          )
+          .join("");
+      return "";
+    };
+    if (textOfMessage(context.messages[0]).includes("【文枢·人物采访】")) {
+      const asked = textOfMessage(context.messages.at(-1));
+      return fauxAssistantMessage(
+        asked.includes("越界")
+          ? "（模拟采访）我和苏晚、阿福都有来往[F1]。"
+          : "（模拟采访）这件事我记得很清楚[F1]。",
+        { stopReason: "stop" },
+      );
+    }
+    // 人物推演与推演报告（模拟模式）：固定输出，便于端到端检查流程
+    if (textOfMessage(context.messages[0]).includes("【文枢·人物推演】")) {
+      const asked = textOfMessage(context.messages.at(-1));
+      const round = /第 (\d+)\//u.exec(asked)?.[1] ?? "?";
+      return fauxAssistantMessage(
+        `【行动】（模拟推演）第${round}轮，我按自己的打算行动。\n【心思】（模拟）我不信任对方。`,
+        { stopReason: "stop" },
+      );
+    }
+    if (textOfMessage(context.messages[0]).includes("【文枢·推演报告】"))
+      return fauxAssistantMessage(
+        "## 推演小结\n（模拟报告）局面逐步升级。\n\n## 可能的走向\n- 走向一（可能性：中等）\n\n## 对后续章节的建议\n- 保持克制",
+        { stopReason: "stop" },
+      );
     const hasCompletedWrite = context.messages.some(
       (message) =>
         message.role === "toolResult" &&
@@ -425,6 +463,13 @@ export function createRunExecutor(options: ExecutorOptions) {
     }
     throw new Error("该运行没有可恢复的审批");
   }
+  const graph = createGraphService({
+    projectService,
+    modelSettings,
+    models,
+    mockModels,
+    assertAuth,
+  });
   const handle = createRequestHandler({
     ready,
     storageRoot: options.storageRoot,
@@ -433,6 +478,7 @@ export function createRunExecutor(options: ExecutorOptions) {
     sendError,
     createProject,
     projectService,
+    graph,
     recoverProjectFiles,
     modelSettings,
     testConnection,

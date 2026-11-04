@@ -66,6 +66,7 @@ import type {
 import type { ProjectService } from "../projects/service.js";
 import type { ModelSettings } from "../models/settings.js";
 import type { RunEstimate } from "../budget/estimate.js";
+import type { createGraphService } from "../graph/service.js";
 
 type DispatcherDeps = {
   ready: Promise<unknown>;
@@ -77,6 +78,7 @@ type DispatcherDeps = {
     request: Extract<RuntimeRequest, { type: "project.create" }>,
   ) => Promise<unknown>;
   projectService: ProjectService;
+  graph: ReturnType<typeof createGraphService>;
   recoverProjectFiles: (id: string) => Promise<WordHubStore>;
   modelSettings: ModelSettings;
   providerAuth: (
@@ -149,6 +151,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
     sendError,
     createProject,
     projectService,
+    graph,
     recoverProjectFiles,
     modelSettings,
     testConnection,
@@ -606,6 +609,36 @@ export function createRequestHandler(deps: DispatcherDeps) {
           summaries: projectSummaries(events),
           finalized: [...projectFinalized(events)],
         });
+        return;
+      }
+      if (request.type === "graph.interview") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.interview(input));
+        return;
+      }
+      if (request.type === "graph.simulateEstimate") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.simulateEstimate(input));
+        return;
+      }
+      if (request.type === "graph.simulateStep") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.simulateStep(input));
+        return;
+      }
+      if (request.type === "graph.simulateReport") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.simulateReport(input));
+        return;
+      }
+      if (request.type === "graph.simulateSave") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.simulateSave(input));
+        return;
+      }
+      if (request.type === "graph.interviewSave") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.interviewSave(input));
         return;
       }
       if (request.type === "fact.decide") {

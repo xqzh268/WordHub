@@ -345,6 +345,58 @@ function registerIpc(): void {
           projectId: payload.projectId,
         });
       }
+      if (command === "graph.interview") {
+        const payload = request.payload as CommandPayloads["graph.interview"];
+        return await worker.request<CommandResults["graph.interview"]>({
+          type: "graph.interview",
+          ...payload,
+          runMode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
+        });
+      }
+      if (command === "graph.simulateEstimate") {
+        const payload =
+          request.payload as CommandPayloads["graph.simulateEstimate"];
+        return await worker.request<CommandResults["graph.simulateEstimate"]>({
+          type: "graph.simulateEstimate",
+          ...payload,
+          runMode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
+        });
+      }
+      if (command === "graph.simulateStep") {
+        const payload =
+          request.payload as CommandPayloads["graph.simulateStep"];
+        return await worker.request<CommandResults["graph.simulateStep"]>({
+          type: "graph.simulateStep",
+          ...payload,
+          runMode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
+        });
+      }
+      if (command === "graph.simulateReport") {
+        const payload =
+          request.payload as CommandPayloads["graph.simulateReport"];
+        return await worker.request<CommandResults["graph.simulateReport"]>({
+          type: "graph.simulateReport",
+          ...payload,
+          runMode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
+        });
+      }
+      if (command === "graph.simulateSave") {
+        const payload =
+          request.payload as CommandPayloads["graph.simulateSave"];
+        return await worker.request<CommandResults["graph.simulateSave"]>({
+          type: "graph.simulateSave",
+          ...payload,
+          runMode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
+        });
+      }
+      if (command === "graph.interviewSave") {
+        const payload =
+          request.payload as CommandPayloads["graph.interviewSave"];
+        return await worker.request<CommandResults["graph.interviewSave"]>({
+          type: "graph.interviewSave",
+          ...payload,
+        });
+      }
       if (command === "fact.decide") {
         const payload = request.payload as CommandPayloads["fact.decide"];
         return await worker.request<CommandResults["fact.decide"]>({

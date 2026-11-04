@@ -1,4 +1,4 @@
-import { Maximize2, Minus, Plus, Waypoints } from "lucide-react";
+import { FlaskConical, Maximize2, Minus, Plus, Waypoints } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FACT_KIND_LABELS,
@@ -9,6 +9,8 @@ import {
   projectGraph,
 } from "@wordhub/contracts";
 import { useWorkbench } from "../../state/store";
+import { type Talk, Interview, emptyTalk } from "./Interview";
+import { type SimState, Simulation, initialSim } from "./Simulation";
 import { type Point, WORLD, layoutGraph } from "./layout";
 
 const NODE_W = 92;
@@ -49,6 +51,10 @@ export function GraphView() {
   const [upTo, setUpTo] = useState<number | null>(null);
   const [showPending, setShowPending] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
+  const [detailTab, setDetailTab] = useState<"detail" | "interview">("detail");
+  const [talks, setTalks] = useState<Record<string, Talk>>({});
+  const [simOpen, setSimOpen] = useState(false);
+  const [sim, setSim] = useState<SimState>(() => initialSim([]));
   const last = Math.max(timeline.length - 1, 0);
   // null = 跟随最新章节；用户拖过滑块就固定在那一章
   const position = upTo === null ? last : Math.min(upTo, last);
@@ -78,6 +84,41 @@ export function GraphView() {
       ).length,
     [facts],
   );
+
+  const candidates = useMemo(
+    () => graph.nodes.map((node) => node.id),
+    [graph.nodes],
+  );
+  // 没开始推演时，参与名单只保留此刻（所选章节）图上有的人物
+  useEffect(() => {
+    setSim((current) =>
+      current.status === "idle" &&
+      current.participants.some((name) => !candidates.includes(name))
+        ? {
+            ...current,
+            participants: current.participants.filter((name) =>
+              candidates.includes(name),
+            ),
+          }
+        : current,
+    );
+  }, [candidates]);
+  const openSim = () => {
+    setSimOpen(true);
+    setSim((current) => {
+      if (current.status !== "idle" || current.participants.length > 0)
+        return current;
+      const picked = new Set<string>();
+      if (selection?.kind === "node") picked.add(selection.id);
+      for (const edge of graph.edges)
+        if (picked.has(edge.source) || picked.has(edge.target)) {
+          picked.add(edge.source);
+          picked.add(edge.target);
+        }
+      for (const name of candidates) if (picked.size < 3) picked.add(name);
+      return { ...current, participants: [...picked].slice(0, 4) };
+    });
+  };
 
   const selectedNode =
     selection?.kind === "node"
@@ -262,6 +303,15 @@ export function GraphView() {
         <span className="graph-count" data-testid="graph-count">
           {graph.nodes.length} 人 · {graph.edges.length} 条关系
         </span>
+        <button
+          type="button"
+          className={`btn graph-sim-btn ${simOpen ? "on" : ""}`}
+          aria-pressed={simOpen}
+          onClick={() => (simOpen ? setSimOpen(false) : openSim())}
+          data-testid="sim-open"
+        >
+          <FlaskConical size={13} strokeWidth={1.5} aria-hidden="true" /> 推演
+        </button>
         <span className="graph-zoom">
           <button
             type="button"
@@ -397,7 +447,55 @@ export function GraphView() {
           aria-label="详情"
           data-testid="graph-detail"
         >
-          {selectedNode ? (
+          {simOpen && current ? (
+            <Simulation
+              candidates={candidates}
+              chapter={current.chapter}
+              chapterLabel={current.label}
+              state={sim}
+              setState={(update) => setSim(update)}
+            />
+          ) : null}
+          {!simOpen && selectedNode && (
+            <div className="graph-tabs" role="tablist" aria-label="人物">
+              {(
+                [
+                  ["detail", "详情"],
+                  ["interview", "采访"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === id}
+                  className={detailTab === id ? "on" : ""}
+                  onClick={() => setDetailTab(id)}
+                  data-testid={`graph-tab-${id}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {simOpen ? null : selectedNode &&
+            detailTab === "interview" &&
+            current ? (
+            <Interview
+              node={selectedNode.id}
+              chapter={current.chapter}
+              chapterLabel={current.label}
+              talk={
+                talks[`${selectedNode.id}@${current.chapter}`] ?? emptyTalk()
+              }
+              setTalk={(update) =>
+                setTalks((all) => {
+                  const key = `${selectedNode.id}@${current.chapter}`;
+                  return { ...all, [key]: update(all[key] ?? emptyTalk()) };
+                })
+              }
+            />
+          ) : selectedNode ? (
             <NodeDetail
               node={selectedNode}
               edges={graph.edges.filter(
@@ -412,7 +510,7 @@ export function GraphView() {
             <EdgeDetail edge={selectedEdge} />
           ) : (
             <p className="graph-detail-empty">
-              点人物或关系查看详情和原文出处。拖动滑块可以回到更早的章节，看当时的人物与关系。
+              点人物或关系查看详情和原文出处；点人物后可以切到“采访”，以他的身份提问。拖动滑块可以回到更早的章节，看当时的人物与关系。
             </p>
           )}
         </aside>

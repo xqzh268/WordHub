@@ -4,6 +4,14 @@ import type { AgentFormInput } from "../agents/custom.js";
 import type { ExportRequest } from "../export/run.js";
 import type { MetaPatch } from "../references/shelf.js";
 import type { CustomProviderInput } from "../models/providers.js";
+import type {
+  InterviewRequest,
+  InterviewSaveRequest,
+  SimulationEstimateRequest,
+  SimulationReportRequest,
+  SimulationSaveRequest,
+  SimulationStepRequest,
+} from "../graph/service.js";
 import type { RunRequest } from "./run-types.js";
 
 export type RuntimeRequest =
@@ -206,6 +214,18 @@ export type RuntimeRequest =
     }
   | ({ type: "export.run"; requestId: string } & ExportRequest)
   | { type: "fact.list"; projectId: string; requestId: string }
+  | ({ type: "graph.interview"; requestId: string } & InterviewRequest)
+  | ({ type: "graph.interviewSave"; requestId: string } & InterviewSaveRequest)
+  | ({
+      type: "graph.simulateEstimate";
+      requestId: string;
+    } & SimulationEstimateRequest)
+  | ({ type: "graph.simulateStep"; requestId: string } & SimulationStepRequest)
+  | ({
+      type: "graph.simulateReport";
+      requestId: string;
+    } & SimulationReportRequest)
+  | ({ type: "graph.simulateSave"; requestId: string } & SimulationSaveRequest)
   | { type: "project.prefs.get"; projectId: string; requestId: string }
   | {
       type: "project.prefs.set";

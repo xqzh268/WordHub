@@ -193,6 +193,101 @@ try {
     ["沈砚", "林小满"].every((n) => names.includes(n)),
     names.join("、"),
   );
+  // 采访：以沈砚的身份回答（真实模型）
+  await page.click('[data-testid="graph-node-沈砚"]');
+  await page.click('[data-testid="graph-tab-interview"]');
+  const interview = async (question) => {
+    const count = await page.locator('[data-testid="interview-turn"]').count();
+    await page.fill('[data-testid="interview-input"]', question);
+    await page.click('[data-testid="interview-send"]');
+    await page.waitForFunction(
+      (n) =>
+        document.querySelectorAll('[data-testid="interview-turn"]').length >=
+        n + 2,
+      count,
+      { timeout: 120000 },
+    );
+    return (
+      (await page
+        .locator('[data-testid="interview-turn"]')
+        .last()
+        .textContent()) ?? ""
+    );
+  };
+  const squash = (text) => text.replace(/\s+/gu, " ");
+  const a1 = await interview("你为什么要让林小满独自下山？");
+  console.log("采访回答 1：", squash(a1).slice(0, 300));
+  check(
+    "采访得到回答，并附带依据（引用已确认的事实）",
+    a1.length > 10 &&
+      (await page.locator('[data-testid="interview-basis"] li').count()) >= 1,
+  );
+  check(
+    "回答没有越界警告",
+    (await page.locator('[data-testid="interview-warning"]').count()) === 0,
+  );
+  const a2 = await interview(
+    "你知道赵无咎后来怎么样了吗？第二章里发生了什么？",
+  );
+  console.log("采访回答 2（问后文，应当不知道）：", squash(a2).slice(0, 300));
+  check(
+    "问到还没写的后文时，人物说不知道/不确定，而不是编造",
+    /不知|不清楚|不确定|没听说|说不准|无从|不晓得|不得而知/u.test(a2),
+    squash(a2).slice(0, 120),
+  );
+  // 推演：沈砚、林小满、赵无咎，假如赵无咎提前动手（真实模型）
+  await page.click('[data-testid="sim-open"]');
+  await page.waitForSelector('[data-testid="sim-panel"]');
+  const picked = await page.$$eval(
+    '[data-testid^="sim-participant-"]',
+    (items) =>
+      items
+        .filter((item) => item.checked)
+        .map((item) =>
+          item.getAttribute("data-testid").replace("sim-participant-", ""),
+        ),
+  );
+  console.log("推演参与：", picked.join("、"));
+  check(
+    "推演默认选中沈砚和与他有关系的人",
+    picked.includes("沈砚") && picked.length >= 2,
+  );
+  await page.fill(
+    '[data-testid="sim-premise"]',
+    "赵无咎等不及了，提前动手，在林小满下山前拦住了她。",
+  );
+  await page.selectOption('[data-testid="sim-rounds"]', "2");
+  await page.click('[data-testid="sim-start"]');
+  await page.waitForSelector('[data-testid="sim-report"]', {
+    timeout: 480000,
+  });
+  const simEntries = await page
+    .locator('[data-testid="sim-entry"]')
+    .allTextContents();
+  for (const entry of simEntries)
+    console.log("推演：", squash(entry).slice(0, 160));
+  check(
+    "推演每一步都有行动记录（轮数 × 人数）",
+    simEntries.length === 2 * picked.length &&
+      simEntries.every((text) => text.length > 20),
+    `${simEntries.length} 条`,
+  );
+  const reportText =
+    (await page.locator('[data-testid="sim-report"]').textContent()) ?? "";
+  console.log("推演报告：", squash(reportText).slice(0, 500));
+  check(
+    "推演报告含小结与可能的走向，并标明非正史",
+    reportText.includes("非正史") &&
+      /推演小结|小结/u.test(reportText) &&
+      /走向/u.test(reportText),
+  );
+  check(
+    "推演没有越界警告（没有提到后文才出现的人物）",
+    (await page.locator('[data-testid="sim-warning"]').count()) === 0,
+  );
+  await page.click('[data-testid="sim-save"]');
+  await page.waitForSelector('[data-testid="sim-saved"]');
+  check("推演可保存为非正史的参考文件", true);
   await page.screenshot({
     path: path.join(root, "artifacts", "graph-live.png"),
   });

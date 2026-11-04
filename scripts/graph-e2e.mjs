@@ -1,7 +1,7 @@
 // 关系图谱端到端（真实 Electron，mock 后台，不调用模型）：
 // 把已确认/待确认/已驳回的人物状态与关系事实写进事件日志，再用界面检查：
 // 只画已确认的、待确认可选虚线显示、已驳回的不出现；时间滑块回到更早章节时后来才揭示的人物与关系消失；
-// 点节点/关系看详情与原文出处并能跳到章节；平移缩放；窄窗口与重启后版面和内容仍然正确。
+// 点节点/关系看详情与原文出处并能跳到章节；以人物身份采访（依据标注、越界警告、保存）；推演（估算、逐轮、心思不外泄、非正史报告）；平移缩放；窄窗口与重启后版面和内容仍然正确。
 // 用法：npm run build:desktop && node scripts/graph-e2e.mjs
 import fs from "node:fs";
 import fsp from "node:fs/promises";
@@ -370,6 +370,295 @@ try {
   await page.screenshot({
     path: path.join(root, "artifacts", "graph-view.png"),
   });
+
+  // ── 人物采访（mock 模型）────────────────────────────────
+  await page.click('[data-testid="graph-node-裴照"]');
+  await page.click('[data-testid="graph-tab-interview"]');
+  check(
+    "采访面板说明了人物与知识边界（截至第十章）",
+    (
+      (await page.locator('[data-testid="interview-scope"]').textContent()) ??
+      ""
+    ).includes("截至「第十章」") &&
+      (
+        (await page.locator('[data-testid="interview-scope"]').textContent()) ??
+        ""
+      ).includes("裴照"),
+  );
+  await page.fill('[data-testid="interview-input"]', "你怎么看老周？");
+  await page.click('[data-testid="interview-send"]');
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('[data-testid="interview-turn"]').length === 2,
+    null,
+    { timeout: 20000 },
+  );
+  const answer1 =
+    (await page
+      .locator('[data-testid="interview-turn"]')
+      .nth(1)
+      .textContent()) ?? "";
+  check(
+    "提问后得到人物的回答，问题与回答都显示在对话里",
+    answer1.includes("模拟采访"),
+    answer1.slice(0, 80),
+  );
+  check(
+    "回答带编号的依据，并列出对应的章节与原文",
+    (await page.locator('[data-testid="interview-turn"] sup.cite').count()) ===
+      1 &&
+      (await page.locator('[data-testid="interview-basis"] li').count()) ===
+        1 &&
+      (
+        (await page.locator('[data-testid="interview-basis"]').textContent()) ??
+        ""
+      ).includes("第一章"),
+  );
+  check(
+    "有依据且没越界时没有警告",
+    (await page.locator('[data-testid="interview-warning"]').count()) === 0,
+  );
+
+  await page.click('[data-testid="interview-mode-author"]');
+  check(
+    "可以切换到“作者（分析）”模式",
+    (await page.getAttribute(
+      '[data-testid="interview-mode-author"]',
+      "aria-pressed",
+    )) === "true",
+  );
+  await page.click('[data-testid="interview-mode-character"]');
+
+  // 拖到第一章：这是另一场采访（知识边界不同），回答里提到后文才出现的人物会被标红
+  await slider.fill("0");
+  await sleep(250);
+  check(
+    "换章节后是新的一场采访（对话为空，边界变成第一章）",
+    (await page.locator('[data-testid="interview-turn"]').count()) === 0 &&
+      (
+        (await page.locator('[data-testid="interview-scope"]').textContent()) ??
+        ""
+      ).includes("截至「第一章」"),
+  );
+  await page.fill('[data-testid="interview-input"]', "越界测试：你认识谁？");
+  await page.press('[data-testid="interview-input"]', "Enter");
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('[data-testid="interview-turn"]').length === 2,
+    null,
+    { timeout: 20000 },
+  );
+  const warning =
+    (await page
+      .locator('[data-testid="interview-warning"]')
+      .first()
+      .textContent()
+      .catch(() => "")) ?? "";
+  check(
+    "回答提到后文才出现的人物时给出越界警告（含该人物首次出现的章节）",
+    warning.includes("苏晚") && warning.includes("第三章"),
+    warning,
+  );
+  await page.click('[data-testid="interview-save"]');
+  await page.waitForSelector('[data-testid="interview-saved"]');
+  const savedPath = (
+    (await page.locator('[data-testid="interview-saved"]').textContent()) ?? ""
+  )
+    .replace("已保存：", "")
+    .trim();
+  const savedFile = path.join(folder, ...savedPath.split("/"));
+  check(
+    "保存对话：写成 .wordhub/graph/interviews/ 下的 Markdown，含问答与依据说明",
+    savedPath.startsWith(".wordhub/graph/interviews/") &&
+      fs.existsSync(savedFile) &&
+      fs.readFileSync(savedFile, "utf8").includes("越界测试"),
+    savedPath,
+  );
+  // 回到第十章：之前那场采访还在
+  await slider.fill("3");
+  await sleep(250);
+  check(
+    "回到第十章，之前那场采访（2 条）还在",
+    (await page.locator('[data-testid="interview-turn"]').count()) === 2,
+  );
+  const panel = await page.evaluate(() => {
+    const box = (s) => {
+      const el = document.querySelector(s);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height };
+    };
+    return {
+      detail: box('[data-testid="graph-detail"]'),
+      input: box('[data-testid="interview-input"]'),
+      send: box('[data-testid="interview-send"]'),
+      vh: innerHeight,
+      vw: innerWidth,
+    };
+  });
+  check(
+    "采访面板的输入框与按钮都在详情栏内、没有被挤出窗口",
+    panel.input.x >= panel.detail.x - 1 &&
+      panel.input.x + panel.input.w <= panel.detail.x + panel.detail.w + 1 &&
+      panel.send.x + panel.send.w <= panel.vw + 1 &&
+      panel.send.y + panel.send.h <= panel.vh + 1,
+    JSON.stringify(panel),
+  );
+  await page.screenshot({
+    path: path.join(root, "artifacts", "graph-interview.png"),
+  });
+  await page.click('[data-testid="graph-tab-detail"]');
+
+  // ── 推演（mock 模型）───────────────────────────────────
+  await page.click('[data-testid="graph-node-裴照"]');
+  await page.click('[data-testid="sim-open"]');
+  await page.waitForSelector('[data-testid="sim-panel"]');
+  const checkedNow = () =>
+    page.$$eval('[data-testid^="sim-participant-"]', (items) =>
+      items
+        .filter((item) => item.checked)
+        .map((item) =>
+          item.getAttribute("data-testid").replace("sim-participant-", ""),
+        ),
+    );
+  const defaults = await checkedNow();
+  check(
+    "打开推演：默认选中当前人物和与他有关系的人（2–4 人）",
+    defaults.includes("裴照") && defaults.length >= 2 && defaults.length <= 4,
+    defaults.join("、"),
+  );
+  for (const name of await checkedNow())
+    if (name !== "裴照" && name !== "苏晚")
+      await page.uncheck(`[data-testid="sim-participant-${name}"]`);
+  if (!(await checkedNow()).includes("苏晚"))
+    await page.check('[data-testid="sim-participant-苏晚"]');
+  await page.uncheck('[data-testid="sim-participant-苏晚"]');
+  check(
+    "只选 1 个人物时不能开始，并提示先选 2–6 个",
+    (await page.locator('[data-testid="sim-start"]').isDisabled()) &&
+      (
+        (await page.locator('[data-testid="sim-estimate"]').textContent()) ?? ""
+      ).includes("2–6"),
+  );
+  await page.check('[data-testid="sim-participant-苏晚"]');
+  await page.fill(
+    '[data-testid="sim-premise"]',
+    "苏晚发现了密信，并决定不告诉裴照",
+  );
+  await page.selectOption('[data-testid="sim-rounds"]', "2");
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="sim-estimate"]')
+        ?.textContent?.includes("次模型调用"),
+    null,
+    { timeout: 10000 },
+  );
+  check(
+    "开始前显示估算：2 人 × 2 轮 + 1 份报告 = 约 5 次模型调用",
+    (
+      (await page.locator('[data-testid="sim-estimate"]').textContent()) ?? ""
+    ).includes("约 5 次模型调用"),
+    (await page.locator('[data-testid="sim-estimate"]').textContent()) ?? "",
+  );
+  const chapterBefore = fs.readFileSync(
+    path.join(folder, "chapters", "第一章.md"),
+    "utf8",
+  );
+  await page.click('[data-testid="sim-start"]');
+  await page.waitForSelector('[data-testid="sim-report"]', { timeout: 30000 });
+  const entries = await page
+    .locator('[data-testid="sim-entry"]')
+    .allTextContents();
+  check(
+    "推演按“轮 × 人物”逐步进行：2 轮 × 2 人 = 4 条行动记录，每条带轮次与人物",
+    entries.length === 4 &&
+      entries[0].includes("第1轮 · 裴照") &&
+      entries[1].includes("第1轮 · 苏晚") &&
+      entries[2].includes("第2轮") &&
+      entries.every((text) => text.includes("模拟推演")),
+    entries.map((e) => e.slice(0, 24)).join(" | "),
+  );
+  check(
+    "每条行动的“心思”折叠起来，标明只有本人知道",
+    (await page.locator('[data-testid="sim-entry"] details').count()) === 4 &&
+      (
+        (await page
+          .locator('[data-testid="sim-entry"] summary')
+          .first()
+          .textContent()) ?? ""
+      ).includes("只有他自己知道"),
+  );
+  check(
+    "生成推演报告（标明非正史）并显示本次用量",
+    (
+      (await page.locator('[data-testid="sim-report"]').textContent()) ?? ""
+    ).includes("非正史") &&
+      (
+        (await page.locator('[data-testid="sim-report"]').textContent()) ?? ""
+      ).includes("模拟报告") &&
+      (await page.locator('[data-testid="sim-tokens"]').count()) === 1,
+  );
+  await page.click('[data-testid="sim-save"]');
+  await page.waitForSelector('[data-testid="sim-saved"]');
+  const branchPath = (
+    (await page.locator('[data-testid="sim-saved"]').textContent()) ?? ""
+  )
+    .replace("已保存：", "")
+    .trim();
+  const branchText = fs.existsSync(path.join(folder, ...branchPath.split("/")))
+    ? fs.readFileSync(path.join(folder, ...branchPath.split("/")), "utf8")
+    : "";
+  check(
+    "保存为 .wordhub/graph/branches/ 下的 Markdown：标明非正史，含设定、报告与逐轮记录（含心思）",
+    branchPath.startsWith(".wordhub/graph/branches/") &&
+      branchText.includes("非正史") &&
+      branchText.includes("苏晚发现了密信") &&
+      branchText.includes("### 第1轮 · 裴照") &&
+      branchText.includes("- 心思："),
+    branchPath,
+  );
+  check(
+    "推演不改章节文件",
+    fs.readFileSync(path.join(folder, "chapters", "第一章.md"), "utf8") ===
+      chapterBefore,
+  );
+  const simBox = await page.evaluate(() => {
+    const box = (s) => {
+      const el = document.querySelector(s);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.x, w: r.width, right: r.right };
+    };
+    return {
+      aside: box('[data-testid="graph-detail"]'),
+      panel: box('[data-testid="sim-panel"]'),
+      premise: box('[data-testid="sim-premise"]'),
+      vw: innerWidth,
+      overflowX: document.documentElement.scrollWidth > innerWidth + 1,
+    };
+  });
+  check(
+    "推演面板没有溢出详情栏或窗口",
+    !simBox.overflowX &&
+      simBox.premise.right <= simBox.aside.right + 1 &&
+      simBox.panel.right <= simBox.aside.right + 1,
+    JSON.stringify(simBox),
+  );
+  await page.screenshot({
+    path: path.join(root, "artifacts", "graph-sim.png"),
+  });
+  await page.click('[data-testid="sim-reset"]');
+  check(
+    "清空结果后回到设置状态",
+    (await page.locator('[data-testid="sim-report"]').count()) === 0 &&
+      (await page.locator('[data-testid="sim-start"]').isEnabled()),
+  );
+  await page.click('[data-testid="sim-open"]');
+  check(
+    "关闭推演后回到人物详情",
+    (await page.locator('[data-testid="sim-panel"]').count()) === 0,
+  );
 
   // ── 平移与缩放 ─────────────────────────────────────────
   const worldTransform = () =>
