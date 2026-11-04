@@ -2,6 +2,7 @@ import type { Models } from "@earendil-works/pi-ai";
 import type { ModelRef } from "../types.js";
 import type { AgentFormInput } from "../agents/custom.js";
 import type { ExportRequest } from "../export/run.js";
+import type { MetaPatch } from "../references/shelf.js";
 import type { CustomProviderInput } from "../models/providers.js";
 import type { RunRequest } from "./run-types.js";
 
@@ -97,6 +98,78 @@ export type RuntimeRequest =
       requestId: string;
     }
   | { type: "reference.styleSamples"; folder: string; requestId: string }
+  | {
+      type: "reference.update";
+      folder: string;
+      referenceId: string;
+      patch: MetaPatch;
+      requestId: string;
+    }
+  | {
+      type: "reference.collectionCreate";
+      folder: string;
+      name: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.collectionRename";
+      folder: string;
+      id: string;
+      name: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.collectionDelete";
+      folder: string;
+      id: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.opened";
+      folder: string;
+      referenceId: string;
+      chapterId: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.annotations";
+      folder: string;
+      referenceId: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.annotationAdd";
+      folder: string;
+      referenceId: string;
+      chapterId: string;
+      start: number;
+      end: number;
+      color?: "yellow" | "green" | "blue" | "pink";
+      note?: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.annotationUpdate";
+      folder: string;
+      referenceId: string;
+      annotationId: string;
+      note?: string | null;
+      color?: "yellow" | "green" | "blue" | "pink";
+      requestId: string;
+    }
+  | {
+      type: "reference.annotationDelete";
+      folder: string;
+      referenceId: string;
+      annotationId: string;
+      requestId: string;
+    }
+  | {
+      type: "reference.coverFile";
+      folder: string;
+      referenceId: string;
+      requestId: string;
+    }
   | {
       type: "reference.addStyleSample";
       folder: string;

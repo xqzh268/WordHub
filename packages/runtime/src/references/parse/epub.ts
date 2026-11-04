@@ -143,6 +143,30 @@ async function tocTitles(
   return titles;
 }
 
+/** 找封面图：EPUB3 清单项带 cover-image 属性，或 EPUB2 的 meta name="cover" 指向的清单项。 */
+async function extractCover(
+  zip: Awaited<ReturnType<typeof openZip>>,
+  opfDir: string,
+  opf: Document,
+  manifest: Manifest,
+): Promise<ParsedReference["cover"]> {
+  const byProperty = [...manifest.values()].find((item) =>
+    item.properties.split(/\s+/u).includes("cover-image"),
+  );
+  const coverId = Array.from(opf.querySelectorAll("metadata meta, meta"))
+    .find((node) => node.getAttribute("name") === "cover")
+    ?.getAttribute("content");
+  const item = byProperty ?? (coverId ? manifest.get(coverId) : undefined);
+  if (!item || !/^image\/(jpe?g|png|gif|webp)$/iu.test(item.type))
+    return undefined;
+  const file = zip.file(resolveEntry(opfDir, item.href));
+  if (!file) return undefined;
+  const data = await file.async("nodebuffer");
+  return data.length > 0 && data.length <= 5 * 1024 * 1024
+    ? { mime: item.type.toLowerCase(), data }
+    : undefined;
+}
+
 export async function parseEpub(
   buffer: Buffer,
   fileName: string,
@@ -206,5 +230,6 @@ export async function parseEpub(
     author: usableAuthor(meta("creator")),
     format: "epub",
     chapters,
+    cover: await extractCover(zip, opfDir, opf, manifest),
   };
 }

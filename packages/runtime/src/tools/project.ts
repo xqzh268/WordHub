@@ -160,6 +160,12 @@ export function projectTools(input: {
         title: meta.title,
         author: meta.author,
         format: meta.format,
+        // 作者给资料标的类型、年份、标签和阅读状态，Agent 据此挑该看哪本
+        kind: meta.kind,
+        year: meta.year,
+        tags: meta.tags,
+        status: meta.status,
+        favorite: meta.favorite,
         chapterCount: meta.chapters.length,
         totalChars: meta.totalChars,
       }));

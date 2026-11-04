@@ -29,7 +29,10 @@ const CHAPTER_PATTERN = /^\d{4}$/u;
 const pad = (index: number): string => String(index).padStart(4, "0");
 
 /** 参考库目录；路径链上有符号链接就拒绝，避免借链接读写项目外的文件。 */
-async function libraryRoot(folder: string, create = false): Promise<string> {
+export async function libraryRoot(
+  folder: string,
+  create = false,
+): Promise<string> {
   const base = await realpath(folder);
   let current = base;
   for (const part of ROOT) {
@@ -44,16 +47,84 @@ async function libraryRoot(folder: string, create = false): Promise<string> {
   return current;
 }
 
-function assertId(id: string): void {
+export function assertId(id: string): void {
   if (!ID_PATTERN.test(id))
     throw new ReferenceLibraryError(`参考资料标识无效：${id}`);
 }
-function assertChapter(chapterId: string): void {
+export function assertChapter(chapterId: string): void {
   if (!CHAPTER_PATTERN.test(chapterId))
     throw new ReferenceLibraryError(`章节标识无效：${chapterId}`);
 }
 
-export type ImportResult = { meta: ReferenceMeta; duplicate: boolean };
+/** 同一把锁串行化同一项目里的元数据读改写（标签、收藏、批注等），避免并发互相覆盖。 */
+const locks = new Map<string, Promise<unknown>>();
+export async function exclusive<T>(
+  folder: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const key = await realpath(folder);
+  const previous = locks.get(key) ?? Promise.resolve();
+  const next = previous.then(operation, operation);
+  locks.set(
+    key,
+    next.catch(() => undefined),
+  );
+  return next;
+}
+
+/** 读到的元数据补齐 v2 之前没有的字段，调用方不用再判断缺失。 */
+export function normalizeMeta(meta: ReferenceMeta): ReferenceMeta {
+  return {
+    ...meta,
+    kind: meta.kind ?? "other",
+    tags: meta.tags ?? [],
+    favorite: meta.favorite ?? false,
+    status: meta.status ?? "unread",
+    collectionIds: meta.collectionIds ?? [],
+  };
+}
+
+/** 原子地改写 reference.json（临时文件 → 改名）。 */
+export async function writeMeta(
+  folder: string,
+  meta: ReferenceMeta,
+): Promise<void> {
+  assertId(meta.id);
+  const root = await libraryRoot(folder);
+  const target = path.join(root, meta.id, "reference.json");
+  const temporary = `${target}.${process.pid}.tmp`;
+  try {
+    await writeFile(
+      temporary,
+      JSON.stringify(
+        { ...meta, schemaVersion: REFERENCE_SCHEMA_VERSION },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+    await rename(temporary, target);
+  } catch (error) {
+    await rm(temporary, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export type ImportResult = {
+  meta: ReferenceMeta;
+  duplicate: boolean;
+  /** 不是同一个文件，但书名和作者都对得上的已有资料：可能是同一本书的另一个版本 */
+  similar: ReferenceMeta[];
+};
+
+/** 用于判断“可能是同一本书”：书名与作者去掉空白、标点、大小写后相同。 */
+export function similarityKey(
+  meta: Pick<ReferenceMeta, "title" | "author">,
+): string {
+  const clean = (value: string | undefined) =>
+    (value ?? "").toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+  return `${clean(meta.title)}|${clean(meta.author)}`;
+}
 
 /** 导入一个文件：解析 → 写入 .wordhub/references/<id>/（原件副本、reference.json、按章文本）。 */
 export async function importReference(
@@ -73,7 +144,8 @@ export async function importReference(
   const root = await libraryRoot(folder, true);
   const target = path.join(root, id);
   const existing = await readMeta(target).catch(() => undefined);
-  if (existing) return { meta: existing, duplicate: true };
+  if (existing)
+    return { meta: normalizeMeta(existing), duplicate: true, similar: [] };
 
   const originalName = path.basename(filePath);
   const parsed = await parseReferenceFile(buffer, originalName);
@@ -110,6 +182,19 @@ export async function importReference(
     importedAt: new Date().toISOString(),
     totalChars,
     chapters: infos,
+    kind: "other",
+    tags: [],
+    favorite: false,
+    status: "unread",
+    collectionIds: [],
+    ...(parsed.cover && parsed.cover.data.length <= 5 * 1024 * 1024
+      ? {
+          cover: {
+            file: `cover.${coverExtension(parsed.cover.mime)}`,
+            mime: parsed.cover.mime,
+          },
+        }
+      : {}),
   };
 
   // 先写到临时目录再改名：中途失败不会留下半本书
@@ -127,6 +212,8 @@ export async function importReference(
         chapter.text,
         "utf8",
       );
+    if (parsed.cover && meta.cover)
+      await writeFile(path.join(temporary, meta.cover.file), parsed.cover.data);
     await writeFile(
       path.join(temporary, "reference.json"),
       JSON.stringify(meta, null, 2),
@@ -139,10 +226,27 @@ export async function importReference(
     );
     throw error;
   }
-  return { meta, duplicate: false };
+  const key = similarityKey(meta);
+  const similar = (await listReferences(folder)).filter(
+    (other) => other.id !== meta.id && similarityKey(other) === key,
+  );
+  return { meta: normalizeMeta(meta), duplicate: false, similar };
 }
 
-async function readMeta(directory: string): Promise<ReferenceMeta | undefined> {
+const COVER_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+/** 只认几种常见位图；SVG 等可带脚本的格式不接收。 */
+export const coverExtension = (mime: string): string =>
+  COVER_EXTENSIONS[mime.toLowerCase()] ?? "bin";
+
+export async function readMeta(
+  directory: string,
+): Promise<ReferenceMeta | undefined> {
   const text = await readFile(
     path.join(directory, "reference.json"),
     "utf8",
@@ -169,7 +273,7 @@ export async function listReferences(folder: string): Promise<ReferenceMeta[]> {
   for (const name of names) {
     if (!ID_PATTERN.test(name)) continue;
     const meta = await readMeta(path.join(root, name)).catch(() => undefined);
-    if (meta) metas.push(meta);
+    if (meta) metas.push(normalizeMeta(meta));
   }
   return metas.sort((a, b) => b.importedAt.localeCompare(a.importedAt));
 }
@@ -182,7 +286,7 @@ export async function getReference(
   const root = await libraryRoot(folder);
   const meta = await readMeta(path.join(root, id)).catch(() => undefined);
   if (!meta) throw new ReferenceLibraryError(`参考库里没有这份资料：${id}`);
-  return meta;
+  return normalizeMeta(meta);
 }
 
 export type ChapterText = {

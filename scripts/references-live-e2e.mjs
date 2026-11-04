@@ -143,10 +143,10 @@ try {
   }, bookFile);
   await page.click('[data-testid="rail-references"]');
   await page.click('[data-testid="ref-import"]');
-  await page.waitForSelector('[data-testid^="ref-ref-"]', { timeout: 30000 });
+  await page.waitForSelector('[data-testid^="book-ref-"]', { timeout: 30000 });
   check(
     "导入《寒江记》",
-    (await page.locator('[data-testid^="ref-ref-"]').count()) === 1,
+    (await page.locator('[data-testid^="book-ref-"]').count()) === 1,
   );
 
   // ── 1. 写手用工具找到并引用 ───────────────────────────────
@@ -185,12 +185,12 @@ try {
 
   // ── 2. 文风示范进入写手上下文 ─────────────────────────────
   await page.click('[data-testid="rail-references"]');
-  await page.locator(".ref-card", { hasText: "寒江记" }).first().click();
+  await page.click('[aria-label="打开《寒江记》"]');
   await page.locator(".refs-chapters button", { hasText: "第二章" }).click();
   await page.waitForSelector('[data-testid="ref-text"] p');
   await page.evaluate(() => {
     const container = document.querySelector('[data-testid="ref-text"]');
-    const node = container.querySelector("p").firstChild;
+    const node = container.querySelector("p span").firstChild;
     const range = document.createRange();
     range.setStart(node, 0);
     range.setEnd(node, Math.min(60, node.length));

@@ -1,4 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+import { readFile } from "node:fs/promises";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeImage,
+  nativeTheme,
+} from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -232,6 +240,34 @@ function registerIpc(): void {
             folder: linkedFolder,
             files: choice.filePaths,
           });
+        }
+        if (command === "reference.cover") {
+          // 封面在主进程里缩成小缩略图再给界面，不把几 MB 的原图送进渲染端
+          const referenceId = String(
+            (request.payload as { referenceId?: string })?.referenceId ?? "",
+          );
+          const located = await worker.request<{
+            path: string;
+            mime: string;
+          } | null>({
+            type: "reference.coverFile",
+            folder: linkedFolder,
+            referenceId,
+          });
+          const none = { dataUrl: null } as CommandResults["reference.cover"];
+          if (!located) return none;
+          try {
+            const image = nativeImage.createFromBuffer(
+              await readFile(located.path),
+            );
+            if (image.isEmpty()) return none;
+            const small = image.resize({ height: 360, quality: "good" });
+            return {
+              dataUrl: `data:image/jpeg;base64,${small.toJPEG(82).toString("base64")}`,
+            } as CommandResults["reference.cover"];
+          } catch {
+            return none;
+          }
         }
         const payload = (request.payload ?? {}) as Record<string, unknown>;
         // 渲染端的载荷先展开，folder / type / projectId 由主进程最后写入，不能被覆盖

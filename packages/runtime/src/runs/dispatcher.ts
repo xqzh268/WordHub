@@ -15,6 +15,21 @@ import {
   readReferenceChapter,
   searchReferences,
 } from "../references/library.js";
+import {
+  addAnnotation,
+  coverFile,
+  createCollection,
+  deleteAnnotation,
+  deleteCollection,
+  findSimilarGroups,
+  listAnnotations,
+  listCollections,
+  recordOpened,
+  renameCollection,
+  updateAnnotation,
+  updateReference,
+} from "../references/shelf.js";
+import type { ReferenceMeta } from "../references/types.js";
 import { contentHash } from "@wordhub/store";
 import {
   FORM_TOOLS,
@@ -100,6 +115,12 @@ export function assertChapterPath(relativePath: string): void {
     normalized.includes("..")
   )
     throw new Error(`只能编辑 chapters/ 下的 Markdown 章节：${relativePath}`);
+}
+
+/** 给界面的元数据：不带原件哈希，封面只告诉有没有。 */
+function toReferencePayload(meta: ReferenceMeta) {
+  const { sha256: _sha, cover, schemaVersion: _version, ...rest } = meta;
+  return { ...rest, hasCover: Boolean(cover) };
 }
 
 /** 读取文风示范文件及其内容哈希；不存在返回 undefined。 */
@@ -223,9 +244,106 @@ export function createRequestHandler(deps: DispatcherDeps) {
         return;
       }
       if (request.type === "reference.list") {
+        const references = await listReferences(request.folder);
         sendResponse(request.requestId, {
-          references: await listReferences(request.folder),
+          references: references.map(toReferencePayload),
+          collections: await listCollections(request.folder),
+          similarGroups: (await findSimilarGroups(request.folder)).map(
+            (group) => group.map((meta) => meta.id),
+          ),
         });
+        return;
+      }
+      if (request.type === "reference.update") {
+        sendResponse(
+          request.requestId,
+          toReferencePayload(
+            await updateReference(
+              request.folder,
+              request.referenceId,
+              request.patch,
+            ),
+          ),
+        );
+        return;
+      }
+      if (request.type === "reference.collectionCreate") {
+        sendResponse(
+          request.requestId,
+          await createCollection(request.folder, request.name),
+        );
+        return;
+      }
+      if (request.type === "reference.collectionRename") {
+        sendResponse(
+          request.requestId,
+          await renameCollection(request.folder, request.id, request.name),
+        );
+        return;
+      }
+      if (request.type === "reference.collectionDelete") {
+        await deleteCollection(request.folder, request.id);
+        sendResponse(request.requestId, { deleted: true });
+        return;
+      }
+      if (request.type === "reference.opened") {
+        await recordOpened(
+          request.folder,
+          request.referenceId,
+          request.chapterId,
+        );
+        sendResponse(request.requestId, { ok: true });
+        return;
+      }
+      if (request.type === "reference.annotations") {
+        sendResponse(request.requestId, {
+          annotations: await listAnnotations(
+            request.folder,
+            request.referenceId,
+          ),
+        });
+        return;
+      }
+      if (request.type === "reference.annotationAdd") {
+        sendResponse(
+          request.requestId,
+          await addAnnotation(request.folder, {
+            referenceId: request.referenceId,
+            chapterId: request.chapterId,
+            start: request.start,
+            end: request.end,
+            color: request.color,
+            note: request.note,
+          }),
+        );
+        return;
+      }
+      if (request.type === "reference.annotationUpdate") {
+        sendResponse(
+          request.requestId,
+          await updateAnnotation(
+            request.folder,
+            request.referenceId,
+            request.annotationId,
+            { note: request.note, color: request.color },
+          ),
+        );
+        return;
+      }
+      if (request.type === "reference.annotationDelete") {
+        await deleteAnnotation(
+          request.folder,
+          request.referenceId,
+          request.annotationId,
+        );
+        sendResponse(request.requestId, { deleted: true });
+        return;
+      }
+      if (request.type === "reference.coverFile") {
+        sendResponse(
+          request.requestId,
+          (await coverFile(request.folder, request.referenceId)) ?? null,
+        );
         return;
       }
       if (request.type === "reference.import") {
@@ -233,6 +351,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
           id: string;
           title: string;
           duplicate: boolean;
+          similar: Array<{ id: string; title: string }>;
         }> = [];
         const failed: Array<{ name: string; error: string }> = [];
         for (const file of request.files)
@@ -242,6 +361,10 @@ export function createRequestHandler(deps: DispatcherDeps) {
               id: result.meta.id,
               title: result.meta.title,
               duplicate: result.duplicate,
+              similar: result.similar.map((meta) => ({
+                id: meta.id,
+                title: meta.title,
+              })),
             });
           } catch (error) {
             failed.push({

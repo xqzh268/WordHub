@@ -26,6 +26,16 @@ export type WorkspaceCommand =
   | "reference.styleSamples"
   | "reference.addStyleSample"
   | "reference.removeStyleSample"
+  | "reference.update"
+  | "reference.collectionCreate"
+  | "reference.collectionRename"
+  | "reference.collectionDelete"
+  | "reference.opened"
+  | "reference.annotations"
+  | "reference.annotationAdd"
+  | "reference.annotationUpdate"
+  | "reference.annotationDelete"
+  | "reference.cover"
   | "chapter.watch"
   | "fact.list"
   | "fact.decide"
@@ -67,7 +77,58 @@ export interface AgentFormPayload {
   avatar?: { glyph?: string; color?: string };
 }
 
+export type AnnotationColor = "yellow" | "green" | "blue" | "pink";
+export type ReferenceKindPayload = "novel" | "paper" | "report" | "material" | "other";
+export type ReadingStatusPayload = "unread" | "reading" | "finished";
+
+export interface CollectionPayload {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface AnnotationPayload {
+  id: string;
+  chapterId: string;
+  start: number;
+  end: number;
+  quote: string;
+  color: AnnotationColor;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** null 表示清除该字段，不出现表示不改 */
+export interface ReferencePatchPayload {
+  title?: string;
+  author?: string | null;
+  kind?: ReferenceKindPayload;
+  year?: number | null;
+  publisher?: string | null;
+  doi?: string | null;
+  isbn?: string | null;
+  note?: string | null;
+  tags?: string[];
+  favorite?: boolean;
+  status?: ReadingStatusPayload;
+  collectionIds?: string[];
+}
+
 export interface ReferenceMetaPayload {
+  kind: ReferenceKindPayload;
+  year?: number;
+  publisher?: string;
+  doi?: string;
+  isbn?: string;
+  note?: string;
+  tags: string[];
+  favorite: boolean;
+  status: ReadingStatusPayload;
+  collectionIds: string[];
+  lastOpenedAt?: string;
+  progress?: { chapterId: string };
+  hasCover: boolean;
   id: string;
   title: string;
   author?: string;
@@ -139,6 +200,16 @@ export interface CommandPayloads {
   "reference.styleSamples": undefined;
   "reference.addStyleSample": { referenceId: string; chapterId: string; start: number; end: number };
   "reference.removeStyleSample": { index: number };
+  "reference.update": { referenceId: string; patch: ReferencePatchPayload };
+  "reference.collectionCreate": { name: string };
+  "reference.collectionRename": { id: string; name: string };
+  "reference.collectionDelete": { id: string };
+  "reference.opened": { referenceId: string; chapterId: string };
+  "reference.annotations": { referenceId: string };
+  "reference.annotationAdd": { referenceId: string; chapterId: string; start: number; end: number; color?: AnnotationColor; note?: string };
+  "reference.annotationUpdate": { referenceId: string; annotationId: string; note?: string | null; color?: AnnotationColor };
+  "reference.annotationDelete": { referenceId: string; annotationId: string };
+  "reference.cover": { referenceId: string };
   "export.run": {
     scope: "chapter" | "book";
     chapterPath?: string;
@@ -210,10 +281,10 @@ export interface CommandResults {
   "agent.get": AgentFormPayload;
   "agent.save": { name: string };
   "agent.delete": { deleted: boolean };
-  "reference.list": { references: ReferenceMetaPayload[] };
+  "reference.list": { references: ReferenceMetaPayload[]; collections: CollectionPayload[]; similarGroups: string[][] };
   "reference.import": {
     canceled: boolean;
-    imported: Array<{ id: string; title: string; duplicate: boolean }>;
+    imported: Array<{ id: string; title: string; duplicate: boolean; similar: Array<{ id: string; title: string }> }>;
     failed: Array<{ name: string; error: string }>;
   };
   "reference.read": { referenceId: string; referenceTitle: string; chapterId: string; chapterTitle: string; totalChars: number; start: number; end: number; text: string };
@@ -222,6 +293,16 @@ export interface CommandResults {
   "reference.styleSamples": { samples: Array<{ source: string; anchor?: string; text: string }>; limits: { count: number; minChars: number; maxChars: number } };
   "reference.addStyleSample": { count: number };
   "reference.removeStyleSample": { count: number };
+  "reference.update": ReferenceMetaPayload;
+  "reference.collectionCreate": CollectionPayload;
+  "reference.collectionRename": CollectionPayload;
+  "reference.collectionDelete": { deleted: boolean };
+  "reference.opened": { ok: boolean };
+  "reference.annotations": { annotations: AnnotationPayload[] };
+  "reference.annotationAdd": AnnotationPayload;
+  "reference.annotationUpdate": AnnotationPayload;
+  "reference.annotationDelete": { deleted: boolean };
+  "reference.cover": { dataUrl: string | null };
   "export.run": { canceled: boolean; path?: string; bytes?: number; chapters?: number };
   "chapter.revisions": { revisions: Array<{ id: string; revisionNo: number; status: string; contentHash: string; author: { type: string; id: string }; createdAt: string }> };
   "chapter.watch": { watching: boolean };
