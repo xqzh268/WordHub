@@ -263,6 +263,8 @@ try {
     null,
     { timeout: 60000 },
   );
+  // 列表视图的文字行总是带格式（网格里有图片封面的书，格式角标在图上、不在文字里）
+  await page.click('[data-testid="view-list"]');
   const cards = await page.$$eval('[data-testid^="book-ref-"]', (items) =>
     items.map((item) => item.textContent ?? ""),
   );
@@ -281,6 +283,7 @@ try {
       `列表标出了格式：${label}`,
       cards.some((text) => text.includes(needle)),
     );
+  await page.click('[data-testid="view-grid"]');
   check(
     "导入提示列出了书名",
     (await message()).includes("已导入 5 份"),
