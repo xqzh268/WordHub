@@ -22,9 +22,9 @@ import { createRunSupport } from "./support.js";
 import { createWorkflowService } from "../coordinator/product.js";
 import { createNovelIntakeService } from "../novel/intake.js";
 import { createGraphService } from "../graph/service.js";
+import { createLinkService } from "../graph/links.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
-import { createLinkService } from "../graph/links.js";
   const post = options.post;
   // 密钥由主进程同步到这里；Pi按Provider先查已存凭据，再查各自的环境变量。
   const credentialStore = new InMemoryCredentialStore();
@@ -87,8 +87,6 @@ import { createLinkService } from "../graph/links.js";
     };
     if (textOfMessage(context.messages[0]).includes("【文枢·人物采访】")) {
       const asked = textOfMessage(context.messages.at(-1));
-      return fauxAssistantMessage(
-        asked.includes("越界")
       // 回显他“已知的事”（只用于端到端检查认知边与别名是否进了提示词）
       if (asked.includes("列出已知")) {
         const system = textOfMessage(context.messages[0]);
@@ -102,6 +100,8 @@ import { createLinkService } from "../graph/links.js";
           { stopReason: "stop" },
         );
       }
+      return fauxAssistantMessage(
+        asked.includes("越界")
           ? "（模拟采访）我和苏晚、阿福都有来往[F1]。"
           : "（模拟采访）这件事我记得很清楚[F1]。",
         { stopReason: "stop" },
@@ -484,8 +484,6 @@ import { createLinkService } from "../graph/links.js";
     mockModels,
     assertAuth,
   });
-  const handle = createRequestHandler({
-    ready,
   const links = createLinkService({
     projectService,
     append: (store, projectId, anchor, type, payload) => {
@@ -504,6 +502,8 @@ import { createLinkService } from "../graph/links.js";
       );
     },
   });
+  const handle = createRequestHandler({
+    ready,
     storageRoot: options.storageRoot,
     post,
     sendResponse,
@@ -511,9 +511,9 @@ import { createLinkService } from "../graph/links.js";
     createProject,
     projectService,
     graph,
+    links,
     recoverProjectFiles,
     modelSettings,
-    links,
     testConnection,
     providerAuth: async (id) => {
       const check = await models.checkAuth(id);

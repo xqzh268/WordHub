@@ -270,8 +270,6 @@ export interface CommandPayloads {
     log: SimulationEntryPayload[];
     report: string;
   };
-  "graph.interviewSave": {
-    projectId: string;
   "graph.aliasLink": {
     projectId: string;
     alias: string;
@@ -291,6 +289,8 @@ export interface CommandPayloads {
     factId: string;
     character: string;
   };
+  "graph.interviewSave": {
+    projectId: string;
     node: string;
     chapter: string;
     mode: "character" | "author";
@@ -404,15 +404,15 @@ export interface CommandResults {
     model: string;
   };
   "graph.interviewSave": { path: string };
+  "graph.aliasLink": { aliasId: string };
+  "graph.aliasUnlink": { aliasId: string };
+  "graph.knowledgeSet": { factId: string };
+  "graph.knowledgeClear": { factId: string };
   "graph.simulateEstimate": {
     calls: number;
     inputTokens: number;
     outputTokens: number;
   };
-  "graph.aliasLink": { aliasId: string };
-  "graph.aliasUnlink": { aliasId: string };
-  "graph.knowledgeSet": { factId: string };
-  "graph.knowledgeClear": { factId: string };
   "graph.simulateStep": {
     action: string;
     intent?: string;

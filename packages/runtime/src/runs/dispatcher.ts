@@ -69,8 +69,8 @@ import type { ProjectService } from "../projects/service.js";
 import type { ModelSettings } from "../models/settings.js";
 import type { RunEstimate } from "../budget/estimate.js";
 import type { createGraphService } from "../graph/service.js";
-
 import type { createLinkService } from "../graph/links.js";
+
 type DispatcherDeps = {
   ready: Promise<unknown>;
   storageRoot: string;
@@ -82,8 +82,8 @@ type DispatcherDeps = {
   ) => Promise<unknown>;
   projectService: ProjectService;
   graph: ReturnType<typeof createGraphService>;
-  recoverProjectFiles: (id: string) => Promise<WordHubStore>;
   links: ReturnType<typeof createLinkService>;
+  recoverProjectFiles: (id: string) => Promise<WordHubStore>;
   modelSettings: ModelSettings;
   providerAuth: (
     id: string,
@@ -156,11 +156,11 @@ export function createRequestHandler(deps: DispatcherDeps) {
     createProject,
     projectService,
     graph,
+    links,
     recoverProjectFiles,
     modelSettings,
     testConnection,
     providerAuth,
-    links,
     reloadProviders,
     resumePersistedApproval,
     pendingApprovals,
@@ -613,13 +613,13 @@ export function createRequestHandler(deps: DispatcherDeps) {
           facts: projectFacts(events),
           summaries: projectSummaries(events),
           finalized: [...projectFinalized(events)],
+          aliases: projectAliases(events),
+          knowledge: projectKnowledge(events),
         });
         return;
       }
       if (request.type === "graph.interview") {
         const { type: _t, requestId: _r, ...input } = request;
-          aliases: projectAliases(events),
-          knowledge: projectKnowledge(events),
         sendResponse(request.requestId, await graph.interview(input));
         return;
       }
@@ -643,11 +643,6 @@ export function createRequestHandler(deps: DispatcherDeps) {
         sendResponse(request.requestId, await graph.simulateSave(input));
         return;
       }
-      if (request.type === "graph.interviewSave") {
-        const { type: _t, requestId: _r, ...input } = request;
-        sendResponse(request.requestId, await graph.interviewSave(input));
-        return;
-      }
       if (request.type === "graph.aliasLink") {
         const { type: _t, requestId: _r, ...input } = request;
         sendResponse(request.requestId, await links.aliasLink(input));
@@ -666,6 +661,11 @@ export function createRequestHandler(deps: DispatcherDeps) {
       if (request.type === "graph.knowledgeClear") {
         const { type: _t, requestId: _r, ...input } = request;
         sendResponse(request.requestId, await links.knowledgeClear(input));
+        return;
+      }
+      if (request.type === "graph.interviewSave") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await graph.interviewSave(input));
         return;
       }
       if (request.type === "fact.decide") {
