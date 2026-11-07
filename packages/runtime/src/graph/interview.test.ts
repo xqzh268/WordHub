@@ -198,3 +198,99 @@ describe("interviewPrompt", () => {
     expect(interviewPrompt([], "你好", "裴照")).toBe("作者现在问：你好");
   });
 });
+
+describe("采访：认知边与别名", () => {
+  const link = (alias: string, canonical: string, chapter?: string) => ({
+    id: `a-${alias}`,
+    alias,
+    canonical,
+    ...(chapter ? { chapter } : {}),
+    at: "t",
+  });
+  const entry = (
+    factId: string,
+    character: string,
+    mode: "knows" | "unaware",
+    chapter?: string,
+  ) => ({ factId, character, mode, ...(chapter ? { chapter } : {}), at: "t" });
+  // 第三章里“城门关闭”默认不属于裴照；老周死亡默认属于他（同章在场的身边人）
+  const withKnowledge = (
+    knowledge: ReturnType<typeof entry>[],
+    chapter = "第三章",
+  ) =>
+    buildInterviewContext({
+      projectName: "长安夜",
+      facts,
+      summaries,
+      node: "裴照",
+      chapter: `chapters/${chapter}.md`,
+      mode: "character",
+      knowledge,
+    });
+  const gate = facts.find((f) => f.statement === "城门关闭");
+  const monkey = facts.find((f) => f.statement === "裴照在质库发现了密信");
+
+  it("作者指定他知道：不相关的事也进入提示词，并有编号可回查", () => {
+    expect(build("第三章").system).not.toContain("城门关闭");
+    const ctx = withKnowledge([entry(gate?.id ?? "", "裴照", "knows")]);
+    expect(ctx.system).toContain("城门关闭");
+    expect([...ctx.facts.values()].some((f) => f.id === gate?.id)).toBe(true);
+  });
+
+  it("起知章节还没到时不进提示词", () => {
+    const ctx = withKnowledge(
+      [entry(gate?.id ?? "", "裴照", "knows", "chapters/第十章.md")],
+      "第三章",
+    );
+    expect(ctx.system).not.toContain("城门关闭");
+  });
+
+  it("作者指定他不知道：默认知道的也要去掉", () => {
+    expect(build("第三章").system).toContain("裴照在质库发现了密信");
+    const ctx = withKnowledge([entry(monkey?.id ?? "", "裴照", "unaware")]);
+    expect(ctx.system).not.toContain("发现了密信");
+  });
+
+  it("别名揭晓后：提示词带上别名名下的事实和“还有这些称呼”；揭晓前没有", () => {
+    const extra = [
+      ...facts,
+      fact("第一章", "character_state", "黑衣人", {
+        statement: "黑衣人夜袭质库",
+      }),
+    ];
+    const run = (chapter: string) =>
+      buildInterviewContext({
+        projectName: "长安夜",
+        facts: extra,
+        summaries,
+        node: "裴照",
+        chapter: `chapters/${chapter}.md`,
+        mode: "character",
+        aliases: [link("黑衣人", "裴照", "chapters/第三章.md")],
+      });
+    const before = run("第一章");
+    expect(before.system).not.toContain("夜袭质库");
+    expect(before.system).not.toContain("还有这些称呼");
+    const after = run("第三章");
+    expect(after.system).toContain("黑衣人夜袭质库");
+    expect(after.system).toContain("你在故事里还有这些称呼：黑衣人");
+    expect(after.hiddenNames.map((h) => h.name)).not.toContain("黑衣人");
+  });
+
+  it("别名揭晓前，回答里提到还没出现的别名（后文才登场）仍算越界", () => {
+    const extra = [
+      ...facts,
+      fact("第十章", "character_state", "黑衣人", { statement: "黑衣人现身" }),
+    ];
+    const ctx = buildInterviewContext({
+      projectName: "长安夜",
+      facts: extra,
+      summaries,
+      node: "裴照",
+      chapter: "chapters/第三章.md",
+      mode: "character",
+      aliases: [link("黑衣人", "裴照", "chapters/第十章.md")],
+    });
+    expect(ctx.hiddenNames.map((h) => h.name)).toContain("黑衣人");
+  });
+});

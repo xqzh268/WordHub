@@ -47,8 +47,10 @@ import {
   projectChat,
 } from "@wordhub/store";
 import {
+  projectAliases,
   projectFacts,
   projectFinalized,
+  projectKnowledge,
   projectSummaries,
 } from "@wordhub/contracts";
 import {
@@ -68,6 +70,7 @@ import type { ModelSettings } from "../models/settings.js";
 import type { RunEstimate } from "../budget/estimate.js";
 import type { createGraphService } from "../graph/service.js";
 
+import type { createLinkService } from "../graph/links.js";
 type DispatcherDeps = {
   ready: Promise<unknown>;
   storageRoot: string;
@@ -80,6 +83,7 @@ type DispatcherDeps = {
   projectService: ProjectService;
   graph: ReturnType<typeof createGraphService>;
   recoverProjectFiles: (id: string) => Promise<WordHubStore>;
+  links: ReturnType<typeof createLinkService>;
   modelSettings: ModelSettings;
   providerAuth: (
     id: string,
@@ -156,6 +160,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
     modelSettings,
     testConnection,
     providerAuth,
+    links,
     reloadProviders,
     resumePersistedApproval,
     pendingApprovals,
@@ -613,6 +618,8 @@ export function createRequestHandler(deps: DispatcherDeps) {
       }
       if (request.type === "graph.interview") {
         const { type: _t, requestId: _r, ...input } = request;
+          aliases: projectAliases(events),
+          knowledge: projectKnowledge(events),
         sendResponse(request.requestId, await graph.interview(input));
         return;
       }
@@ -639,6 +646,26 @@ export function createRequestHandler(deps: DispatcherDeps) {
       if (request.type === "graph.interviewSave") {
         const { type: _t, requestId: _r, ...input } = request;
         sendResponse(request.requestId, await graph.interviewSave(input));
+        return;
+      }
+      if (request.type === "graph.aliasLink") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await links.aliasLink(input));
+        return;
+      }
+      if (request.type === "graph.aliasUnlink") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await links.aliasUnlink(input));
+        return;
+      }
+      if (request.type === "graph.knowledgeSet") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await links.knowledgeSet(input));
+        return;
+      }
+      if (request.type === "graph.knowledgeClear") {
+        const { type: _t, requestId: _r, ...input } = request;
+        sendResponse(request.requestId, await links.knowledgeClear(input));
         return;
       }
       if (request.type === "fact.decide") {

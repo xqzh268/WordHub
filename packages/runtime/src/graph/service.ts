@@ -1,6 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { projectFacts, projectSummaries } from "@wordhub/contracts";
+import {
+  projectAliases,
+  projectFacts,
+  projectKnowledge,
+  projectSummaries,
+} from "@wordhub/contracts";
 import type { Models } from "@earendil-works/pi-ai";
 import type { ModelSettings } from "../models/settings.js";
 import type { ProjectService } from "../projects/service.js";
@@ -184,6 +189,8 @@ export function createGraphService(deps: Deps) {
         projectName: found.name,
         facts: projectFacts(events),
         summaries: projectSummaries(events),
+        aliases: projectAliases(events),
+        knowledge: projectKnowledge(events),
         node: request.node,
         chapter: request.chapter,
         mode: request.mode,
@@ -261,6 +268,8 @@ export function createGraphService(deps: Deps) {
           projectName: found.name,
           facts: projectFacts(events),
           summaries: projectSummaries(events),
+          aliases: projectAliases(events),
+          knowledge: projectKnowledge(events),
           node,
           chapter: base.chapter,
           mode: "character",

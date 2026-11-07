@@ -24,6 +24,7 @@ import { createNovelIntakeService } from "../novel/intake.js";
 import { createGraphService } from "../graph/service.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
+import { createLinkService } from "../graph/links.js";
   const post = options.post;
   // 密钥由主进程同步到这里；Pi按Provider先查已存凭据，再查各自的环境变量。
   const credentialStore = new InMemoryCredentialStore();
@@ -88,6 +89,19 @@ export function createRunExecutor(options: ExecutorOptions) {
       const asked = textOfMessage(context.messages.at(-1));
       return fauxAssistantMessage(
         asked.includes("越界")
+      // 回显他“已知的事”（只用于端到端检查认知边与别名是否进了提示词）
+      if (asked.includes("列出已知")) {
+        const system = textOfMessage(context.messages[0]);
+        const lines = system
+          .split("\n")
+          .filter((line) => /^\[F\d+\]/u.test(line));
+        const called =
+          /你在故事里还有这些称呼：[^\n]*/u.exec(system)?.[0] ?? "";
+        return fauxAssistantMessage(
+          `（模拟采访）已知：\n${lines.join("\n")}\n${called}`,
+          { stopReason: "stop" },
+        );
+      }
           ? "（模拟采访）我和苏晚、阿福都有来往[F1]。"
           : "（模拟采访）这件事我记得很清楚[F1]。",
         { stopReason: "stop" },
@@ -472,6 +486,24 @@ export function createRunExecutor(options: ExecutorOptions) {
   });
   const handle = createRequestHandler({
     ready,
+  const links = createLinkService({
+    projectService,
+    append: (store, projectId, anchor, type, payload) => {
+      appendRunEvent(
+        store,
+        {
+          type: "run",
+          runId: anchor.runId,
+          projectId,
+          sessionId: anchor.sessionId,
+          prompt: "",
+        },
+        type,
+        { type: "user", id: "user" },
+        payload,
+      );
+    },
+  });
     storageRoot: options.storageRoot,
     post,
     sendResponse,
@@ -481,6 +513,7 @@ export function createRunExecutor(options: ExecutorOptions) {
     graph,
     recoverProjectFiles,
     modelSettings,
+    links,
     testConnection,
     providerAuth: async (id) => {
       const check = await models.checkAuth(id);

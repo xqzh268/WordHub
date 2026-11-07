@@ -1,9 +1,12 @@
 import {
+  type AliasLink,
   type ChapterSummary,
   FACT_KIND_LABELS,
+  type KnowledgeEntry,
   type NovelFact,
+  characterKnowledge,
   graphTimeline,
-  projectGraph,
+  resolveName,
 } from "@wordhub/contracts";
 
 /**
@@ -76,6 +79,10 @@ export function buildInterviewContext(input: {
   mode: InterviewMode;
   characters?: string;
   setting?: string;
+  /** 作者建立的别名合并 */
+  aliases?: readonly AliasLink[];
+  /** 作者指定的“他知道/不知道哪些事” */
+  knowledge?: readonly KnowledgeEntry[];
   /** interview（默认）：采访；simulate：推演里的一个参与者 */
   purpose?: "interview" | "simulate";
   /** 推演：起始局面（作者设定的“假如……”） */
@@ -87,56 +94,25 @@ export function buildInterviewContext(input: {
   const upTo = timeline.findIndex((entry) => entry.chapter === input.chapter);
   if (upTo < 0) throw new InterviewError("所选章节不在时间轴上");
   const chapterLabel = timeline[upTo]?.label ?? baseName(input.chapter);
-  const graph = projectGraph(input.facts, timeline, { upToIndex: upTo });
-  const node = graph.nodes.find((item) => item.id === input.node);
-  if (!node)
+  const aliases = input.aliases ?? [];
+  const knowledge = characterKnowledge({
+    node: input.node,
+    facts: input.facts,
+    timeline,
+    upToIndex: upTo,
+    aliases,
+    entries: input.knowledge,
+  });
+  if (!knowledge)
     throw new InterviewError(
       `到「${chapterLabel}」为止，图谱里还没有已确认的人物「${input.node}」。`,
     );
-
+  const node = knowledge.node;
   const position = new Map(
     timeline.map((entry) => [entry.chapter, entry.index]),
   );
-  // 这个人物能知道的：他的人物状态与关系（已确认、不晚于所选章节）、他在其中出现的关键事件、
-  // 以及身边人在他亲历的章节里的状态变化。其余事实一概不给。
-  const involvedEvents = input.facts.filter(
-    (fact) =>
-      fact.status === "confirmed" &&
-      fact.kind === "event" &&
-      (position.get(fact.chapter) ?? Number.POSITIVE_INFINITY) <= upTo &&
-      (fact.subject === node.id || fact.statement.includes(node.id)),
-  );
-  // 身边人（有直接关系的人物）在他亲历的章节（这些章节里有他的事实）发生的状态变化，他也看得到
-  const neighbours = new Set(
-    graph.edges.flatMap((edge) =>
-      edge.source === node.id
-        ? [edge.target]
-        : edge.target === node.id
-          ? [edge.source]
-          : [],
-    ),
-  );
-  const presentChapters = new Set(node.facts.map((fact) => fact.chapter));
-  const nearby = input.facts.filter(
-    (fact) =>
-      fact.status === "confirmed" &&
-      fact.kind === "character_state" &&
-      neighbours.has(fact.subject) &&
-      presentChapters.has(fact.chapter) &&
-      (position.get(fact.chapter) ?? Number.POSITIVE_INFINITY) <= upTo,
-  );
-  const known = [
-    ...new Map(
-      [...node.facts, ...involvedEvents, ...nearby].map((fact) => [
-        fact.id,
-        fact,
-      ]),
-    ).values(),
-  ].sort(
-    (a, b) =>
-      (position.get(a.chapter) ?? 0) - (position.get(b.chapter) ?? 0) ||
-      a.proposedAt.localeCompare(b.proposedAt),
-  );
+  // 他知道的事：默认推断 + 作者指定（见 characterKnowledge）；其余事实一概不给。
+  const known = knowledge.known.map((item) => item.fact);
   const facts = new Map<string, NovelFact>();
   const lines = known.map((fact, i) => {
     const ref = `F${i + 1}`;
@@ -166,14 +142,32 @@ export function buildInterviewContext(input: {
   const profile = profileFor(input.characters, node.id);
   const setting = input.setting ? clip(input.setting.trim(), 1200) : "";
 
-  const full = projectGraph(input.facts, timeline);
-  const knownNames = new Set(graph.nodes.map((item) => item.id));
-  const hiddenNames = full.nodes
-    .filter((item) => !knownNames.has(item.id) && item.firstIndex > upTo)
-    .map((item) => ({
-      name: item.id,
-      chapterLabel: timeline[item.firstIndex]?.label ?? "",
+  // 越界名单：起点章节之后才第一次出现的名字（按原始名字算；已揭晓并入他的别名不算）
+  const firstSeen = new Map<string, number>();
+  for (const fact of input.facts) {
+    if (fact.status !== "confirmed") continue;
+    if (fact.kind !== "character_state" && fact.kind !== "relation") continue;
+    const at = position.get(fact.chapter);
+    if (at === undefined) continue;
+    for (const name of [fact.subject, fact.object])
+      if (name && at < (firstSeen.get(name) ?? Number.POSITIVE_INFINITY))
+        firstSeen.set(name, at);
+  }
+  const knownNames = new Set([node.id, ...node.aliases.map((a) => a.name)]);
+  const hiddenNames = [...firstSeen.entries()]
+    .filter(
+      ([name, at]) =>
+        at > upTo &&
+        !knownNames.has(name) &&
+        resolveName(name, aliases, position, upTo) === name,
+    )
+    .map(([name, at]) => ({
+      name,
+      chapterLabel: timeline[at]?.label ?? "",
     }));
+  const alsoCalled = node.aliases.length
+    ? `你在故事里还有这些称呼：${node.aliases.map((a) => a.name).join("、")}（它们指的都是你）。`
+    : "";
 
   const simulate = input.purpose === "simulate";
   const rules = simulate
@@ -210,6 +204,7 @@ export function buildInterviewContext(input: {
   const system = [
     simulate ? "【文枢·人物推演】" : "【文枢·人物采访】",
     ...rules,
+    ...(alsoCalled ? [alsoCalled] : []),
     "",
     ...obey,
     "",

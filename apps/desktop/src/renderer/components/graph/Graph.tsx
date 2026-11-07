@@ -1,6 +1,7 @@
 import { FlaskConical, Maximize2, Minus, Plus, Waypoints } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type AliasLink,
   FACT_KIND_LABELS,
   type FactGraphEdge,
   type FactGraphNode,
@@ -9,7 +10,9 @@ import {
   projectGraph,
 } from "@wordhub/contracts";
 import { useWorkbench } from "../../state/store";
+import { Aliases } from "./Aliases";
 import { type Talk, Interview, emptyTalk } from "./Interview";
+import { Knowledge } from "./Knowledge";
 import { type SimState, Simulation, initialSim } from "./Simulation";
 import { type Point, WORLD, layoutGraph } from "./layout";
 
@@ -39,6 +42,8 @@ export function GraphView() {
   const folder = useWorkbench((s) => s.project.folder);
   const facts = useWorkbench((s) => s.facts);
   const summaries = useWorkbench((s) => s.summaries);
+  const aliases = useWorkbench((s) => s.aliases);
+  const knowledgeEntries = useWorkbench((s) => s.knowledge);
   const refreshFacts = useWorkbench((s) => s.refreshFacts);
   useEffect(() => {
     void refreshFacts();
@@ -51,7 +56,9 @@ export function GraphView() {
   const [upTo, setUpTo] = useState<number | null>(null);
   const [showPending, setShowPending] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
-  const [detailTab, setDetailTab] = useState<"detail" | "interview">("detail");
+  const [detailTab, setDetailTab] = useState<
+    "detail" | "knowledge" | "interview"
+  >("detail");
   const [talks, setTalks] = useState<Record<string, Talk>>({});
   const [simOpen, setSimOpen] = useState(false);
   const [sim, setSim] = useState<SimState>(() => initialSim([]));
@@ -64,8 +71,9 @@ export function GraphView() {
       projectGraph(facts, timeline, {
         upToIndex: position,
         includeProposed: showPending,
+        aliases,
       }),
-    [facts, timeline, position, showPending],
+    [facts, timeline, position, showPending, aliases],
   );
   // 布局按“全部章节 + 含待确认”算一次，之后拖滑块、切开关节点都不动
   const positions = useMemo(() => {
@@ -74,6 +82,11 @@ export function GraphView() {
       full.nodes.map((node) => node.id),
       full.edges,
     );
+  }, [facts, timeline]);
+  // 图上出现过的全部人物名（不论哪一章、有没有合并），供“合并别名”选择
+  const allNames = useMemo(() => {
+    const raw = projectGraph(facts, timeline, { includeProposed: false });
+    return raw.nodes.map((node) => node.id);
   }, [facts, timeline]);
   const pendingTotal = useMemo(
     () =>
@@ -461,6 +474,7 @@ export function GraphView() {
               {(
                 [
                   ["detail", "详情"],
+                  ["knowledge", "认知"],
                   ["interview", "采访"],
                 ] as const
               ).map(([id, label]) => (
@@ -479,8 +493,16 @@ export function GraphView() {
             </div>
           )}
           {simOpen ? null : selectedNode &&
-            detailTab === "interview" &&
+            detailTab === "knowledge" &&
             current ? (
+            <Knowledge
+              node={selectedNode.id}
+              position={position}
+              timeline={timeline}
+              aliases={aliases}
+              entries={knowledgeEntries}
+            />
+          ) : selectedNode && detailTab === "interview" && current ? (
             <Interview
               node={selectedNode.id}
               chapter={current.chapter}
@@ -504,6 +526,9 @@ export function GraphView() {
                   edge.target === selectedNode.id,
               )}
               timeline={timeline}
+              position={position}
+              links={aliases}
+              allNames={allNames}
               onPick={(id) => setSelection({ kind: "node", id })}
             />
           ) : selectedEdge ? (
@@ -564,11 +589,17 @@ function NodeDetail({
   node,
   edges,
   timeline,
+  position,
+  links,
+  allNames,
   onPick,
 }: {
   node: FactGraphNode;
   edges: FactGraphEdge[];
   timeline: ReturnType<typeof graphTimeline>;
+  position: number;
+  links: readonly AliasLink[];
+  allNames: readonly string[];
   onPick: (id: string) => void;
 }) {
   const first = timeline[node.firstIndex];
@@ -616,6 +647,13 @@ function NodeDetail({
           </ul>
         )}
       </section>
+      <Aliases
+        node={node}
+        timeline={timeline}
+        position={position}
+        links={links}
+        allNames={allNames}
+      />
       <section>
         <h3>出处（{node.facts.length}）</h3>
         <ul className="graph-facts">

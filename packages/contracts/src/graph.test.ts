@@ -146,3 +146,53 @@ describe("projectGraph", () => {
     expect(projectGraph([], [])).toEqual({ nodes: [], edges: [] });
   });
 });
+
+describe("projectGraph：别名合并", () => {
+  const al = (alias: string, canonical: string, chapter?: string) => ({
+    id: `a${alias}`,
+    alias,
+    canonical,
+    ...(chapter ? { chapter } : {}),
+    at: "t",
+  });
+  const fs = [
+    fact("第一章", { kind: "character_state", subject: "黑衣人", statement: "黑衣人夜袭" }),
+    relation("第二章", "黑衣人", "老周", "指使"),
+    relation("第三章", "萧某", "裴照", "师徒"),
+    fact("第三章", { kind: "character_state", subject: "萧某", statement: "萧某受伤" }),
+    relation("第三章", "裴照", "老周", "旧识"),
+  ];
+  const tl = graphTimeline(fs);
+  const aliases = [al("黑衣人", "萧某", "chapters/第三章.md")];
+
+  it("揭晓之前是两个人物，揭晓那一章起合成一个，关系与状态并到规范名下", () => {
+    const early = projectGraph(fs, tl, { upToIndex: 1, aliases });
+    expect(early.nodes.map((node) => node.id).sort()).toEqual(["老周", "黑衣人"].sort());
+    const late = projectGraph(fs, tl, { upToIndex: 2, aliases });
+    expect(late.nodes.map((node) => node.id).sort()).toEqual(["萧某", "裴照", "老周"].sort());
+    const xiao = late.nodes.find((node) => node.id === "萧某");
+    expect(xiao?.aliases.map((a) => a.name)).toEqual(["黑衣人"]);
+    expect(xiao?.facts.map((f) => f.statement)).toContain("黑衣人夜袭");
+    expect(xiao?.firstIndex).toBe(0);
+    expect(late.edges.length).toBe(3);
+    expect(late.edges.some((e) => e.source === "萧某" && e.target === "老周")).toBe(true);
+  });
+
+  it("没有指明章节就一直是同一个人", () => {
+    const always = projectGraph(fs, tl, { upToIndex: 0, aliases: [al("黑衣人", "萧某")] });
+    expect(always.nodes.map((node) => node.id)).toEqual(["萧某"]);
+  });
+
+  it("别名与规范名之间的关系合并后消失（不画自己指向自己）", () => {
+    const extra = [...fs, relation("第三章", "黑衣人", "萧某", "同一人")];
+    const graph = projectGraph(extra, graphTimeline(extra), { aliases });
+    expect(graph.edges.some((e) => e.source === e.target)).toBe(false);
+    expect(graph.edges.length).toBe(3);
+  });
+
+  it("原始事实不被改动", () => {
+    const before = JSON.stringify(fs);
+    projectGraph(fs, tl, { aliases });
+    expect(JSON.stringify(fs)).toBe(before);
+  });
+});

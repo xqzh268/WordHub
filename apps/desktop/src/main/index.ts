@@ -389,6 +389,36 @@ function registerIpc(): void {
           runMode: process.env.WORDHUB_MOCK === "1" ? "mock" : "live",
         });
       }
+      if (command === "graph.aliasLink") {
+        const payload = request.payload as CommandPayloads["graph.aliasLink"];
+        return await worker.request<CommandResults["graph.aliasLink"]>({
+          type: "graph.aliasLink",
+          ...payload,
+        });
+      }
+      if (command === "graph.aliasUnlink") {
+        const payload = request.payload as CommandPayloads["graph.aliasUnlink"];
+        return await worker.request<CommandResults["graph.aliasUnlink"]>({
+          type: "graph.aliasUnlink",
+          ...payload,
+        });
+      }
+      if (command === "graph.knowledgeSet") {
+        const payload =
+          request.payload as CommandPayloads["graph.knowledgeSet"];
+        return await worker.request<CommandResults["graph.knowledgeSet"]>({
+          type: "graph.knowledgeSet",
+          ...payload,
+        });
+      }
+      if (command === "graph.knowledgeClear") {
+        const payload =
+          request.payload as CommandPayloads["graph.knowledgeClear"];
+        return await worker.request<CommandResults["graph.knowledgeClear"]>({
+          type: "graph.knowledgeClear",
+          ...payload,
+        });
+      }
       if (command === "graph.interviewSave") {
         const payload =
           request.payload as CommandPayloads["graph.interviewSave"];

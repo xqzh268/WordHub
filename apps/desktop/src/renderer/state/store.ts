@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import type {
+  AliasLink,
   AppEvent,
   ChapterInfo,
   ChapterSummary,
+  KnowledgeEntry,
   NovelFact,
   ThemePreference,
   WorkspaceSnapshot,
@@ -73,6 +75,8 @@ export type State = Prefs & {
   facts: NovelFact[];
   summaries: ChapterSummary[];
   finalized: string[];
+  aliases: AliasLink[];
+  knowledge: KnowledgeEntry[];
   activeRunId: string | null;
   composer: string;
 
@@ -184,6 +188,8 @@ export const useWorkbench = create<State>((set, get) => {
     facts: [],
     summaries: [],
     finalized: [],
+    aliases: [],
+    knowledge: [],
     activeRunId: null,
     composer: "",
 
@@ -214,6 +220,8 @@ export const useWorkbench = create<State>((set, get) => {
           facts: result.facts,
           summaries: result.summaries,
           finalized: result.finalized,
+          aliases: result.aliases ?? [],
+          knowledge: result.knowledge ?? [],
         });
       } catch {
         // 下一次事件会再刷新
@@ -653,6 +661,10 @@ export const useWorkbench = create<State>((set, get) => {
         case "fact.proposed":
         case "fact.confirmed":
         case "fact.rejected":
+        case "alias.linked":
+        case "alias.unlinked":
+        case "knowledge.set":
+        case "knowledge.cleared":
         case "chapter.summary":
         case "chapter.finalized":
           void get().refreshFacts();

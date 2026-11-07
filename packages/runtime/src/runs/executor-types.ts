@@ -5,6 +5,12 @@ import type { ExportRequest } from "../export/run.js";
 import type { MetaPatch } from "../references/shelf.js";
 import type { CustomProviderInput } from "../models/providers.js";
 import type {
+  AliasLinkRequest,
+  AliasUnlinkRequest,
+  KnowledgeClearRequest,
+  KnowledgeSetRequest,
+} from "../graph/links.js";
+import type {
   InterviewRequest,
   InterviewSaveRequest,
   SimulationEstimateRequest,
@@ -216,6 +222,13 @@ export type RuntimeRequest =
   | { type: "fact.list"; projectId: string; requestId: string }
   | ({ type: "graph.interview"; requestId: string } & InterviewRequest)
   | ({ type: "graph.interviewSave"; requestId: string } & InterviewSaveRequest)
+  | ({ type: "graph.aliasLink"; requestId: string } & AliasLinkRequest)
+  | ({ type: "graph.aliasUnlink"; requestId: string } & AliasUnlinkRequest)
+  | ({ type: "graph.knowledgeSet"; requestId: string } & KnowledgeSetRequest)
+  | ({
+      type: "graph.knowledgeClear";
+      requestId: string;
+    } & KnowledgeClearRequest)
   | ({
       type: "graph.simulateEstimate";
       requestId: string;

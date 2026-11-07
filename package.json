@@ -36,6 +36,8 @@
     "test:references:live": "node scripts/references-live-e2e.mjs",
     "test:graph:e2e": "node scripts/graph-e2e.mjs",
     "test:graph:live": "node scripts/graph-live-e2e.mjs",
+    "test:graph:knowledge:e2e": "node scripts/graph-knowledge-e2e.mjs",
+    "test:graph:knowledge:live": "node scripts/graph-knowledge-live-e2e.mjs",
     "test:agent:live": "node scripts/agent-form-live-e2e.mjs",
     "test:paper:live": "node scripts/paper-edit-live-e2e.mjs",
     "test:providers:live": "node scripts/providers-live-e2e.mjs",

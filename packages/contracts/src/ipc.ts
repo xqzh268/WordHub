@@ -1,4 +1,6 @@
+import type { AliasLink } from "./aliases.js";
 import type { ChapterSummary, NovelFact } from "./facts.js";
+import type { KnowledgeEntry } from "./knowledge.js";
 export type WorkspaceCommand =
   | "workspace.getSnapshot"
   | "workspace.chooseFolder"
@@ -41,6 +43,10 @@ export type WorkspaceCommand =
   | "fact.decide"
   | "graph.interview"
   | "graph.interviewSave"
+  | "graph.aliasLink"
+  | "graph.aliasUnlink"
+  | "graph.knowledgeSet"
+  | "graph.knowledgeClear"
   | "graph.simulateEstimate"
   | "graph.simulateStep"
   | "graph.simulateReport"
@@ -266,6 +272,25 @@ export interface CommandPayloads {
   };
   "graph.interviewSave": {
     projectId: string;
+  "graph.aliasLink": {
+    projectId: string;
+    alias: string;
+    canonical: string;
+    chapter?: string;
+  };
+  "graph.aliasUnlink": { projectId: string; aliasId: string };
+  "graph.knowledgeSet": {
+    projectId: string;
+    factId: string;
+    character: string;
+    mode: "knows" | "unaware";
+    chapter?: string;
+  };
+  "graph.knowledgeClear": {
+    projectId: string;
+    factId: string;
+    character: string;
+  };
     node: string;
     chapter: string;
     mode: "character" | "author";
@@ -356,7 +381,13 @@ export interface CommandResults {
   "export.run": { canceled: boolean; path?: string; bytes?: number; chapters?: number };
   "chapter.revisions": { revisions: Array<{ id: string; revisionNo: number; status: string; contentHash: string; author: { type: string; id: string }; createdAt: string }> };
   "chapter.watch": { watching: boolean };
-  "fact.list": { facts: NovelFact[]; summaries: ChapterSummary[]; finalized: string[] };
+  "fact.list": {
+    facts: NovelFact[];
+    summaries: ChapterSummary[];
+    finalized: string[];
+    aliases: AliasLink[];
+    knowledge: KnowledgeEntry[];
+  };
   "fact.decide": { factId: string; status: "confirmed" | "rejected" };
   "graph.interview": {
     answer: string;
@@ -378,6 +409,10 @@ export interface CommandResults {
     inputTokens: number;
     outputTokens: number;
   };
+  "graph.aliasLink": { aliasId: string };
+  "graph.aliasUnlink": { aliasId: string };
+  "graph.knowledgeSet": { factId: string };
+  "graph.knowledgeClear": { factId: string };
   "graph.simulateStep": {
     action: string;
     intent?: string;
