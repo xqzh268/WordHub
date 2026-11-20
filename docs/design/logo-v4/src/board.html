@@ -1,0 +1,101 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<!-- 文枢标志 v4 展示板。渲染：node render.mjs board.html ../logo-board.png 1600 1000 2 -->
+<script src="glyph.js"></script>
+<link rel="stylesheet" href="../../../../node_modules/@fontsource-variable/noto-serif-sc/wght.css">
+<link rel="stylesheet" href="../../../../node_modules/@fontsource-variable/noto-sans-sc/wght.css">
+<link rel="stylesheet" href="../../../../node_modules/@fontsource-variable/inter/wght.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;width:1600px;background:#F7F4EC;color:#1E1C19;font-family:"Inter Variable","Noto Sans SC Variable",sans-serif}
+.sec{padding:72px 96px;border-top:1px solid #E4DDCF}
+.hero{height:620px;display:flex;align-items:center;justify-content:center;border:0}
+.k{font-size:12px;letter-spacing:.18em;color:#7B7468;text-transform:uppercase;margin-bottom:28px}
+.grid{display:grid;gap:40px}
+p{font:16px/1.9 "Noto Serif SC Variable",serif;color:#4A453D;margin:0}
+h3{font:600 22px "Noto Serif SC Variable",serif;margin:0 0 8px}
+.card{background:#FFFDF8;border:1px solid #E4DDCF;border-radius:2px;display:flex;align-items:center;justify-content:center}
+.cap{font-size:12px;color:#7B7468;margin-top:12px;text-align:center}
+.sw{height:120px;border-radius:2px;padding:14px;font-size:12px;line-height:1.6;display:flex;flex-direction:column;justify-content:flex-end}
+.tb{height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid}
+.sizes{display:flex;gap:44px;align-items:flex-end;margin-top:48px}
+</style></head><body>
+
+<section class="sec hero"><img src="../lockup.svg" style="width:860px"></section>
+
+<section class="sec">
+ <div class="k">Concept · 释义</div>
+ <div class="grid" style="grid-template-columns:420px 1fr;align-items:center">
+  <div class="card" style="height:420px"><svg id="construct" viewBox="0 0 120 120" width="380" height="380"></svg></div>
+  <div style="padding-left:32px">
+   <h3>一方印，一个“文”</h3>
+   <p>作者的印。白文“文”字逐笔手绘：横画水平、宋体三角收笔，撇长锋出尖，捺由细渐粗、平收出锋。</p>
+   <h3 style="margin-top:36px">那一点，是正在生成的光标</h3>
+   <p>“文”字头上那一点是光标，身后拖着一段渐隐的高亮，像刚刚生成的一行。人与 AI 同在这一笔里。</p>
+  </div>
+ </div>
+</section>
+
+<section class="sec">
+ <div class="k">Family · 三种形态</div>
+ <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+  <div><div class="card" style="height:300px"><img src="../seal.svg" width="168"></div><div class="cap">朱砂印 · 主标</div></div>
+  <div><div class="card" style="height:300px"><img src="../seal-ink.svg" width="168"></div><div class="cap">墨印 · 朱砂光标与拖尾</div></div>
+  <div><div class="card" style="height:300px"><img src="../wen.svg" width="168"></div><div class="cap">无框 · 朱砂光标与拖尾</div></div>
+ </div>
+</section>
+
+<section class="sec">
+ <div class="k">App icon · 应用图标</div>
+ <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+  <div><div class="card" style="height:360px"><img src="../icon-cinnabar.svg" width="240"></div><div class="cap">朱砂 · 默认</div></div>
+  <div><div class="card" style="height:360px;background:#2A2824;border-color:#33302B"><img src="../icon-ink.svg" width="240"></div><div class="cap">墨 · 暗色</div></div>
+  <div><div class="card" style="height:360px;background:#EFEADF"><img src="../icon-paper.svg" width="240"></div><div class="cap">宣纸</div></div>
+ </div>
+ <div class="sizes" id="sizes"></div>
+</section>
+
+<section class="sec">
+ <div class="k">Lockups · 组合与界面</div>
+ <div class="grid" style="grid-template-columns:1.4fr 1fr">
+  <div class="card" style="height:300px;background:#171614;border-color:#33302B"><img src="../lockup-dark.svg" width="580"></div>
+  <div class="card" style="height:300px"><img src="../lockup-stacked.svg" width="200"></div>
+ </div>
+ <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:40px">
+  <div style="border:1px solid #E4DDCF;background:#F7F4EC">
+   <div class="tb" style="border-color:#E4DDCF;background:#F1EDE3"><img src="../seal-small.svg" width="22"><span style="font:600 14px 'Noto Serif SC Variable'">文枢</span><span style="font-size:13px;color:#7B7468;margin-left:14px">长安夜 › 第三章</span></div>
+   <div style="height:120px;background:#FFFDF8;margin:20px 40px 0;border:1px solid #E4DDCF;border-bottom:0;padding:22px 30px;font:17px/1.85 'Noto Serif SC Variable';color:#4A453D">夜色压着城墙，更鼓敲过三响<span style="display:inline-block;width:2px;height:19px;background:#C2603A;vertical-align:-3px;margin-left:2px"></span></div>
+  </div>
+  <div style="border:1px solid #33302B;background:#171614">
+   <div class="tb" style="border-color:#33302B;background:#1C1B18;color:#ECE7DC"><img src="../seal-dark-small.svg" width="22"><span style="font:600 14px 'Noto Serif SC Variable'">文枢</span><span style="font-size:13px;color:#8B8478;margin-left:14px">长安夜 › 第三章</span></div>
+   <div style="height:120px;background:#1F1D1A;margin:20px 40px 0;border:1px solid #33302B;border-bottom:0;padding:22px 30px;font:17px/1.85 'Noto Serif SC Variable';color:#BEB7AA">夜色压着城墙，更鼓敲过三响<span style="display:inline-block;width:2px;height:19px;background:#E08A66;vertical-align:-3px;margin-left:2px"></span></div>
+  </div>
+ </div>
+</section>
+
+<section class="sec" style="padding-bottom:96px">
+ <div class="k">Colour · 色彩</div>
+ <div class="grid" style="grid-template-columns:repeat(5,1fr);gap:16px">
+  <div class="sw" style="background:#C2603A;color:#FFFDF8">朱砂 Cinnabar<br>#C2603A</div>
+  <div class="sw" style="background:#1E1C19;color:#ECE7DC">墨 Ink<br>#1E1C19</div>
+  <div class="sw" style="background:#F7F4EC;border:1px solid #E4DDCF">宣纸 Xuan<br>#F7F4EC</div>
+  <div class="sw" style="background:#E08A66">暗色·朱砂<br>#E08A66</div>
+  <div class="sw" style="background:#ECE7DC">暗色·墨<br>#ECE7DC</div>
+ </div>
+</section>
+
+<script>
+let s = '<image href="../seal.svg" x="8" y="8" width="104" height="104"/>';
+s += '<g stroke="#FFFDF8" stroke-opacity=".22" stroke-width=".3">';
+for (let i = 1; i < 12; i++) s += `<line x1="${i*10}" y1="8" x2="${i*10}" y2="112"/><line x1="8" y1="${i*10}" x2="112" y2="${i*10}"/>`;
+s += '</g><g fill="none" stroke="#1E1C19" stroke-width=".4" stroke-dasharray="1.2 1"><rect x="22" y="15" width="44" height="22"/></g>';
+s += '<text x="22" y="12.6" font-size="3.4" fill="#1E1C19" font-family="Noto Sans SC Variable">拖尾 → 光标</text>';
+document.getElementById("construct").innerHTML = s;
+const item = (src, w, label) => `<div style="text-align:center"><img src="../${src}" width="${w}"><div class="cap">${label}</div></div>`;
+document.getElementById("sizes").innerHTML =
+  [128,64,48,32].map(w => item("icon-cinnabar.svg", w, w)).join("")
+  + [24,16].map(w => item("icon-cinnabar-small.svg", w, w + " 加粗")).join("")
+  + '<div style="width:16px"></div>'
+  + [64,32].map(w => item("icon-ink.svg", w, w)).join("")
+  + [24,16].map(w => item("icon-ink-small.svg", w, w + " 加粗")).join("");
+</script>
+</body></html>

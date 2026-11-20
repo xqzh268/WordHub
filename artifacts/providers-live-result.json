@@ -1,0 +1,94 @@
+{
+  "checks": [
+    {
+      "name": "没有内置密钥时 DeepSeek 显示未配置",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "真实接口返回的模型列表包含 deepseek-flash",
+      "passed": true,
+      "detail": "deepseek-flash,deepseek-v4-pro"
+    },
+    {
+      "name": "选中的模型填入表单",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DeepSeek 不连续的思考档位记为自动",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "同名模型自动参考 Pi 目录价格（不提示价格未知）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "密钥保存前显示未配置",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "自定义服务商测试连接成功",
+      "passed": true,
+      "detail": "义）自定义 · 1 个模型 · https://api.deepseek.com密钥已加密保存保存测试连接编辑启用移除删除已保存的密钥连接成功，模型已返回响应。"
+    },
+    {
+      "name": "模型分配包含史官，且全部角色都切到自定义服务商",
+      "passed": true,
+      "detail": "[{\"name\":\"编辑\",\"model\":\"ds-proxy/deepseek-flash\"},{\"name\":\"史官\",\"model\":\"ds-proxy/deepseek-flash\"},{\"name\":\"纲领\",\"model\":\"ds-proxy/deepseek-flash\"},{\"name\":\"评审\",\"model\":\"ds-proxy/deepseek-flash\"},{\"name\":\"写手\",\"model\":\"ds-proxy/deepseek-flash\"}]"
+    },
+    {
+      "name": "写第一章：工作流正常收尾",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "章节文件有实质内容",
+      "passed": true,
+      "detail": "第一章.md · 923 字符"
+    },
+    {
+      "name": "写作过程未依赖内置 deepseek 密钥（应用进程无该密钥，运行成功即证明走的是自定义服务商）",
+      "passed": true,
+      "detail": "/deepseek-flash,/"
+    },
+    {
+      "name": "记录了用量，且按目录价格计费（费用大于 0）",
+      "passed": true,
+      "detail": "11 条，$0.01577"
+    },
+    {
+      "name": "侧栏的模型标签显示最近一次实际使用的模型",
+      "passed": true,
+      "detail": "已配置 ds-proxy/deepseek-flash · 最近一次实际使用 deepseek-flash / high。点击切换"
+    },
+    {
+      "name": "定稿完成并记录",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "史官抽取了待确认事实与摘要",
+      "passed": true,
+      "detail": "10 条事实"
+    },
+    {
+      "name": "触发了需要审批的写入",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "强杀重开后审批卡仍在",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重开后批准，用已保存的密钥恢复并正常收尾",
+      "passed": true,
+      "detail": "run.finished"
+    }
+  ]
+}

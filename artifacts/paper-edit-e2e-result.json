@@ -1,0 +1,79 @@
+{
+  "findings": [
+    {
+      "name": "默认是阅读视图，没有编辑器",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "窄窗口下编辑工具栏的按钮和状态文字不被压成竖排",
+      "passed": true,
+      "detail": "[{\"text\":\"编辑\",\"w\":45,\"h\":27},{\"text\":\"撤销\",\"w\":64,\"h\":27},{\"text\":\"已保存\",\"w\":36,\"h\":18}]"
+    },
+    {
+      "name": "编辑中章节导航被锁定",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "立即点完成会先保存再退出编辑",
+      "passed": true,
+      "detail": "# 第一段改过。\n\n第二段新增。\n"
+    },
+    {
+      "name": "退出编辑后阅读视图显示新内容并解锁导航",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "保存结果是规范的 Markdown",
+      "passed": true,
+      "detail": "\"# 第一段改过。\\n\\n第二段新增。\\n\""
+    },
+    {
+      "name": "保存后撤销可用",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "撤销后磁盘回到编辑前的内容",
+      "passed": true,
+      "detail": "\"# 第一章 暮鼓\\n\\n暮鼓三百声，长安闭坊。\\n\""
+    },
+    {
+      "name": "含会被改写的写法的章节：编辑按钮禁用",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "编辑期间外部修改出现冲突提示",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "冲突时磁盘上的外部版本没有被覆盖",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "保留我的版本后写入磁盘",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "载入新版本后编辑器显示外部内容，磁盘保持外部版本",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重启后阅读视图显示已保存的内容",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "Agent 运行期间编辑按钮禁用并说明原因",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

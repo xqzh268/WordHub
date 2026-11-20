@@ -67,6 +67,7 @@ import type {
 } from "./run-types.js";
 import type { ProjectService } from "../projects/service.js";
 import type { ModelSettings } from "../models/settings.js";
+import type { RemoteModel } from "../models/remote.js";
 import type { RunEstimate } from "../budget/estimate.js";
 import type { createGraphService } from "../graph/service.js";
 import type { createLinkService } from "../graph/links.js";
@@ -92,6 +93,9 @@ type DispatcherDeps = {
   testConnection: (
     request: Extract<RuntimeRequest, { type: "settings.testConnection" }>,
   ) => Promise<{ ok: boolean; message: string }>;
+  fetchModels: (
+    request: Extract<RuntimeRequest, { type: "settings.fetchModels" }>,
+  ) => Promise<RemoteModel[]>;
   resumePersistedApproval: (runId: string, approved: boolean) => Promise<void>;
   pendingApprovals: Map<string, PendingApproval>;
   runContexts: Map<string, RunContext>;
@@ -160,6 +164,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
     recoverProjectFiles,
     modelSettings,
     testConnection,
+    fetchModels,
     providerAuth,
     reloadProviders,
     resumePersistedApproval,
@@ -732,6 +737,22 @@ export function createRequestHandler(deps: DispatcherDeps) {
         await modelSettings.removeProvider(request.id, request.projectPath);
         await reloadProviders();
         sendResponse(request.requestId, { saved: true });
+        return;
+      }
+      if (request.type === "settings.setProviderEnabled") {
+        await modelSettings.setEnabled(
+          request.id,
+          request.enabled,
+          request.projectPath,
+        );
+        await reloadProviders();
+        sendResponse(request.requestId, { saved: true });
+        return;
+      }
+      if (request.type === "settings.fetchModels") {
+        sendResponse(request.requestId, {
+          models: await fetchModels(request),
+        });
         return;
       }
       if (request.type === "settings.testConnection") {

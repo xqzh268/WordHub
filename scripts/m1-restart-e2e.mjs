@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
@@ -20,7 +20,6 @@ const cleanEnv = () => {
   return rest;
 };
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronBinary = createRequire(import.meta.url)("electron");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-m1-e2e-"));
 const storageRoot = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
@@ -60,10 +59,7 @@ const launch = () =>
   _electron.launch({
     executablePath: electronBinary,
     // 主进程以 app.getPath("userData") 为存储根目录，所以用 --user-data-dir 隔离，避免污染真实数据。
-    args: [
-      path.join(root, "out", "main", "index.js"),
-      `--user-data-dir=${storageRoot}`,
-    ],
+    args: [...mainArgs(root), `--user-data-dir=${storageRoot}`],
     cwd: root,
     env: {
       ...cleanEnv(),

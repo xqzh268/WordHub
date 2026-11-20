@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
 
@@ -11,11 +11,10 @@ const cleanEnv = () => {
   return rest;
 };
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronBinary = createRequire(import.meta.url)("electron");
 const electron = await _electron.launch({
   executablePath: electronBinary,
   args: [
-    path.join(root, "out", "main", "index.js"),
+    ...mainArgs(root),
     `--user-data-dir=${fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-test-"))}`,
   ],
   cwd: root,

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { closeApp } from "./lib/close-app.mjs";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import { fileURLToPath } from "node:url";
 import { _electron } from "playwright";
 
@@ -14,16 +14,12 @@ const cleanEnv = () => {
   return rest;
 };
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronBinary = createRequire(import.meta.url)("electron");
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-layout-"));
 const problems = [];
 
 const app = await _electron.launch({
   executablePath: electronBinary,
-  args: [
-    path.join(root, "out", "main", "index.js"),
-    `--user-data-dir=${userData}`,
-  ],
+  args: [...mainArgs(root), `--user-data-dir=${userData}`],
   cwd: root,
   env: {
     ...cleanEnv(),

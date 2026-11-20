@@ -5,7 +5,7 @@
 // 用法：npm run build:desktop && node scripts/references-e2e.mjs
 import fs from "node:fs";
 import fsp from "node:fs/promises";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,6 @@ import { closeApp } from "./lib/close-app.mjs";
 
 const { ELECTRON_RUN_AS_NODE, DEEPSEEK_API_KEY, ...baseEnv } = process.env;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronBinary = createRequire(import.meta.url)("electron");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-refs-e2e-"));
 const userData = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
@@ -167,10 +166,7 @@ let page;
 const launch = async () => {
   app = await _electron.launch({
     executablePath: electronBinary,
-    args: [
-      path.join(root, "out", "main", "index.js"),
-      `--user-data-dir=${userData}`,
-    ],
+    args: [...mainArgs(root), `--user-data-dir=${userData}`],
     cwd: root,
     env: { ...baseEnv, WORDHUB_MOCK: "1", WORDHUB_WORKSPACE_ROOT: root },
   });

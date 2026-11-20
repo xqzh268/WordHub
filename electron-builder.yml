@@ -1,0 +1,44 @@
+# 文枢打包配置。本地打包：npm run dist:win（产物在 release/）
+appId: io.github.xqzh268.wordhub
+# 可执行文件、安装目录、数据目录一律用 ASCII 名（中文路径会触发 Node 24 rmSync 崩溃）；中文名只用于快捷方式与显示
+productName: WordHub
+copyright: Copyright © 2026 xqzh268 · AGPL-3.0-only
+
+directories:
+  output: release
+  buildResources: build
+
+# 复用 node_modules 里已下载的 Electron，打包时不必再从 GitHub 下载
+electronDist: node_modules/electron/dist
+
+files:
+  - out/**
+  - package.json
+  - "!**/*.map"
+extraResources:
+  - from: LICENSE
+    to: LICENSE.txt
+
+asar: true
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  artifactName: WordHub-${version}-win-x64.${ext}
+
+nsis:
+  # 按用户安装，无需管理员权限；允许选择安装目录
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: 文枢
+  uninstallDisplayName: 文枢 WordHub
+  artifactName: WordHub-${version}-win-x64-setup.${ext}
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  # 卸载时保留用户数据（会话、事件日志、设置）；写作文件夹本来就不在应用目录里
+  deleteAppDataOnUninstall: false

@@ -1,0 +1,334 @@
+{
+  "findings": [
+    {
+      "name": "没有链接项目时提示先链接文件夹",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "空库显示引导文案",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "五份资料都导入成功",
+      "passed": true,
+      "detail": "中文论文PDF中文论文PDF · 3 章 · 未读 | 文档样本DOCX文档样本DOCX · 2 章 · 未读 | 电子书样本某作者EPUB · 2 章 · 未读 | 旧书TXT旧书TXT · 3 章 · 未读 | 长安夜TXT长安夜TXT · 3 章 · 未读"
+    },
+    {
+      "name": "列表标出了格式：TXT",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "列表标出了格式：EPUB",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "列表标出了格式：DOCX",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "列表标出了格式：PDF",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "导入提示列出了书名",
+      "passed": true,
+      "detail": "已导入 5 份：《长安夜》、《旧书》、《电子书样本》、《文档样本》、《中文论文》"
+    },
+    {
+      "name": "UTF-8 TXT：读到第一章正文",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "GB18030 TXT：中文没有乱码",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "EPUB：按 spine 取到章节与正文",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DOCX：按标题分章并读到正文",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "中文 PDF（Chromium 生成）：提取出文字层",
+      "passed": true,
+      "detail": "丙第一章里，裴照提着灯笼走进崇仁坊。三更鼓响过，暮色像一层薄薄的灰，压在坊墙之上，风从城门那边吹来，带着一点潮气。他停住脚步里，裴照提着灯笼走进崇仁坊。三更鼓响"
+    },
+    {
+      "name": "DRM EPUB 被明确拒绝",
+      "passed": true,
+      "detail": "1 份已经在库里（未重复导入）；受保护.epub 导入失败：这本 EPUB 带有 DRM 加密保护，文枢不提供去除 DRM 的功能，无法导入。请使用你有权使用的无 DRM 版本。；扫描件.pdf 导入失败：这个 PDF 没有可提取的文字层（可能是扫描件）。文枢暂不支持 OCR，请先用其他工具转成带文字层的 PDF，或改用 EPUB/TXT。；旧电子书.mobi 导入失败：不支持的文件类型 .mob"
+    },
+    {
+      "name": "无文字层 PDF 被明确拒绝（不做 OCR）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "MOBI 给出转换建议",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重复文件提示已在库里，没有重复导入",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "全文检索跨多本资料找到命中",
+      "passed": true,
+      "detail": "22 条"
+    },
+    {
+      "name": "点击命中跳到章节并高亮检索词",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "没有命中时明确说没有找到",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "选中文字后出现操作条并显示字数",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "“提问”把引文和出处带进输入框并切回工作台",
+      "passed": true,
+      "detail": "> 甲第一章里，裴照提着灯笼走进崇仁坊。三更鼓响过，\n> ——《长安夜》第一章 夜巡\n\n"
+    },
+    {
+      "name": "太短的选段被拒绝并说明原因",
+      "passed": true,
+      "detail": "甲第一章里"
+    },
+    {
+      "name": "加入文风示范：写入 .wordhub/bible/style-samples.md，含引文、出处与“不得照抄”说明",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "文件里的锚点能回查到参考库原文，逐字一致",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "文风示范面板显示 1/5 与内容",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重复选段被拒绝",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "第 6 段被拒绝（上限 5 段）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "移除一段后回到 4/5，被移除的那段也从文件里消失",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "EPUB 自带封面：存成 cover 文件并显示为图片",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "没有封面的书显示生成的文字封面（含书名与格式）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "切到列表视图",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "切回网格视图",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "收藏写入 reference.json",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "“收藏”分类只剩收藏的那本",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "打开过的书自动标为“在读”",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "标为“读完”后进度条满格",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "“读完”分类里只有这一本",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "新建了两个集合",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "同一本书可以同时在两个集合里（写入 reference.json 与 library.json）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "点集合只显示其中的书",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "集合可重命名",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "删除集合后书仍在，成员关系同步更新",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DOI 格式不对时给出明确错误，不保存",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "标签大小写重复只留一个",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "信息保存到 reference.json（DOI、年份、类型、标签）",
+      "passed": true,
+      "detail": "{\"schemaVersion\":2,\"id\":\"ref-cc1a027ca4ab\",\"title\":\"电子书样本\",\"author\":\"某作者\",\"format\":\"epub\",\"originalName\":\"电子书样本.epub\",\"sha256\":\"cc1a027ca4ab9b5a9df33be4e22d96dfd5f7cd618b703d63ed1bbde82be0a577\",\"importedAt\":\"2026-11-08T17:57:27.121Z\",\"totalChars\":118,\"chapters\":[{\"id\":\"0001\",\"index\":1,\"title\":\"序幕\",\""
+    },
+    {
+      "name": "按标签筛选",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "按年份排序：最新的在前，没填年份的排最后",
+      "passed": true,
+      "detail": "文档样本,电子书样本,旧书,长安夜,中文论文"
+    },
+    {
+      "name": "筛选框按作者过滤",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "筛不到时给出提示而不是空白",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "书名作者相同的新导入给出“可能重复”提示",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "“可能重复”分类列出这一组（2 本）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "从菜单删除重复的那本",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "批注面板列出 2 条（高亮 + 带笔记）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "批注写入 annotations.json，引文由后台从原文切出（逐字一致）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "删除一条批注后只剩 1 条",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "窄窗口：书架没有横向溢出",
+      "passed": true,
+      "detail": "{\"w\":1082,\"h\":760}"
+    },
+    {
+      "name": "窄窗口：导入按钮单行且在窗口内",
+      "passed": true,
+      "detail": "{\"x\":990.6000366210938,\"y\":62,\"w\":73,\"h\":30}"
+    },
+    {
+      "name": "窄窗口：排序框高度正常（文字没被裁切）",
+      "passed": true,
+      "detail": "{\"x\":783,\"y\":62,\"w\":115.5999984741211,\"h\":30}"
+    },
+    {
+      "name": "窄窗口：阅读器没有横向溢出",
+      "passed": true,
+      "detail": "{\"w\":1082,\"h\":760}"
+    },
+    {
+      "name": "选段操作条在阅读区内且不被压扁",
+      "passed": true,
+      "detail": "{\"x\":318.8000183105469,\"y\":212.60000610351562,\"w\":680,\"h\":44}"
+    },
+    {
+      "name": "阅读文本区完整落在阅读栏内",
+      "passed": true,
+      "detail": "{\"text\":{\"x\":318.8000183105469,\"y\":268.6000061035156,\"w\":680,\"h\":204.8000030517578},\"reader\":{\"x\":236,\"y\":130.60000610351562,\"w\":845.6000366210938,\"h\":629.4000244140625}}"
+    },
+    {
+      "name": "删除后列表少一本，项目里的目录也被删掉",
+      "passed": true,
+      "detail": "ref-e6478372f42d"
+    },
+    {
+      "name": "重启后参考库仍在（4 本）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重启后收藏、集合、标签、封面都还在",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "重启后批注与高亮还在",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

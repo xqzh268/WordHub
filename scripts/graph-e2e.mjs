@@ -5,7 +5,7 @@
 // 用法：npm run build:desktop && node scripts/graph-e2e.mjs
 import fs from "node:fs";
 import fsp from "node:fs/promises";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { WordHubStore } = await import(
   new URL("../packages/store/dist/index.js", import.meta.url).href
 );
-const electronBinary = createRequire(import.meta.url)("electron");
 const {
   ELECTRON_RUN_AS_NODE,
   DEEPSEEK_API_KEY: _key,
@@ -62,10 +61,7 @@ let page;
 const launch = async () => {
   app = await _electron.launch({
     executablePath: electronBinary,
-    args: [
-      path.join(root, "out", "main", "index.js"),
-      `--user-data-dir=${storageRoot}`,
-    ],
+    args: [...mainArgs(root), `--user-data-dir=${storageRoot}`],
     cwd: root,
     env: { ...cleanEnv, WORDHUB_MOCK: "1", WORDHUB_WORKSPACE_ROOT: root },
   });

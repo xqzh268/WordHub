@@ -1,0 +1,109 @@
+{
+  "findings": [
+    {
+      "name": "没有链接项目时“新建 Agent”不可用",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "错误提示不带 Electron 内部前缀",
+      "passed": true,
+      "detail": "显示名需要 1–12 个字"
+    },
+    {
+      "name": "显示名为空：给出错误，不创建",
+      "passed": true,
+      "detail": "显示名需要 1–12 个字"
+    },
+    {
+      "name": "显示名与内置 Agent 重名被拒",
+      "passed": true,
+      "detail": "显示名“写手”已被其他 Agent 使用"
+    },
+    {
+      "name": "标识与内置 Agent 重名被拒",
+      "passed": true,
+      "detail": "标识 writer 是内置 Agent，请换一个"
+    },
+    {
+      "name": "选了直接写入却没选范围：被拒",
+      "passed": true,
+      "detail": "选择了写权限，请至少选择一个写入范围（章节或设定集）。"
+    },
+    {
+      "name": "没有生成任何文件",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "表单完整落在窗口内（可滚动）",
+      "passed": true,
+      "detail": "{\"formBox\":{\"x\":440.8000183105469,\"y\":24,\"width\":559.9999694824219,\"height\":894.4000244140625},\"viewport\":{\"width\":1442,\"height\":942}}"
+    },
+    {
+      "name": "表单按钮保持单行高度，没有被压扁",
+      "passed": true,
+      "detail": "{\"x\":915.4000244140625,\"y\":872.0625,\"width\":53,\"height\":30}"
+    },
+    {
+      "name": "创建成功：AGENT.md 写入项目的 .wordhub/agents/",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "文件内容：只读、无写入工具、提示词原样",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "侧栏出现新 Agent，头像取显示名首字",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "输入 @校 时候选里出现“校对”",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "@校对 的运行以“校对”的名字显示，而不是别的 Agent",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "编辑时标识不可改，内容已预填",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "编辑后文件更新",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "删除后文件和侧栏条目都消失",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "同名文件没有顶替内置写手：侧栏仍是“写手”，没有“冒牌写手”",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "侧栏说明了为什么没生效（与内置 Agent 同名）",
+      "passed": true,
+      "detail": "有 1 个 Agent 配置没有生效：项目级 Agent 不能与内置 Agent 同名（writer），已忽略；请改个标识"
+    },
+    {
+      "name": "运行中手写新增的 AGENT.md：@ 它时被识别，回复显示为“手写助手”",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "内置 Agent 不受影响",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

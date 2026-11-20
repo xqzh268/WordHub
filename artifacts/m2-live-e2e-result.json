@@ -4,27 +4,27 @@
     {
       "name": "A1 章节文件被写入且有中文内容",
       "passed": true,
-      "detail": "长安崇仁坊，夜鼓将尽。裴照蹲在墙根的暗影里，左手按住刀鞘，右手却虚握着——他惯用"
+      "detail": "# 第一章 崇仁坊夜漏\n\n崇仁坊的暮鼓刚歇，裴照把横刀横在膝上，用左手慢慢擦着刀"
     },
     {
       "name": "A2 事件里有 bible.read 与 doc.write 的工具调用",
       "passed": true,
-      "detail": "bible.read,doc.read,doc.write"
+      "detail": "bible.read,doc.read,bible.read,doc.write"
     },
     {
       "name": "A3 记录了上下文注入清单且包含设定集",
       "passed": true,
-      "detail": "[{\"id\":\"bible:bible.md\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/bible.md\",\"estimatedTokens\":19}]"
+      "detail": "[{\"id\":\"setting\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/setting.md\",\"tokenBudget\":1800,\"estimatedTokens\":19}]"
     },
     {
       "name": "A4 记录了用量与费用",
       "passed": true,
-      "detail": "202/117 $0.000205 161/345 $0.000468 168/3 $0.000062"
+      "detail": "127/97 $0.000602 139/46 $0.000422 143/255 $0.001261 57/3 $0.000166"
     },
     {
       "name": "A5 run.started 记录 agentId/model/reasoning",
       "passed": true,
-      "detail": "{\"agentId\":\"writer\",\"agentVersion\":\"f6a21da053240d95\",\"model\":\"deepseek-flash\",\"reasoning\":\"low\",\"mode\":\"live\",\"mentions\":[\"writer\"]}"
+      "detail": "{\"agentId\":\"writer\",\"agentVersion\":\"5caf8f2ed73bd9f9\",\"model\":\"deepseek-v4-pro\",\"reasoning\":\"high\",\"mode\":\"live\",\"mentions\":[\"writer\"],\"taskId\":\"task_run_mw11gb3jjypt\"}"
     },
     {
       "name": "A6 修订由 agent:writer 署名",
@@ -34,7 +34,7 @@
     {
       "name": "A7 界面显示了用量",
       "passed": true,
-      "detail": "用量行：[\"输入 168 · 输出 3 token · $0.000062\"]；聊天末尾：\"。(8)→53. Plus punctuation. That's decent ~53 chars, close to 60.\\n\\nLet me aim for ~60. Add a bit: \\\"总教人看错方向，慢了半息。\\\" → +5 = 58. Good.\\n\\nWrite it.\\n\\n已写入\\n\\n输入 168 · 输出 3 token · $0.000062\\n\\n查看上下文\\n1层\\n\\n本次运行预估：约17输入Token、1200输出Token，0.0014美元。\\n\\n●\\nAgent任务\""
+      "detail": "用量行：[\"输入 57 · 输出 3 token · $0.000166\"]；聊天末尾：\"十字的第一章开头写进文件 chapters/第一章.md。完成后只回复“已写入”。\\n\\n写\\n写手\\n02:45\\n读取项目圣经\\n读取文档\\n读取项目圣经\\n写入文档\\n思考过程（模型原文，可能是英文，仅本次运行显示）\\nhigh\\ndeepseek-v4-pro\\n\\n已写入\\n\\n输入 57 · 输出 3 token · $0.000166\\n\\n查看上下文\\n1层\\n\\nAgent运行预估：约2535输入Token、1200输出Token，0.0081美元（运行不设上限）。\\n\\n写手 · agent.run\""
     },
     {
       "name": "B1 越权文件没有被创建",
@@ -49,7 +49,7 @@
     {
       "name": "B3 被拦截后用户在聊天里能看到明确说明",
       "passed": true,
-      "detail": "最后一条回复：\"本次运行预估：约17输入Token、1200输出Token，0.0014美元。 本次运行预估：约11输入Token、1200输出Token，0.0014美元。 \""
+      "detail": "最后一条回复：\"Agent运行预估：约2535输入Token、1200输出Token，0.0081美元（运行不设上限）。 Agent运行预估：约2522输入Token、1200\""
     },
     {
       "name": "C1 批准前文件未落盘",
@@ -59,7 +59,7 @@
     {
       "name": "C2 审批卡显示了要写入的路径",
       "passed": true,
-      "detail": "卡片内容：\"Agent请求写入  doc.write需要你的确认后才能继续。  路径：chapters/第二章.md · 62字 · 差异 +2/-0行  雨落崇仁坊，屋檐连成一线水帘。裴照立在门廊底下，左手搭着横刀刀柄，雨声大得盖住了四方脚步——可他还是先听见了那人粗重的喘。  批准 拒绝\""
+      "detail": "卡片内容：\"Agent请求写入  doc.write需要你的确认后才能继续。  路径：chapters/第二章.md · 376字 · 差异 +18/-0行  # 第二章 雨夜  雨是戌时末落下来的。  起初只在崇仁坊的瓦当上敲几声，像有人在屋顶上试刀。后来就密了，檐水连成线，把坊墙上的砖缝泡得发黑。裴照坐在门内，横刀搁在膝上，刀鞘已收，右手垂着——那是他的规矩，左手才摸家伙。  死的那个还躺在曲巷里。  不良人办案，先看雨。雨一下，血就淡，脚印就烂，追人的线索断在泥里。裴照起身跨出门槛，雨点砸在他左肩上，他没躲。巷口那盏坊灯隔着水幕，只剩一团昏黄。  “裴七。”身后有人唤他，“武侯铺的人问，尸首要不要先抬回铺里？”  “抬。”他停在雨里，没回头，“抬之前，把靴底都翻过来给我看。”  那人愣了一下。裴照这才侧过脸，雨水顺着他的下颌往下淌：“凶手走过的地方，泥里有铁屑。崇仁坊这一夜落过雨的青砖，只有两处是干的。”  檐角铁马乱响。他右手按上刀柄，忽然换了左手——巷子深处，有人在雨声里，多喘了一口气。  批准 拒绝\""
     },
     {
       "name": "C3a 审批卡显示了非空的内容预览",
@@ -69,12 +69,12 @@
     {
       "name": "C3b 审批预览与最终写入的内容一致",
       "passed": true,
-      "detail": "预览开头：\"雨落崇仁坊，屋檐连成一线\""
+      "detail": "预览开头：\"#第二章雨夜雨是戌时末落\""
     },
     {
       "name": "C4 批准后文件落盘",
       "passed": true,
-      "detail": "雨落崇仁坊，屋檐连成一线水帘。裴照立在门廊底下，左手搭着横刀"
+      "detail": "# 第二章 雨夜\n\n雨是戌时末落下来的。\n\n起初只在崇仁坊的"
     },
     {
       "name": "C5 事件里有 approval.requested、approval.granted，且批准后该运行以 run.finished 收尾",

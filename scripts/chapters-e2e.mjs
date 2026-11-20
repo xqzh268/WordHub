@@ -3,7 +3,7 @@
 // 说明：mock 后台（不调用模型），存储根目录与项目目录都放在临时目录；系统文件夹对话框被替换为固定路径。
 import fs from "node:fs";
 import fsp from "node:fs/promises";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,6 @@ const cleanEnv = () => {
   return rest;
 };
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronBinary = createRequire(import.meta.url)("electron");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-chapters-e2e-"));
 const storageRoot = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
@@ -50,10 +49,7 @@ let app;
 try {
   app = await _electron.launch({
     executablePath: electronBinary,
-    args: [
-      path.join(root, "out", "main", "index.js"),
-      `--user-data-dir=${storageRoot}`,
-    ],
+    args: [...mainArgs(root), `--user-data-dir=${storageRoot}`],
     cwd: root,
     env: {
       ...cleanEnv(),

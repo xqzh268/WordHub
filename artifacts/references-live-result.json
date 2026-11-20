@@ -1,0 +1,54 @@
+{
+  "checks": [
+    {
+      "name": "导入《寒江记》",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "运行正常结束",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "调用了 reference.search（真实工具调用）",
+      "passed": true,
+      "detail": "bible.read,doc.read,reference.search,reference.read"
+    },
+    {
+      "name": "答案点明了书名与章节",
+      "passed": true,
+      "detail": "已经查到了，也顺手把项目状态看了一遍。\n\n**出处：《寒江记》第二章《夜泊》**\n\n整句原文：\n\n> 月光落在第七级台阶上，像一枚没有人认领的银钱。\n\n顺带两件和写稿有关的事：\n\n- 设定清单为 `setting.md`、`style.md`，内容（唐代长安；文风克制）已经读取到上下文里。\n- `chapters/` 目录目前是空的，没有可写的本章文件。等你给出章节号和情节安排，我再按 `chap"
+    },
+    {
+      "name": "答案原样引用了那一句",
+      "passed": true,
+      "detail": "已经查到了，也顺手把项目状态看了一遍。\n\n**出处：《寒江记》第二章《夜泊》**\n\n整句原文：\n\n> 月光落在第七级台阶上，像一枚没有人认领的银钱。\n\n顺带两件和写稿有关的事：\n\n- 设定清单为 `setting.md`、`style.md`，内容（唐代长安；文风克制）已经读取到上下文里。\n- `chapters/` 目录目前是空的，没有可写的本章文件。等你给出章节号和情节安排，我再按 `chap"
+    },
+    {
+      "name": "写手没有改动任何章节文件",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "写手的上下文清单里出现 style-samples 层",
+      "passed": true,
+      "detail": "[{\"id\":\"setting\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/setting.md\",\"tokenBudget\":1800,\"estimatedTokens\":7},{\"id\":\"style\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/style.md\",\"tokenBudget\":800,\"estimatedTokens\":6},{\"id\":\"style-samples\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/style-samples."
+    },
+    {
+      "name": "评审（只读）的上下文里没有 style-samples 层",
+      "passed": true,
+      "detail": "[{\"id\":\"setting\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/setting.md\",\"tokenBudget\":1800,\"estimatedTokens\":7},{\"id\":\"style\",\"kind\":\"bible\",\"sourcePath\":\".wordhub/bible/style.md\",\"tokenBudget\":800,\""
+    },
+    {
+      "name": "声明了工具但没有 references 读取范围：权限层拒绝并留下事件",
+      "passed": true,
+      "detail": "{\"tool\":\"reference.search\",\"reason\":\"权限拒绝：reference.search：Agent没有参考库的读取范围\"}"
+    },
+    {
+      "name": "被拒绝的 Agent 没有拿到书里的内容",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

@@ -151,8 +151,36 @@ try {
   await page.fill('input[aria-label="Provider ID"]', "ds-proxy");
   await page.fill('input[aria-label="Provider 名称"]', "DeepSeek（自定义）");
   await page.fill('input[aria-label="Base URL"]', "https://api.deepseek.com");
-  await page.fill('input[aria-label="模型ID-0"]', "deepseek-flash");
-  await page.check('input[aria-label="支持思考-0"]');
+  // 用真实接口获取模型列表，只挑 deepseek-flash
+  await page.fill('input[aria-label="自定义服务商API key"]', KEY);
+  await page.click('button:has-text("从接口获取模型")');
+  await page.waitForSelector('[data-testid="remote-models"]', {
+    timeout: 30000,
+  });
+  const remoteIds = await page
+    .locator('[data-testid="remote-models"] .mono')
+    .allTextContents();
+  check(
+    "真实接口返回的模型列表包含 deepseek-flash",
+    remoteIds.includes("deepseek-flash"),
+    remoteIds.join(","),
+  );
+  await page.click('[data-testid="remote-models"] button:has-text("清空")');
+  await page.check('input[aria-label="选择模型 deepseek-flash"]');
+  await page.click('button:has-text("添加选中的 1 个模型")');
+  check(
+    "选中的模型填入表单",
+    (await page.locator('input[aria-label="模型ID-0"]').inputValue()) ===
+      "deepseek-flash" &&
+      (await page.locator('input[aria-label="模型ID-1"]').count()) === 0,
+  );
+  check(
+    "DeepSeek 不连续的思考档位记为自动",
+    (await page.locator('select[aria-label="思考档位-0"]').inputValue()) ===
+      "auto",
+  );
+  // 清掉表单里的密钥，下面按原流程在服务商行里保存密钥
+  await page.fill('input[aria-label="自定义服务商API key"]', "");
   await page.click('button:has-text("添加自定义服务商")');
   await page.waitForSelector('[data-testid="provider-ds-proxy"]');
   const card = page.locator('[data-testid="provider-ds-proxy"]');

@@ -1,6 +1,6 @@
 import { ChevronRight, Moon, Sun } from "lucide-react";
 import { resolveTheme, useWorkbench } from "../state/store";
-import { Seal } from "./Seal";
+import { BrandMark } from "./BrandMark";
 
 export function TitleBar() {
   const theme = useWorkbench((s) => s.theme);
@@ -14,7 +14,7 @@ export function TitleBar() {
   return (
     <header className="titlebar">
       <div className="titlebar-brand">
-        <Seal glyph="文" color="var(--accent)" size={22} />
+        <BrandMark size={22} />
         <span className="titlebar-name">文枢</span>
       </div>
       <nav className="titlebar-crumb" aria-label="当前位置">

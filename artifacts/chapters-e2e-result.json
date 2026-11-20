@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "findings": [
+    {
+      "name": "打开项目后，纸面显示磁盘上最近修改的章节",
+      "passed": true,
+      "detail": "长安夜\n1页\n第十章\n归来\n编辑\n撤销\n已保存\n\n他终于回到崇仁坊。\n\n· 1 ·"
+    },
+    {
+      "name": "章节选择器按章号排序（第十章在第二章之后）",
+      "passed": true,
+      "detail": "第一章 | 第二章 | 第十章"
+    },
+    {
+      "name": "切换到第一章，显示第一章正文",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "切换章节后不再显示其他章节",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "进入编辑模式并自动保存",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "编辑期间外部修改出现冲突提示",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "在外部编辑器改稿后，纸面自动刷新",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "外部新增章节后，章节列表自动出现新章",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "正在查看的章节被删除后，纸面回退到其他章节而不是留着旧内容",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "纸面默认回到只读模式",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "章节全部删除后显示空状态",
+      "passed": true,
+      "detail": "长安夜\n\n项目的 chapters/ 文件夹里还没有章节。\n\n写好的章节，或你在别的编辑器里放进去的稿子，都会显示在这里（纸面只读）。\n\n· 1 ·"
+    }
+  ]
+}

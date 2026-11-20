@@ -123,7 +123,10 @@ export class ModelSettings {
       throw new Error(`Provider ID已存在：${input.id}`);
     if (existing && !isUserDefined(existing))
       throw new Error(`${input.id}是预设服务商，不能用自定义配置覆盖`);
-    const entry = customConfig(input);
+    const entry = {
+      ...customConfig(input),
+      enabled: existing?.enabled ?? true,
+    };
     await this.saveUserConfig(
       existing
         ? current.providers.map((item) => (item.id === input.id ? entry : item))
@@ -151,6 +154,35 @@ export class ModelSettings {
         );
     }
   }
+  /** 启用或停用服务商；仍有Agent在用时不能停用，避免运行时才报“模型未启用”。 */
+  async setEnabled(
+    id: string,
+    enabled: boolean,
+    projectPath?: string,
+  ): Promise<void> {
+    const current = await this.userConfig();
+    const existing =
+      current.providers.find((item) => item.id === id) ??
+      (id === DEFAULT_PROVIDER
+        ? builtinModelConfig().providers.find((item) => item.id === id)
+        : undefined);
+    if (!existing) throw new Error(`没有这个服务商：${id}`);
+    if (!enabled) {
+      const users = (await this.definitions(projectPath)).definitions
+        .filter((definition) => definition.model.provider === id)
+        .map((definition) => definition.displayName ?? definition.name);
+      if (users.length > 0)
+        throw new Error(
+          `${users.join("、")}正在使用该服务商的模型，请先在“模型分配”里改用其他模型再停用`,
+        );
+    }
+    const entry = { ...existing, enabled };
+    await this.saveUserConfig(
+      current.providers.some((item) => item.id === id)
+        ? current.providers.map((item) => (item.id === id ? entry : item))
+        : [entry, ...current.providers],
+    );
+  }
   /** 已配置的Provider清单（含用户定义的），供设置页展示。 */
   async providerList(projectPath?: string) {
     const config = await this.config(projectPath);
@@ -158,6 +190,7 @@ export class ModelSettings {
       id: provider.id,
       label: provider.label,
       kind: provider.kind,
+      enabled: provider.enabled,
       baseUrl: provider.baseUrl,
       api: provider.api,
       modelCount: provider.models.length,

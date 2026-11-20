@@ -3,7 +3,7 @@
 // 用法：npm run build:desktop && node scripts/paper-edit-e2e.mjs
 import fs from "node:fs";
 import fsp from "node:fs/promises";
-import { createRequire } from "node:module";
+import { electronBinary, mainArgs } from "./lib/electron-target.mjs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +12,6 @@ import { closeApp } from "./lib/close-app.mjs";
 
 const { ELECTRON_RUN_AS_NODE, DEEPSEEK_API_KEY, ...baseEnv } = process.env;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const electronBinary = createRequire(import.meta.url)("electron");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-paper-edit-"));
 const userData = path.join(tmp, "appdata");
 const folder = path.join(tmp, "写作", "长安夜");
@@ -49,10 +48,7 @@ const waitFile = async (predicate, timeout = 8000) => {
 async function launch(extraEnv = {}) {
   const app = await _electron.launch({
     executablePath: electronBinary,
-    args: [
-      path.join(root, "out", "main", "index.js"),
-      `--user-data-dir=${userData}`,
-    ],
+    args: [...mainArgs(root), `--user-data-dir=${userData}`],
     cwd: root,
     env: {
       ...baseEnv,

@@ -8,8 +8,10 @@ import {
 import path from "node:path";
 import { WordHubStore, createId, timestamp } from "@wordhub/store";
 import { ModelSettings } from "../models/settings.js";
+import { fetchRemoteModels } from "../models/remote.js";
 import {
   createRuntimeModels,
+  envVarName,
   registerCustomProviders,
 } from "../models/providers.js";
 import { ProjectService } from "../projects/service.js";
@@ -515,6 +517,19 @@ export function createRunExecutor(options: ExecutorOptions) {
     recoverProjectFiles,
     modelSettings,
     testConnection,
+    fetchModels: async (request) => {
+      const apiKey =
+        request.apiKey?.trim() ||
+        (request.provider
+          ? ((await models.getAuth(request.provider).catch(() => undefined))
+              ?.auth.apiKey ?? process.env[envVarName(request.provider)])
+          : undefined);
+      return fetchRemoteModels({
+        baseUrl: request.baseUrl,
+        api: request.api,
+        apiKey,
+      });
+    },
     providerAuth: async (id) => {
       const check = await models.checkAuth(id);
       return { configured: Boolean(check), source: check?.source };

@@ -1,0 +1,85 @@
+{
+  "model": "deepseek-flash",
+  "checks": [
+    {
+      "name": "史官运行正常结束",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "提出了人物关系事实（至少 2 条）",
+      "passed": true,
+      "detail": "3 条"
+    },
+    {
+      "name": "每条关系都带 object 与 relation，且是逐字原文锚点",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "沈砚—林小满：师徒",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "林小满—周远：夫妻",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "沈砚—赵无咎：仇敌",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "没有给“互不相识”的老王与阿桂编造关系",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "确认后图谱里出现关系涉及的人物",
+      "passed": true,
+      "detail": "林小满、沈砚、赵无咎、周远"
+    },
+    {
+      "name": "采访得到回答，并附带依据（引用已确认的事实）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "回答没有越界警告",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "问到还没写的后文时，人物说不知道/不确定，而不是编造",
+      "passed": true,
+      "detail": "沈砚赵无咎后来如何，我不晓得。第二章里出了什么事，我也说不出来——我人还在剑门山上，山门外的事没落到我眼里。 我只知道他恨我入骨，当年他的右手是我废的 1。这条路他走了这些年，不会白走一趟。眼下他在哪儿、想做什么，我不便多说。 你若问小满，"
+    },
+    {
+      "name": "推演默认选中沈砚和与他有关系的人",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "推演每一步都有行动记录（轮数 × 人数）",
+      "passed": true,
+      "detail": "8 条"
+    },
+    {
+      "name": "推演报告含小结与可能的走向，并标明非正史",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "推演没有越界警告（没有提到后文才出现的人物）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "推演可保存为非正史的参考文件",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

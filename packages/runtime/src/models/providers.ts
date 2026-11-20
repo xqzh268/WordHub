@@ -53,6 +53,8 @@ export type CustomProviderInput = {
     contextWindow?: number;
     maxOutputTokens?: number;
     reasoning?: boolean;
+    /** 支持的思考档位；不填时沿用Pi目录同名模型的档位，匹配不到则为off到high。 */
+    reasoningLevels?: ReasoningLevel[];
     /** 美元/百万token；三项都不填时尝试按模型ID匹配Pi目录，匹配不到则标为价格未知。 */
     inputUsdPerMillion?: number;
     outputUsdPerMillion?: number;
@@ -124,22 +126,31 @@ export function presetConfig(id: string): ProviderConfig {
   };
 }
 
-/** 按模型ID在Pi内置目录里找同名模型（网关常转发官方模型），用其价格作参考。 */
-function catalogPricing(
-  id: string,
-):
-  | { pricing: ModelCatalogEntry["pricing"]; contextWindow: number }
-  | undefined {
+/** 按模型ID在Pi内置目录里找同名模型（网关常转发官方模型），用其价格和能力作参考。 */
+export function catalogMatch(id: string): ModelCatalogEntry | undefined {
   const bare = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id;
   for (const provider of builtinProviders())
     for (const model of provider.getModels())
-      if (model.id === id || model.id === bare)
-        return {
-          pricing: catalogEntry(model).pricing,
-          contextWindow: model.contextWindow,
-        };
+      if (model.id === id || model.id === bare) return catalogEntry(model);
   return undefined;
 }
+
+export const REASONING_LEVELS: ReasoningLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
+const DEFAULT_REASONING: ReasoningLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+];
 
 const finiteNonNegative = (value: number | undefined, name: string) => {
   if (value === undefined) return undefined;
@@ -174,6 +185,12 @@ export function customConfig(input: CustomProviderInput): ProviderConfig {
       const id = model.id.trim();
       if (!id) throw new Error("模型ID不能为空");
       const reasoning = model.reasoning ?? false;
+      if (
+        model.reasoningLevels?.some(
+          (level) => !REASONING_LEVELS.includes(level),
+        )
+      )
+        throw new Error(`${id}的思考档位无效`);
       const input = finiteNonNegative(
         model.inputUsdPerMillion,
         `${id}的输入价格`,
@@ -188,26 +205,39 @@ export function customConfig(input: CustomProviderInput): ProviderConfig {
       );
       const found =
         input === undefined && output === undefined && cacheRead === undefined
-          ? catalogPricing(id)
+          ? catalogMatch(id)
           : undefined;
       const pricingSource: ModelCatalogEntry["pricingSource"] = found
         ? "catalog"
         : input !== undefined || output !== undefined || cacheRead !== undefined
           ? "user"
           : "unknown";
+      const matched = found ?? catalogMatch(id);
       const contextWindow =
-        model.contextWindow ?? found?.contextWindow ?? 128000;
+        model.contextWindow ?? matched?.contextWindow ?? 128000;
+      const maxOutputTokens =
+        model.maxOutputTokens ?? matched?.maxOutputTokens ?? 8192;
+      if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 1)
+        throw new Error(`${id}的最大输出必须是正整数`);
+      const levels: ReasoningLevel[] = !reasoning
+        ? ["off"]
+        : model.reasoningLevels?.length
+          ? REASONING_LEVELS.filter(
+              (level) =>
+                level === "off" || model.reasoningLevels?.includes(level),
+            )
+          : matched?.supportsReasoning && matched.supportedReasoning?.length
+            ? matched.supportedReasoning
+            : DEFAULT_REASONING;
       if (!Number.isInteger(contextWindow) || contextWindow < 1)
         throw new Error(`${id}的上下文长度必须是正整数`);
       return {
         id,
         label: model.label?.trim() || id,
         contextWindow,
-        maxOutputTokens: model.maxOutputTokens ?? 8192,
+        maxOutputTokens,
         supportsReasoning: reasoning,
-        supportedReasoning: reasoning
-          ? ["off", "minimal", "low", "medium", "high"]
-          : ["off"],
+        supportedReasoning: levels,
         pricing: found?.pricing ?? {
           inputUsdPerMillion: input ?? 0,
           outputUsdPerMillion: output ?? 0,

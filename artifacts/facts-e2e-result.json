@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "findings": [
+    {
+      "name": "事实页签列出待确认事实与章节摘要",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "页签上的徽标显示待确认数量",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "确认一条事实后徽标减一",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "确认写入事件日志（fact.confirmed）",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "“只看待确认”只留下未决的一条",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "章节导航里有“定稿”按钮",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "定稿完成后按钮变为“重新定稿”",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "“定稿后自动评审”默认关闭",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "打开开关后写入项目偏好文件",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

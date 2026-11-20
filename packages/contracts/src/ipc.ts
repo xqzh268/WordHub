@@ -71,6 +71,8 @@ export type WorkspaceCommand =
   | "settings.models"
   | "settings.setAgentModel"
   | "settings.testConnection"
+  | "settings.setProviderEnabled"
+  | "settings.fetchModels"
   | "app.setTheme";
 
 export interface SimulationBasePayload {
@@ -324,6 +326,7 @@ export interface CommandPayloads {
         contextWindow?: number;
         maxOutputTokens?: number;
         reasoning?: boolean;
+        reasoningLevels?: Array<"off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max">;
         inputUsdPerMillion?: number;
         outputUsdPerMillion?: number;
         cacheReadUsdPerMillion?: number;
@@ -336,6 +339,8 @@ export interface CommandPayloads {
   "settings.models": undefined;
   "settings.setAgentModel": { projectId?: string; agentId: string; model: { provider: string; id: string; reasoning: string } };
   "settings.testConnection": { provider: string; model?: string };
+  "settings.setProviderEnabled": { id: string; enabled: boolean };
+  "settings.fetchModels": { baseUrl: string; api: "openai-completions" | "openai-responses" | "anthropic-messages"; provider?: string; apiKey?: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
 
@@ -446,6 +451,7 @@ export interface CommandResults {
       id: string;
       label: string;
       kind: "builtin" | "openai-compatible" | "custom";
+      enabled: boolean;
       baseUrl?: string;
       api?: string;
       modelCount: number;
@@ -456,6 +462,8 @@ export interface CommandResults {
         id: string;
         label: string;
         contextWindow: number;
+        maxOutputTokens?: number;
+        supportedReasoning?: string[];
         supportsReasoning: boolean;
         pricing: { inputUsdPerMillion: number; outputUsdPerMillion: number; cacheReadUsdPerMillion: number };
         pricingSource?: "user" | "catalog" | "unknown";
@@ -468,6 +476,21 @@ export interface CommandResults {
   "settings.models": { agents: Array<{ id: string; displayName: string; description?: string; avatar?: { glyph?: string; color?: string }; model: { provider: string; id: string; reasoning: string }; source: string }>; providers: Array<{ id: string; label: string; models: Array<{ id: string; label: string; supportedReasoning?: string[] }> }>; errors?: string[] };
   "settings.setAgentModel": { saved: boolean };
   "settings.testConnection": { ok: boolean; message: string };
+  "settings.setProviderEnabled": { saved: boolean };
+  "settings.fetchModels": {
+    models: Array<{
+      id: string;
+      label: string;
+      contextWindow?: number;
+      maxOutputTokens?: number;
+      reasoning: boolean;
+      supportedReasoning?: string[];
+      inputUsdPerMillion?: number;
+      outputUsdPerMillion?: number;
+      cacheReadUsdPerMillion?: number;
+      source: "remote" | "catalog" | "unknown";
+    }>;
+  };
   "app.setTheme": { applied: boolean };
 }
 

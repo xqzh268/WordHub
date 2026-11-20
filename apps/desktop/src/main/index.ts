@@ -579,6 +579,35 @@ function registerIpc(): void {
           projectPath: linkedFolder ?? undefined,
         });
       }
+      if (command === "settings.setProviderEnabled") {
+        const payload =
+          request.payload as CommandPayloads["settings.setProviderEnabled"];
+        return await worker.request<
+          CommandResults["settings.setProviderEnabled"]
+        >({
+          type: "settings.setProviderEnabled",
+          id: payload.id,
+          enabled: payload.enabled,
+          projectPath: linkedFolder ?? undefined,
+        });
+      }
+      if (command === "settings.fetchModels") {
+        const payload =
+          request.payload as CommandPayloads["settings.fetchModels"];
+        // 未在表单里填密钥时，用主进程里已加密保存的密钥。
+        const apiKey =
+          payload.apiKey?.trim() ||
+          (payload.provider
+            ? await credentials.get(payload.provider).catch(() => undefined)
+            : undefined);
+        return await worker.request<CommandResults["settings.fetchModels"]>({
+          type: "settings.fetchModels",
+          baseUrl: payload.baseUrl,
+          api: payload.api,
+          provider: payload.provider,
+          apiKey,
+        });
+      }
       if (command === "settings.models") {
         return await worker.request<CommandResults["settings.models"]>({
           type: "settings.models",

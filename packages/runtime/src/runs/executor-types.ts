@@ -304,6 +304,22 @@ export type RuntimeRequest =
       projectPath?: string;
       requestId: string;
     }
+  | {
+      type: "settings.setProviderEnabled";
+      id: string;
+      enabled: boolean;
+      projectPath?: string;
+      requestId: string;
+    }
+  | {
+      type: "settings.fetchModels";
+      baseUrl: string;
+      api: CustomProviderInput["api"];
+      /** 已保存的服务商ID，未填apiKey时用它的已存密钥或环境变量。 */
+      provider?: string;
+      apiKey?: string;
+      requestId: string;
+    }
   | { type: "credentials.sync"; keys: Record<string, string> }
   | {
       type: "run.estimate";

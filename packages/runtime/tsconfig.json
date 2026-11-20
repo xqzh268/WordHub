@@ -5,8 +5,18 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "composite": true
+    "composite": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
-  "references": [{ "path": "../contracts" }, { "path": "../store" }]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../contracts"
+    },
+    {
+      "path": "../store"
+    }
+  ]
 }

@@ -8,3 +8,11 @@ packages/*/dist/
 .wordhub/
 spikes/.cache/
 *.tsbuildinfo
+
+# 打包产物
+release/
+
+# 已被 logo-v4 取代的设计稿（只留本地）
+docs/design/logo-2026-11-08/
+docs/design/logo-v2/
+docs/design/logo-v3/

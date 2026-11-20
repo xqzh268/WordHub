@@ -5,6 +5,7 @@ import { cleanIpcError } from "../lib/errors";
 type ProviderList = CommandResults["settings.providers"];
 type ProviderItem = ProviderList["providers"][number];
 type ModelList = CommandResults["settings.models"];
+type RemoteModel = CommandResults["settings.fetchModels"]["models"][number];
 type CustomInput = NonNullable<
   CommandPayloads["settings.addProvider"]["custom"]
 >;
@@ -15,27 +16,44 @@ const API_LABELS: Record<CustomInput["api"], string> = {
   "anthropic-messages": "Anthropic Messages",
 };
 
+/** 思考档位从低到高；“最高档”决定该模型可选的思考强度范围。 */
+const THINK_LEVELS = [
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
+type ThinkLevel = (typeof THINK_LEVELS)[number];
+/** none=不支持思考；auto=沿用Pi目录同名模型的档位，匹配不到则到high。 */
+type ThinkSetting = "none" | "auto" | ThinkLevel;
+
 type ModelRow = {
   id: string;
   label: string;
   contextWindow: string;
+  maxOutput: string;
   input: string;
   output: string;
-  reasoning: boolean;
+  think: ThinkSetting;
 };
 const EMPTY_ROW: ModelRow = {
   id: "",
   label: "",
   contextWindow: "",
+  maxOutput: "",
   input: "",
   output: "",
-  reasoning: false,
+  think: "none",
 };
+const isBlankRow = (row: ModelRow) => !row.id.trim() && !row.label.trim();
 const EMPTY_CUSTOM = {
   id: "",
   label: "",
   baseUrl: "",
   api: "openai-completions" as CustomInput["api"],
+  apiKey: "",
   models: [{ ...EMPTY_ROW }] as ModelRow[],
 };
 
@@ -55,8 +73,13 @@ function toInputModels(rows: ModelRow[]): CustomInput["models"] {
     .map((row) => ({
       id: row.id.trim(),
       label: row.label.trim() || undefined,
-      reasoning: row.reasoning,
+      reasoning: row.think !== "none",
+      reasoningLevels:
+        row.think === "none" || row.think === "auto"
+          ? undefined
+          : [...THINK_LEVELS.slice(0, THINK_LEVELS.indexOf(row.think) + 1)],
       contextWindow: optionalNumber(row.contextWindow),
+      maxOutputTokens: optionalNumber(row.maxOutput),
       inputUsdPerMillion: optionalNumber(row.input),
       outputUsdPerMillion: optionalNumber(row.output),
     }));
@@ -68,6 +91,7 @@ function toRows(models: NonNullable<ProviderItem["models"]>): ModelRow[] {
     id: model.id,
     label: model.label === model.id ? "" : model.label,
     contextWindow: String(model.contextWindow),
+    maxOutput: model.maxOutputTokens ? String(model.maxOutputTokens) : "",
     input:
       model.pricingSource === "user"
         ? String(model.pricing.inputUsdPerMillion)
@@ -76,9 +100,63 @@ function toRows(models: NonNullable<ProviderItem["models"]>): ModelRow[] {
       model.pricingSource === "user"
         ? String(model.pricing.outputUsdPerMillion)
         : "",
-    reasoning: model.supportsReasoning,
+    think: !model.supportsReasoning
+      ? "none"
+      : highestLevel(model.supportedReasoning),
   }));
 }
+
+/**
+ * 档位是从 minimal 起连续的一段时，记成“最高某档”；否则（如 DeepSeek 的 off/low/high/max）
+ * 记成“自动”，保存时由后端沿用目录里的准确档位，不凭空补出服务商不支持的档。
+ */
+function highestLevel(levels?: string[]): ThinkSetting {
+  const found = [...THINK_LEVELS]
+    .reverse()
+    .find((level) => levels?.includes(level));
+  if (!found) return "auto";
+  const expected = THINK_LEVELS.slice(0, THINK_LEVELS.indexOf(found) + 1);
+  const actual = (levels ?? []).filter((level) => level !== "off");
+  return actual.length === expected.length &&
+    expected.every((level) => actual.includes(level))
+    ? found
+    : "auto";
+}
+
+/** 接口返回的模型转成表单行；只回填接口给出的价格，目录同名价格保存时自动匹配。 */
+function remoteRow(model: RemoteModel): ModelRow {
+  const fromRemote = model.source === "remote";
+  return {
+    id: model.id,
+    label: model.label === model.id ? "" : model.label,
+    contextWindow: model.contextWindow ? String(model.contextWindow) : "",
+    maxOutput: model.maxOutputTokens ? String(model.maxOutputTokens) : "",
+    input:
+      fromRemote && model.inputUsdPerMillion !== undefined
+        ? String(model.inputUsdPerMillion)
+        : "",
+    output:
+      fromRemote && model.outputUsdPerMillion !== undefined
+        ? String(model.outputUsdPerMillion)
+        : "",
+    think: !model.reasoning
+      ? "none"
+      : model.supportedReasoning
+        ? highestLevel(model.supportedReasoning)
+        : "auto",
+  };
+}
+
+const THINK_LABELS: Record<ThinkSetting, string> = {
+  none: "不支持思考",
+  auto: "思考：自动",
+  minimal: "思考最高 minimal",
+  low: "思考最高 low",
+  medium: "思考最高 medium",
+  high: "思考最高 high",
+  xhigh: "思考最高 xhigh",
+  max: "思考最高 max",
+};
 
 export function ProviderSettings({
   onChanged,
@@ -97,6 +175,11 @@ export function ProviderSettings({
   const [editing, setEditing] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [error, setError] = useState("");
+  const [remote, setRemote] = useState<RemoteModel[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [remoteFilter, setRemoteFilter] = useState("");
+  const [fetching, setFetching] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState("");
 
   const refresh = useCallback(async () => {
     const [providers, status, models] = await Promise.all([
@@ -148,7 +231,20 @@ export function ProviderSettings({
     });
     note(id, result?.message ?? "");
   };
+  const toggleEnabled = async (id: string, enabled: boolean) => {
+    try {
+      await window.wordhub?.invoke("settings.setProviderEnabled", {
+        id,
+        enabled,
+      });
+      note(id, enabled ? "已启用" : "已停用，模型不再出现在选择列表中");
+      await changed();
+    } catch (cause) {
+      note(id, cleanIpcError(cause));
+    }
+  };
   const removeProvider = async (id: string) => {
+    setConfirmRemove("");
     try {
       await window.wordhub?.invoke("settings.removeProvider", { id });
       await window.wordhub?.invoke("settings.deleteCredential", {
@@ -170,6 +266,58 @@ export function ProviderSettings({
       fail(cause);
     }
   };
+  const matches = (model: RemoteModel) =>
+    `${model.id} ${model.label}`
+      .toLowerCase()
+      .includes(remoteFilter.trim().toLowerCase());
+  const fetchRemote = async () => {
+    setError("");
+    setFetching(true);
+    try {
+      const result = await window.wordhub?.invoke("settings.fetchModels", {
+        baseUrl: custom.baseUrl.trim(),
+        api: custom.api,
+        provider: editing ? custom.id : undefined,
+        apiKey: custom.apiKey.trim() || undefined,
+      });
+      const list = result?.models ?? [];
+      const existing = new Set(custom.models.map((row) => row.id.trim()));
+      setRemote(list);
+      setRemoteFilter("");
+      // 模型不多时默认全选新模型；网关动辄上百个，让用户自己挑。
+      setPicked(
+        new Set(
+          list.length <= 20
+            ? list.filter((m) => !existing.has(m.id)).map((m) => m.id)
+            : [],
+        ),
+      );
+      if (list.length === 0)
+        setError("接口返回了空的模型列表，请手动填写模型ID");
+    } catch (cause) {
+      setRemote(null);
+      fail(cause);
+    } finally {
+      setFetching(false);
+    }
+  };
+  const addPicked = () => {
+    if (!remote) return;
+    setCustom((current) => {
+      const kept = current.models.filter((row) => !isBlankRow(row));
+      const existing = new Set(kept.map((row) => row.id.trim()));
+      const added = remote
+        .filter((model) => picked.has(model.id) && !existing.has(model.id))
+        .map(remoteRow);
+      const models = [...kept, ...added];
+      return {
+        ...current,
+        models: models.length ? models : [{ ...EMPTY_ROW }],
+      };
+    });
+    setRemote(null);
+    setPicked(new Set());
+  };
   const saveCustom = async () => {
     try {
       setError("");
@@ -183,6 +331,13 @@ export function ProviderSettings({
         },
         replace: editing,
       });
+      // 表单里填的密钥一并加密保存，省去再到上方填一次。
+      if (custom.apiKey.trim() && encryption)
+        await window.wordhub?.invoke("settings.setCredential", {
+          provider: custom.id.trim(),
+          secret: custom.apiKey.trim(),
+        });
+      setRemote(null);
       setCustom(EMPTY_CUSTOM);
       setEditing(false);
       setShowCustom(false);
@@ -200,6 +355,7 @@ export function ProviderSettings({
       label: provider.label,
       baseUrl: provider.baseUrl ?? "",
       api: (provider.api as CustomInput["api"]) ?? "openai-completions",
+      apiKey: "",
       models: provider.models?.length
         ? toRows(provider.models)
         : [{ ...EMPTY_ROW }],
@@ -209,6 +365,7 @@ export function ProviderSettings({
     setShowCustom(false);
     setEditing(false);
     setCustom(EMPTY_CUSTOM);
+    setRemote(null);
     setError("");
   };
   const patchRow = (index: number, patch: Partial<ModelRow>) =>
@@ -249,6 +406,7 @@ export function ProviderSettings({
             <div className="field-label">
               <strong>{provider.label}</strong>
               <span>
+                {provider.enabled ? "" : "已停用 · "}
                 {provider.userDefined ? "自定义" : "预设"} ·{" "}
                 {provider.modelCount} 个模型
                 {provider.baseUrl ? ` · ${provider.baseUrl}` : ""}
@@ -318,14 +476,41 @@ export function ProviderSettings({
                     编辑
                   </button>
                 )}
-                {provider.removable && (
-                  <button
-                    className="btn"
-                    onClick={() => void removeProvider(provider.id)}
-                  >
-                    移除
-                  </button>
-                )}
+                <label className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={provider.enabled}
+                    onChange={(event) =>
+                      void toggleEnabled(provider.id, event.target.checked)
+                    }
+                    aria-label={`启用${provider.label}`}
+                  />
+                  <span>启用</span>
+                </label>
+                {provider.removable &&
+                  (confirmRemove === provider.id ? (
+                    <>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => void removeProvider(provider.id)}
+                      >
+                        确认移除（同时删除密钥）
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => setConfirmRemove("")}
+                      >
+                        取消
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn"
+                      onClick={() => setConfirmRemove(provider.id)}
+                    >
+                      移除
+                    </button>
+                  ))}
               </div>
               {provider.auth.source === "stored credential" && (
                 <button
@@ -428,6 +613,117 @@ export function ProviderSettings({
                   </option>
                 ))}
               </select>
+              <div className="credential-row" style={{ marginTop: 0 }}>
+                <input
+                  className="text-input mono"
+                  type="password"
+                  value={custom.apiKey}
+                  onChange={(event) =>
+                    setCustom({ ...custom, apiKey: event.target.value })
+                  }
+                  placeholder={
+                    editing
+                      ? "API key（留空则沿用已保存的密钥）"
+                      : "API key（可选；用于获取模型列表，保存时一并加密保存）"
+                  }
+                  aria-label="自定义服务商API key"
+                />
+                <button
+                  className="btn"
+                  disabled={!custom.baseUrl.trim() || fetching}
+                  onClick={() => void fetchRemote()}
+                >
+                  {fetching ? "获取中…" : "从接口获取模型"}
+                </button>
+              </div>
+              {remote && remote.length > 0 && (
+                <div
+                  data-testid="remote-models"
+                  style={{
+                    border: "1px solid var(--line, #ddd)",
+                    borderRadius: 6,
+                    padding: 8,
+                    display: "grid",
+                    gap: 6,
+                  }}
+                >
+                  <div className="credential-row" style={{ marginTop: 0 }}>
+                    <input
+                      className="text-input"
+                      value={remoteFilter}
+                      onChange={(event) => setRemoteFilter(event.target.value)}
+                      placeholder={`筛选 ${remote.length} 个模型`}
+                      aria-label="筛选接口模型"
+                    />
+                    <button
+                      className="btn"
+                      onClick={() =>
+                        setPicked((current) => {
+                          const next = new Set(current);
+                          for (const model of remote.filter(matches))
+                            next.add(model.id);
+                          return next;
+                        })
+                      }
+                    >
+                      全选筛选结果
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => setPicked(new Set())}
+                    >
+                      清空
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                    {remote.filter(matches).map((model) => (
+                      <label
+                        key={model.id}
+                        className="toggle-row"
+                        style={{ display: "flex", gap: 6 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={picked.has(model.id)}
+                          onChange={(event) =>
+                            setPicked((current) => {
+                              const next = new Set(current);
+                              if (event.target.checked) next.add(model.id);
+                              else next.delete(model.id);
+                              return next;
+                            })
+                          }
+                          aria-label={`选择模型 ${model.id}`}
+                        />
+                        <span className="mono">{model.id}</span>
+                        <span className="section-note" style={{ margin: 0 }}>
+                          {[
+                            model.contextWindow
+                              ? `${Math.round(model.contextWindow / 1000)}K`
+                              : "",
+                            model.reasoning ? "思考" : "",
+                            model.source === "unknown" ? "价格未知" : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="credential-row" style={{ marginTop: 0 }}>
+                    <button
+                      className="btn btn-primary"
+                      disabled={picked.size === 0}
+                      onClick={addPicked}
+                    >
+                      添加选中的 {picked.size} 个模型
+                    </button>
+                    <button className="btn" onClick={() => setRemote(null)}>
+                      关闭列表
+                    </button>
+                  </div>
+                </div>
+              )}
               {custom.models.map((row, index) => (
                 <div
                   key={index}
@@ -464,6 +760,15 @@ export function ProviderSettings({
                   />
                   <input
                     className="text-input mono"
+                    value={row.maxOutput}
+                    onChange={(event) =>
+                      patchRow(index, { maxOutput: event.target.value })
+                    }
+                    placeholder="最大输出（默认8192）"
+                    aria-label={`最大输出-${index}`}
+                  />
+                  <input
+                    className="text-input mono"
                     value={row.input}
                     onChange={(event) =>
                       patchRow(index, { input: event.target.value })
@@ -480,17 +785,24 @@ export function ProviderSettings({
                     placeholder="输出价 $/百万token"
                     aria-label={`输出价格-${index}`}
                   />
-                  <label className="toggle-row">
-                    <input
-                      type="checkbox"
-                      checked={row.reasoning}
-                      onChange={(event) =>
-                        patchRow(index, { reasoning: event.target.checked })
-                      }
-                      aria-label={`支持思考-${index}`}
-                    />
-                    <span>思考</span>
-                  </label>
+                  <select
+                    className="text-input"
+                    value={row.think}
+                    onChange={(event) =>
+                      patchRow(index, {
+                        think: event.target.value as ThinkSetting,
+                      })
+                    }
+                    aria-label={`思考档位-${index}`}
+                  >
+                    {(Object.keys(THINK_LABELS) as ThinkSetting[]).map(
+                      (value) => (
+                        <option key={value} value={value}>
+                          {THINK_LABELS[value]}
+                        </option>
+                      ),
+                    )}
+                  </select>
                   <button
                     className="btn"
                     disabled={custom.models.length === 1}
@@ -521,7 +833,8 @@ export function ProviderSettings({
               </div>
               <p className="section-note">
                 价格不填时，会先按模型 ID 在 Pi
-                目录里找同名模型作参考；找不到就标为“价格未知”，运行前估算会明确提示费用未计入。
+                目录里找同名模型作参考；找不到就标为“价格未知”，运行前估算会明确提示费用未计入。思考选“自动”时沿用目录同名模型的档位，找不到则最高到
+                high。
               </p>
               <div>
                 <button
