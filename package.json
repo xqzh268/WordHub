@@ -27,7 +27,7 @@
     "dev:desktop": "electron-vite dev --config apps/desktop/electron.vite.config.ts",
     "test:desktop": "node scripts/desktop-smoke.mjs",
     "test:layout": "node scripts/layout-check.mjs",
-    "test": "npm run build:store && vitest run",
+    "test": "npm run build:store && node scripts/vitest.mjs run",
     "test:providers:e2e": "node scripts/providers-e2e.mjs",
     "test:paper:e2e": "node scripts/paper-edit-e2e.mjs",
     "test:export:e2e": "node scripts/export-e2e.mjs",
@@ -52,7 +52,7 @@
     "test:m3:live": "node scripts/m3-live-e2e.mjs",
     "test:m3:neutral": "node scripts/m3-live-neutral.mjs",
     "test:m1:store": "npm run build:store && node scripts/m1-store-smoke.mjs",
-    "test:m2:faux": "npm run build:runtime && vitest run packages/runtime/src/integration.test.ts packages/runtime/src/host/pi-agent-host.test.ts",
+    "test:m2:faux": "npm run build:runtime && node scripts/vitest.mjs run packages/runtime/src/integration.test.ts packages/runtime/src/host/pi-agent-host.test.ts",
     "lint": "biome check",
     "spike:all": "npm run validate:schema && npm run spike:pi && npm run spike:pi:utility && npm run spike:superdoc && npm run spike:superdoc:node && npm run spike:foliate"
   },
