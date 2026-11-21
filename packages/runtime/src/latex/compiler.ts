@@ -24,21 +24,30 @@ export interface LatexCompileResult {
 
 const inside = (root: string, target: string): boolean => {
   const relative = path.relative(root, target);
-  return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  return (
+    relative === "" ||
+    (relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative))
+  );
 };
 
 async function safeFile(root: string, relativePath: string): Promise<string> {
-  if (path.isAbsolute(relativePath)) throw new Error("LaTeX 文件必须使用项目内相对路径");
+  if (path.isAbsolute(relativePath))
+    throw new Error("LaTeX 文件必须使用项目内相对路径");
   const target = path.resolve(root, relativePath);
   const realRoot = await realpath(root);
   const realTarget = await realpath(target);
-  if (!inside(realRoot, realTarget)) throw new Error("LaTeX 文件必须位于项目目录内");
+  if (!inside(realRoot, realTarget))
+    throw new Error("LaTeX 文件必须位于项目目录内");
   const info = await lstat(realTarget);
   if (!info.isFile()) throw new Error("LaTeX 主文件必须是普通文件");
   return realTarget;
 }
 
-const collect = (child: ChildProcess): Promise<{ stdout: string; stderr: string; code: number }> =>
+const collect = (
+  child: ChildProcess,
+): Promise<{ stdout: string; stderr: string; code: number }> =>
   new Promise((resolve, reject) => {
     let stdout = "";
     let stderr = "";
@@ -48,16 +57,24 @@ const collect = (child: ChildProcess): Promise<{ stdout: string; stderr: string;
     child.once("close", (code) => resolve({ stdout, stderr, code: code ?? 1 }));
   });
 
-export async function compileLatex(options: LatexCompileOptions): Promise<LatexCompileResult> {
+export async function compileLatex(
+  options: LatexCompileOptions,
+): Promise<LatexCompileResult> {
   const projectRoot = await realpath(options.projectRoot);
   const mainFile = await safeFile(projectRoot, options.mainFile);
   const cacheRoot = path.resolve(options.cacheRoot);
   const outputRoot = path.resolve(options.outputRoot);
-  if (!inside(projectRoot, outputRoot)) throw new Error("编译输出目录必须位于项目目录内");
+  if (!inside(projectRoot, outputRoot))
+    throw new Error("编译输出目录必须位于项目目录内");
   await mkdir(cacheRoot, { recursive: true });
   await mkdir(outputRoot, { recursive: true });
 
-  const args = ["--untrusted", "--synctex", "--keep-logs", "--keep-intermediates"];
+  const args = [
+    "--untrusted",
+    "--synctex",
+    "--keep-logs",
+    "--keep-intermediates",
+  ];
   if (options.onlyCached) args.push("--only-cached");
   args.push("-o", outputRoot, mainFile);
   const run = options.spawnProcess ?? spawn;

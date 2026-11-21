@@ -542,14 +542,17 @@ try {
     "苏晚发现了密信，并决定不告诉裴照",
   );
   await page.selectOption('[data-testid="sim-rounds"]', "2");
-  await page.waitForFunction(
-    () =>
-      document
-        .querySelector('[data-testid="sim-estimate"]')
-        ?.textContent?.includes("次模型调用"),
-    null,
-    { timeout: 10000 },
-  );
+  // 改选人物后估算会重新计算；先等到“约 5 次”再断言，避免读到改选前的旧估算（CI 上出现过）。
+  await page
+    .waitForFunction(
+      () =>
+        document
+          .querySelector('[data-testid="sim-estimate"]')
+          ?.textContent?.includes("约 5 次模型调用"),
+      null,
+      { timeout: 10000 },
+    )
+    .catch(() => {});
   check(
     "开始前显示估算：2 人 × 2 轮 + 1 份报告 = 约 5 次模型调用",
     (
