@@ -151,6 +151,19 @@ node scripts/tectonic-synctex-probe.mjs scripts/fixtures/tectonic-spike/synctex 
 
 **范围判断。** 通用 ctex、BibTeX、当前 GB/T 7714—2025 样式和 SyncTeX 已具备进入 M7.1 基础工作台实现的本机证据。USTC 模板、macOS 执行、跨地区下载、字体覆盖与性能分位数仍待验收。首个样例改用通用 ctex 论文，先实现打开 `main.tex`、编译、PDF 预览和错误定位。TeX 子进程的文件系统隔离尚未在本次 CLI spike 中验证，工作台执行不可信项目之前还需落实并验证 Windows worker 仅访问项目与缓存目录。Tectonic 管理器对下载签名状态明确告警，biber 工程明确提示缺少外部工具。
 
+### 2026-11-22 文件系统隔离实测（阻断项）
+
+用真实 Tectonic 0.17.0 加 `--untrusted --only-cached`，经 [compiler.ts](../packages/runtime/src/latex/compiler.ts) 编译一个位于临时目录的项目：
+- `input{<项目外绝对路径>}` **能读**：项目外文件的内容被排进了 PDF，日志里只有一行“accessing absolute path”警告。
+- `immediateopenout` 写 `<项目外绝对路径>` **能写**：项目外出现了新文件。TeX Live 默认的 `openout_any=p` 会拒绝这种写入，Tectonic 不会。
+
+**结论**：`--untrusted` 只关闭了 shell-escape 和外部工具，不限制读写路径。一个恶意 .tex（例如来路不明的模板）能读取用户的私密文件（如 SSH 密钥），并经由 PDF、日志或交给 Agent 的编译输出泄露出去；还能往任意位置写文件（如开机启动目录）。在实现以下其一之前，**不能编译不可信项目**：
+1. 在操作系统层面限制 TeX 子进程的读写范围，只允许访问项目目录和缓存目录（Windows 用 AppContainer 或低完整性级别，macOS 用 sandbox-exec）；
+2. 至少先做“信任此项目”确认（类似 VS Code 的工作区信任）：只有用户自建或明确信任的项目才能编译；导入的 zip 和模板默认不信任；
+3. 交给 Agent 和模型的编译日志要过滤绝对路径读取的内容，并在出现 “accessing absolute path” 警告时提示用户。
+
+M7.1 先做第 2 项和第 3 项；第 1 项列为发布前的必做项，需要单独做技术 spike。
+
 ## 第一个端到端验收样例
 
 拿一份通用 ctex 论文项目走完以下流程：导入 → Tectonic 编译 → 选区改写 → Agent 修复一个编译错误 → 插入引用 → 评审查出一条预埋的虚假引用 → 导出 PDF 和源码 zip。待默认 bundle 与模板兼容后，再将 ustcthesis 加入同一验收。另外用一份专利草稿走结构化文档轨道：纲领问答 → 写出权利要求和说明书 → 评审查出一条不被说明书支持的权利要求 → 导出 DOCX。两个样例都用真实 deepseek-flash 跑。
