@@ -35,6 +35,7 @@
 
 /* 即将开放 */
 .coming-icon { display: inline-grid; place-items: center; width: 64px; height: 64px; margin-bottom: 18px; border-radius: 50%; color: var(--accent-ink); background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); }
+.academic-project-controls { width: min(380px, 100%); margin: 26px auto 0; }
 .coming-list { list-style: none; margin: 30px 0 26px; padding: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
 .coming-list li { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border-radius: var(--r-md); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line); }
 .coming-list strong { font-size: 14px; font-weight: 600; }

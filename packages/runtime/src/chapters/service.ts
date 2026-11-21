@@ -1,11 +1,15 @@
 import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import type { ChapterContent, ChapterInfo } from "@wordhub/contracts";
 import {
-  type ChapterContent,
-  type ChapterInfo,
+  CHAPTER_DIRECTORY,
+  CHAPTER_PATH_PREFIX,
   chapterNumberFromName,
+  chapterPathForName,
   compareChapters,
-} from "@wordhub/contracts";
+  isChapterFileName,
+  normalizeChapterPath,
+} from "@wordhub/novel";
 import { contentHash, safeProjectTarget } from "@wordhub/store";
 
 export type { ChapterContent, ChapterInfo };
@@ -13,34 +17,25 @@ export {
   chapterNumberFromName,
   compareChapters,
   parseChapterNumber,
-} from "@wordhub/contracts";
+} from "@wordhub/novel";
 
-const CHAPTER_DIR = "chapters";
-const EXTENSIONS = /\.(?:md|markdown|txt)$/iu;
 const MAX_BYTES = 5 * 1024 * 1024;
-
-/** 隐藏文件、临时文件（原子写盘留下的 .xxx.tmp）不算章节。 */
-function isChapterFile(name: string): boolean {
-  return (
-    EXTENSIONS.test(name) && !name.startsWith(".") && !name.endsWith(".tmp")
-  );
-}
 
 export async function listChapters(folder: string): Promise<ChapterInfo[]> {
   let directory: string;
   try {
-    directory = await safeProjectTarget(folder, CHAPTER_DIR);
+    directory = await safeProjectTarget(folder, CHAPTER_DIRECTORY);
   } catch {
     return [];
   }
   const names = await readdir(directory).catch(() => [] as string[]);
   const chapters: ChapterInfo[] = [];
   for (const name of names) {
-    if (!isChapterFile(name)) continue;
+    if (!isChapterFileName(name)) continue;
     const info = await lstat(path.join(directory, name)).catch(() => undefined);
     if (!info?.isFile()) continue; // 跳过目录与符号链接
     chapters.push({
-      path: `${CHAPTER_DIR}/${name}`,
+      path: chapterPathForName(name),
       name,
       number: chapterNumberFromName(name),
       size: info.size,
@@ -55,12 +50,12 @@ export async function readChapter(
   folder: string,
   relativePath: string,
 ): Promise<ChapterContent> {
-  const normalized = relativePath.replaceAll("\\", "/");
+  const normalized = normalizeChapterPath(relativePath);
   if (
-    !normalized.startsWith(`${CHAPTER_DIR}/`) ||
-    !isChapterFile(path.posix.basename(normalized))
+    !normalized.startsWith(CHAPTER_PATH_PREFIX) ||
+    !isChapterFileName(path.posix.basename(normalized))
   )
-    throw new Error("只能读取 chapters/ 下的章节文件");
+    throw new Error(`只能读取 ${CHAPTER_PATH_PREFIX} 下的章节文件`);
   const target = await safeProjectTarget(folder, normalized);
   const info = await lstat(target);
   if (!info.isFile()) throw new Error("章节不是普通文件");

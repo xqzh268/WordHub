@@ -7,18 +7,16 @@ import {
   type TimelineEntry,
   characterKnowledge,
 } from "@wordhub/contracts";
+import { chapterPathLabel } from "@wordhub/novel";
 import { cleanIpcError } from "../../lib/errors";
 import { useWorkbench } from "../../state/store";
-
-const chapterName = (chapter: string): string =>
-  chapter.replace(/^chapters\//u, "").replace(/\.[^.]+$/u, "");
 
 function FactLine({ fact, note }: { fact: NovelFact; note?: string }) {
   return (
     <>
       <div className="graph-fact-head">
         <span className="tag">{FACT_KIND_LABELS[fact.kind]}</span>
-        <small>{chapterName(fact.chapter)}</small>
+        <small>{chapterPathLabel(fact.chapter)}</small>
         {note && <span className="tag know-note">{note}</span>}
       </div>
       <p>
@@ -140,7 +138,7 @@ export function Knowledge({
                 fact={fact}
                 note={
                   source === "granted"
-                    ? `你指定他知道${since ? `（自${chapterName(since)}）` : ""}`
+                    ? `你指定他知道${since ? `（自${chapterPathLabel(since)}）` : ""}`
                     : undefined
                 }
               />

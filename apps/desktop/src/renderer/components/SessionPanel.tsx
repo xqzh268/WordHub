@@ -1,10 +1,11 @@
-import { ChevronsUpDown, FolderPlus, Plus, RotateCw } from "lucide-react";
+import { Plus, RotateCw } from "lucide-react";
 import type { CommandResults } from "@wordhub/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { allAgents, customAgentsFromModels, WORKER_LABEL } from "../lib/agents";
 import { AgentForm } from "./AgentForm";
 import { pickReasoning, shortModel } from "../lib/models";
 import { useWorkbench } from "../state/store";
+import { ProjectControls } from "./ProjectControls";
 import { Seal } from "./Seal";
 
 type ModelData = CommandResults["settings.models"];
@@ -81,31 +82,7 @@ export function SessionPanel() {
   return (
     <aside className="sessions" aria-label="项目与会话">
       <div className="sessions-scroll">
-        {project.folder ? (
-          <button
-            className="project-card"
-            onClick={() => void sessionActions.linkFolder()}
-            data-testid="project-card"
-          >
-            <span className="project-name">{project.name}</span>
-            <ChevronsUpDown size={14} strokeWidth={1.5} aria-hidden="true" />
-            <span className="project-path" title={project.folder}>
-              {project.folder}
-            </span>
-          </button>
-        ) : (
-          <button
-            className="project-card empty"
-            onClick={() => void sessionActions.linkFolder()}
-            data-testid="link-folder"
-          >
-            <FolderPlus size={18} strokeWidth={1.5} aria-hidden="true" />
-            <span>
-              <strong>链接写作文件夹</strong>
-              <small>稿件与设定都保存在这里</small>
-            </span>
-          </button>
-        )}
+        <ProjectControls />
 
         <div className="section-head">
           <span>会话</span>

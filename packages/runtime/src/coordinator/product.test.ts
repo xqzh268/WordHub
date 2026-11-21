@@ -16,7 +16,9 @@ const RAISE = {
   ],
 };
 describe("产品工作流入口", () => {
-  it("协调器驱动固执写手两轮回应，阻塞待裁决并在裁决后返工", async () => {
+  it("次要质询已解决时，阻塞质询仍经两轮回应、裁决和返工", async () => {
+    let minorRaised = false;
+    let minorAccepted = false;
     const f = await fixture((context) => {
       const prompt = JSON.stringify(context.messages);
       const calls = context.messages
@@ -36,16 +38,26 @@ describe("产品工作流入口", () => {
       if (prompt.includes("任务角色：challenge.reply")) {
         expect(prompt).toContain("left-hand");
         expect(prompt).toContain("右手与左撇子设定冲突");
-        return fauxAssistantMessage(
+        const responses = [
           fauxToolCall("challenge_reply", {
             threadId: "left-hand",
             disposition: "refute",
             text: "坚持原文，需要用户裁决。",
           }),
-          { stopReason: "toolUse" },
-        );
+        ];
+        if (!minorAccepted) {
+          minorAccepted = true;
+          responses.push(
+            fauxToolCall("challenge_reply", {
+              threadId: "wording",
+              disposition: "accept",
+              text: "接受措辞建议。",
+            }),
+          );
+        }
+        return fauxAssistantMessage(responses, { stopReason: "toolUse" });
       }
-      return fauxAssistantMessage(
+      const challenges = [
         fauxToolCall("challenge_raise", {
           threadId: "left-hand",
           target: "writer",
@@ -54,8 +66,20 @@ describe("产品工作流入口", () => {
           path: "chapters/第三章.md",
           severity: "blocking",
         }),
-        { stopReason: "toolUse" },
-      );
+      ];
+      if (!minorRaised) {
+        minorRaised = true;
+        challenges.push(
+          fauxToolCall("challenge_raise", {
+            threadId: "wording",
+            target: "writer",
+            ...RAISE,
+            claim: "措辞需要调整",
+            severity: "minor",
+          }),
+        );
+      }
+      return fauxAssistantMessage(challenges, { stopReason: "toolUse" });
     });
     try {
       await f.executor.handle({
@@ -66,14 +90,23 @@ describe("产品工作流入口", () => {
         mode: "mock",
       });
       await waitFor(() =>
-        f.messages.some((message) => message.type === "escalation.created"),
+        f.messages.some(
+          (message) =>
+            message.type === "escalation.created" ||
+            message.type === "workflow.failed",
+        ),
       );
       expect(
         f.messages.some((message) => message.type === "workflow.finished"),
       ).toBe(false);
       expect(
         f.messages.filter((message) => message.type === "challenge.raise"),
-      ).toHaveLength(2);
+      ).toHaveLength(3);
+      expect(
+        f.messages.some(
+          (m) => m.type === "challenge.resolved" && m.threadId === "wording",
+        ),
+      ).toBe(true);
       const starts = f.messages.filter(
         (message) => message.type === "run.started" && message.nodeId,
       );

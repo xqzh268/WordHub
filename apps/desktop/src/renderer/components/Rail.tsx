@@ -18,6 +18,7 @@ const TOP: { view: View; label: string; Icon: LucideIcon }[] = [
 export function Rail() {
   const view = useWorkbench((s) => s.view);
   const setView = useWorkbench((s) => s.setView);
+  const academic = useWorkbench((s) => s.project.kind === "academic");
 
   const item = ({
     view: target,
@@ -50,7 +51,9 @@ export function Rail() {
 
   return (
     <nav className="rail" aria-label="主导航">
-      <div className="rail-group">{TOP.map(item)}</div>
+      <div className="rail-group">
+        {TOP.filter(({ view }) => !academic || view === "workspace").map(item)}
+      </div>
       <div className="rail-group">
         {item({ view: "settings", label: "设置", Icon: Settings2 })}
       </div>

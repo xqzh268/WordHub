@@ -67,7 +67,7 @@ describe("M4.2真实请求上下文注入", () => {
     );
     await writeFile(
       path.join(project, ".wordhub", "bible", "characters.md"),
-      "# 人物档案\n\n## 主角：裴照\n- 身份：不良人。\n\n## 主要配角：韩敬\n- 身份：不良帅。\n\n## 主要配角：崔七娘\n- 身份：香料铺掌柜。",
+      "# 人物档案\n\n**裴照**\n\n身份：不良人。\n\n**性格**\n\n办事谨慎。\n\n**韩敬**（主要配角）\n\n身份：不良帅。\n\n**崔七娘**\n\n身份：香料铺掌柜。",
       "utf8",
     );
     await writeFile(
@@ -123,8 +123,9 @@ describe("M4.2真实请求上下文注入", () => {
       .join("\n");
     expect(content).toContain("第3章 宫门影子");
     expect(content).toContain("韩敬突然现身");
-    expect(content).toContain("主角：裴照");
-    expect(content).toContain("主要配角：韩敬");
+    expect(content).toContain("**裴照**");
+    expect(content).toContain("办事谨慎");
+    expect(content).toContain("**韩敬**（主要配角）");
     expect(content).not.toContain("崔七娘");
     expect(content).toContain("第70句：上一章线索继续向前推进。");
     expect(content).toContain("冷峻克制");

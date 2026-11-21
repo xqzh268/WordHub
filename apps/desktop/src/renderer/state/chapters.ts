@@ -1,8 +1,12 @@
+import type { ChapterInfo } from "@wordhub/contracts";
 import {
-  type ChapterInfo,
+  chapterFileStem,
   chapterNumberFromName,
+  chapterNumberTokenInText,
+  chapterOrdinal,
+  normalizeChapterPath,
   parseChapterNumber,
-} from "@wordhub/contracts";
+} from "@wordhub/novel";
 import type { PaperParagraph } from "./types";
 
 // 纸面与项目章节文件的对接逻辑：全部是不依赖 window 的纯函数，便于单测。
@@ -29,17 +33,10 @@ export function paperFromText(
   text: string,
   meta: { mtimeMs?: number; contentHash?: string } = {},
 ): PaperDoc {
-  const name = filePath.split(/[\\/]/u).at(-1) ?? filePath;
-  const stem = name.replace(/\.(?:md|markdown|txt)$/iu, "") || "当前章节";
-  const number = chapterNumberFromName(name);
-  const chapterToken = stem.match(
-    /第\s*([零〇一二两三四五六七八九十百千\d]+)\s*[章回]/u,
-  );
-  const no = chapterToken
-    ? `第${chapterToken[1]}章`
-    : number !== undefined
-      ? `第${number}章`
-      : "当前章节";
+  const stem = chapterFileStem(filePath) || "当前章节";
+  const chapterToken = chapterNumberTokenInText(stem, "章回");
+  const ordinal = chapterToken ?? chapterNumberFromName(filePath);
+  const no = ordinal === undefined ? "当前章节" : chapterOrdinal(ordinal);
 
   const blocks = text
     .split(/\r?\n\s*\r?\n/u)
@@ -66,7 +63,7 @@ export function paperFromText(
       id: `paper-${index}`,
       text: value.replace(/^#{1,6}\s+/u, ""),
     })),
-    path: filePath.replaceAll("\\", "/"),
+    path: normalizeChapterPath(filePath),
     mtimeMs: meta.mtimeMs,
     contentHash: meta.contentHash,
     source: text.replaceAll("\r\n", "\n"),
@@ -116,11 +113,9 @@ export function chapterFromPrompt(
   prompt: string,
   chapters: readonly ChapterInfo[],
 ): string | undefined {
-  const match = prompt.match(
-    /第\s*([零〇一二两三四五六七八九十百千\d]+)\s*[章回]/u,
-  );
-  if (!match?.[1]) return undefined;
-  const wanted = parseChapterNumber(match[1]);
+  const token = chapterNumberTokenInText(prompt, "章回");
+  if (token === undefined) return undefined;
+  const wanted = parseChapterNumber(token);
   if (wanted === undefined) return undefined;
   return chapters.find((chapter) => chapter.number === wanted)?.path;
 }

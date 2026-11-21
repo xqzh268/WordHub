@@ -14,11 +14,13 @@ import type {
   AppEvent,
   CommandPayloads,
   CommandResults,
+  ProjectKind,
   ResolvedTheme,
   ThemePreference,
   WorkspaceCommand,
   WorkspaceSnapshot,
 } from "@wordhub/contracts";
+import { chapterPathLabel } from "@wordhub/novel";
 import { PiWorkerHost } from "./pi-worker-host.js";
 import { ElectronCredentialStore } from "./credentials.js";
 
@@ -32,6 +34,7 @@ let mainWindow: BrowserWindow | null = null;
 let linkedFolder: string | null = null;
 let projectName = "未命名项目";
 let projectId: string | undefined;
+let projectKind: ProjectKind | undefined;
 let activeSessionId: string | undefined;
 const worker = new PiWorkerHost((event) =>
   mainWindow?.webContents.send("wordhub:event", event),
@@ -74,11 +77,61 @@ function applyTheme(
 function snapshot(): WorkspaceSnapshot {
   return {
     projectId,
+    projectKind,
     projectName,
     linkedFolder,
     activeSessionId,
     worker: worker.status,
   };
+}
+
+type OpenProject = {
+  id: string;
+  name: string;
+  folderPath: string;
+  kind: ProjectKind;
+  sessionId?: string;
+};
+
+function createOrOpenProject(folderPath: string, kind?: ProjectKind) {
+  return worker.request<OpenProject>({
+    type: "project.create",
+    name: path.basename(folderPath),
+    folderPath,
+    kind,
+  });
+}
+
+function activateProject(project: OpenProject): void {
+  projectId = project.id;
+  projectKind = project.kind;
+  projectName = project.name;
+  linkedFolder = project.folderPath;
+  activeSessionId = project.kind === "academic" ? undefined : project.sessionId;
+}
+
+const ACADEMIC_UNAVAILABLE = "学术写作工作台尚未开放。";
+const WORKSPACE_COMMAND_PREFIXES = [
+  "agent.",
+  "challenge.",
+  "chapter.",
+  "chat.",
+  "export.",
+  "fact.",
+  "graph.",
+  "intake.",
+  "project.prefs.",
+  "reference.",
+  "run.",
+  "session.",
+];
+
+function requiresWritingWorkspace(command: WorkspaceCommand): boolean {
+  if (command === "run.abort" || command === "run.restartWorker") return false;
+  return (
+    command === "settings.setAgentModel" ||
+    WORKSPACE_COMMAND_PREFIXES.some((prefix) => command.startsWith(prefix))
+  );
 }
 
 function registerIpc(): void {
@@ -89,31 +142,23 @@ function registerIpc(): void {
       request: { command: WorkspaceCommand; payload: unknown },
     ) => {
       const command = request.command;
+      if (projectKind === "academic" && requiresWritingWorkspace(command))
+        throw new Error(ACADEMIC_UNAVAILABLE);
       if (command === "workspace.getSnapshot")
         return snapshot() as CommandResults["workspace.getSnapshot"];
       if (command === "workspace.chooseFolder") {
+        const payload =
+          request.payload as CommandPayloads["workspace.chooseFolder"];
         const result = await dialog.showOpenDialog({
           properties: ["openDirectory", "createDirectory"],
         });
-        linkedFolder = result.canceled ? null : (result.filePaths[0] ?? null);
-        if (linkedFolder) {
-          projectName = path.basename(linkedFolder);
-          const created = await worker.request<{
-            id: string;
-            name: string;
-            folderPath: string;
-            sessionId: string;
-          }>({
-            type: "project.create",
-            name: projectName,
-            folderPath: linkedFolder,
-          });
-          projectId = created.id;
-          activeSessionId = created.sessionId;
-        }
+        const folder = result.filePaths[0];
+        if (result.canceled || !folder) return { path: null };
+        activateProject(await createOrOpenProject(folder, payload?.kind));
         return {
           path: linkedFolder,
           projectId,
+          kind: projectKind,
           sessionId: activeSessionId,
         } as CommandResults["workspace.chooseFolder"];
       }
@@ -291,7 +336,7 @@ function registerIpc(): void {
         const extension = payload.format === "docx" ? "docx" : "txt";
         const baseName =
           payload.scope === "chapter" && payload.chapterPath
-            ? path.basename(payload.chapterPath).replace(/\.[^.]+$/u, "")
+            ? chapterPathLabel(path.basename(payload.chapterPath))
             : projectName;
         const choice = await dialog.showSaveDialog({
           defaultPath: path.join(linkedFolder, `${baseName}.${extension}`),
@@ -334,8 +379,7 @@ function registerIpc(): void {
         const payload = request.payload as CommandPayloads["project.prefs.set"];
         return await worker.request<CommandResults["project.prefs.set"]>({
           type: "project.prefs.set",
-          projectId: payload.projectId,
-          autoReviewOnFinalize: payload.autoReviewOnFinalize,
+          ...payload,
         });
       }
       if (command === "fact.list") {
@@ -441,20 +485,10 @@ function registerIpc(): void {
         const runId = payload.runId ?? `run_${Date.now().toString(36)}`;
         if (!projectId && (payload.projectPath ?? linkedFolder)) {
           const folder = payload.projectPath ?? linkedFolder!;
-          const created = await worker.request<{
-            id: string;
-            sessionId: string;
-            name: string;
-            folderPath: string;
-          }>({
-            type: "project.create",
-            name: path.basename(folder),
-            folderPath: folder,
-          });
-          projectId = created.id;
-          linkedFolder = created.folderPath;
-          projectName = created.name;
-          activeSessionId = created.sessionId;
+          const project = await createOrOpenProject(folder);
+          if (project.kind === "academic")
+            throw new Error(ACADEMIC_UNAVAILABLE);
+          activateProject(project);
         }
         const sessionId = payload.sessionId ?? activeSessionId;
         worker.run({
@@ -611,7 +645,10 @@ function registerIpc(): void {
       if (command === "settings.models") {
         return await worker.request<CommandResults["settings.models"]>({
           type: "settings.models",
-          projectPath: linkedFolder ?? undefined,
+          projectPath:
+            projectKind === "academic"
+              ? undefined
+              : (linkedFolder ?? undefined),
         });
       }
       if (command === "settings.setAgentModel") {
@@ -803,15 +840,16 @@ async function restoreRecentProject(): Promise<void> {
       type: "project.listRecent",
     });
     const project = recent.projects[0];
-    if (!project) return;
-    projectId = project.id;
-    projectName = project.name;
-    linkedFolder = project.folderPath;
-    const sessions = await worker.request<CommandResults["session.list"]>({
-      type: "session.list",
-      projectId: project.id,
-    });
-    activeSessionId = sessions.sessions[0]?.id;
+    if (!project || projectId) return;
+    const sessions =
+      project.kind === "academic"
+        ? undefined
+        : await worker.request<CommandResults["session.list"]>({
+            type: "session.list",
+            projectId: project.id,
+          });
+    if (projectId) return;
+    activateProject({ ...project, sessionId: sessions?.sessions[0]?.id });
     mainWindow?.webContents.send("wordhub:event", {
       type: "workspace.snapshot",
       payload: snapshot(),

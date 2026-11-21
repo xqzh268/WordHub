@@ -1,9 +1,6 @@
+import { canonicalChapterPath, NOVEL_REVIEW_CHECKLIST } from "@wordhub/novel";
 import { FACT_KINDS, type FactKind } from "@wordhub/contracts";
-import {
-  CHALLENGE_CATEGORIES,
-  type ChallengeCategory,
-  type Citation,
-} from "./citations.js";
+import { type ChallengeCategory, type Citation } from "./citations.js";
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { type Static, Type } from "typebox";
 
@@ -113,10 +110,9 @@ const challengeParameters = Type.Object({
     Type.Array(Type.String({ maxLength: 500 }), { maxItems: 8 }),
   ),
   category: Type.Union(
-    CHALLENGE_CATEGORIES.map((item) => Type.Literal(item)),
+    NOVEL_REVIEW_CHECKLIST.map(({ id }) => Type.Literal(id)),
     {
-      description:
-        "一致性分类：timeline时间线 / character人物塑造 / fact基本事实 / commonsense常识 / style风格",
+      description: `一致性分类：${NOVEL_REVIEW_CHECKLIST.map(({ id, label }) => id + label).join(" / ")}`,
     },
   ),
   citations: Type.Array(
@@ -124,8 +120,7 @@ const challengeParameters = Type.Object({
       source: Type.String({
         minLength: 1,
         maxLength: 300,
-        description:
-          "出处文件的相对路径，如 chapters/第三章.md 或 .wordhub/bible/characters.md",
+        description: `出处文件的相对路径，如 ${canonicalChapterPath(3)} 或 .wordhub/bible/characters.md`,
       }),
       quote: Type.String({
         minLength: 1,
@@ -183,7 +178,7 @@ const factParameters = Type.Object({
   chapter: Type.String({
     minLength: 1,
     maxLength: 300,
-    description: "出处章节的相对路径，如 chapters/第五章.md",
+    description: `出处章节的相对路径，如 ${canonicalChapterPath(5)}`,
   }),
   quote: Type.String({
     minLength: 1,

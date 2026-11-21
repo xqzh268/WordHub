@@ -1,4 +1,4 @@
-import { chapterNumberFromName, compareChapters } from "./chapters.js";
+import { chapterBasenameWithoutExtension, chapterNumberFromName, compareChapters } from "@wordhub/novel";
 import { type AliasLink, resolveName } from "./aliases.js";
 import type { ChapterSummary, NovelFact } from "./facts.js";
 
@@ -50,12 +50,6 @@ export type FactGraph = {
   edges: FactGraphEdge[];
 };
 
-const baseName = (path: string): string =>
-  (path.replaceAll("\\", "/").split("/").at(-1) ?? path).replace(
-    /\.[^.]+$/u,
-    "",
-  );
-
 /** 时间轴：所有出现过（未被驳回）事实或摘要的章节，按章号再按名称排好。 */
 export function graphTimeline(
   facts: readonly NovelFact[],
@@ -67,7 +61,7 @@ export function graphTimeline(
   return [...chapters]
     .map((chapter) => ({
       chapter,
-      name: baseName(chapter),
+      name: chapterBasenameWithoutExtension(chapter),
       number: chapterNumberFromName(chapter),
     }))
     .sort(compareChapters)

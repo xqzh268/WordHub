@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "packages/novel" },
     { "path": "packages/contracts" },
     { "path": "packages/store" },
     { "path": "packages/runtime" },

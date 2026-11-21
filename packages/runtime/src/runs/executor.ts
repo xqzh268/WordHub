@@ -6,6 +6,7 @@ import {
   type FauxResponseFactory,
 } from "@earendil-works/pi-ai/providers/faux";
 import path from "node:path";
+import { NOVEL_PROJECT_TYPE, canonicalChapterPath } from "@wordhub/novel";
 import { WordHubStore, createId, timestamp } from "@wordhub/store";
 import { ModelSettings } from "../models/settings.js";
 import { fetchRemoteModels } from "../models/remote.js";
@@ -148,7 +149,7 @@ export function createRunExecutor(options: ExecutorOptions) {
     if (state.callCount === 2 && names.includes("doc_write"))
       return fauxAssistantMessage(
         fauxToolCall("doc_write", {
-          path: "chapters/第一章.md",
+          path: canonicalChapterPath(1),
           content: "模拟模式的中文章节正文。",
         }),
         { stopReason: "toolUse" },
@@ -179,7 +180,7 @@ export function createRunExecutor(options: ExecutorOptions) {
   const projectService = new ProjectService(options.storageRoot);
   const modelSettings = new ModelSettings(
     projectService,
-    path.join(options.workspaceRoot, "packages/novel/agents"),
+    path.join(options.workspaceRoot, NOVEL_PROJECT_TYPE.rolePack.directory),
   );
   /** 把models.json里的自定义Provider注册进Pi；文件损坏时只记录，不阻止启动。 */
   const syncProviders = async () => {
@@ -217,6 +218,7 @@ export function createRunExecutor(options: ExecutorOptions) {
       if (mode !== "mock") await assertAuth(resolved.ref.provider);
       return {
         models: runtimeModels,
+        config: resolved.config,
         model,
         reasoning: resolved.ref.reasoning,
       };
@@ -263,6 +265,7 @@ export function createRunExecutor(options: ExecutorOptions) {
     restoredApprovals,
     ensureRunContext,
     resolveAgent,
+    loadModelConfig: (projectPath) => modelSettings.config(projectPath),
     buildRunContext,
     createAgentTools,
     appendRunEvent,
@@ -326,6 +329,10 @@ export function createRunExecutor(options: ExecutorOptions) {
         agentId:
           typeof payload.agentId === "string" ? payload.agentId : "writer",
         mode: payload.mode === "mock" ? "mock" : "live",
+        workflowId:
+          typeof payload.workflowId === "string"
+            ? payload.workflowId
+            : undefined,
         resume: true,
       });
       return;
@@ -452,6 +459,10 @@ export function createRunExecutor(options: ExecutorOptions) {
         projectId: project.id,
         projectPath: project.folderPath,
         sessionId: run.sessionId,
+        workflowId:
+          typeof payload.workflowId === "string"
+            ? payload.workflowId
+            : undefined,
         resume: true,
       }).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);

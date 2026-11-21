@@ -9,6 +9,7 @@ import {
   graphTimeline,
   projectGraph,
 } from "@wordhub/contracts";
+import { chapterPathLabel } from "@wordhub/novel";
 import { useWorkbench } from "../../state/store";
 import { Aliases } from "./Aliases";
 import { type Talk, Interview, emptyTalk } from "./Interview";
@@ -21,9 +22,6 @@ const NODE_H = 36;
 
 type Selection = { kind: "node" | "edge"; id: string } | null;
 type View = { x: number; y: number; k: number };
-
-const chapterLabel = (chapter: string): string =>
-  chapter.replace(/^chapters\//u, "").replace(/\.[^.]+$/u, "");
 
 /** 线段从 from 指向 to：在 from 的矩形边缘处截断，让箭头落在节点外面。 */
 function clip(from: Point, to: Point): Point {
@@ -559,7 +557,7 @@ function JumpButton({ fact }: { fact: NovelFact }) {
       }}
       data-testid="graph-jump"
     >
-      {chapterLabel(fact.chapter)} ↗
+      {chapterPathLabel(fact.chapter)} ↗
     </button>
   );
 }
@@ -615,7 +613,7 @@ function NodeDetail({
           <h3>当前状态</h3>
           <p className="graph-state" data-testid="node-state">
             {node.state.statement}
-            <small>（{chapterLabel(node.state.chapter)}）</small>
+            <small>（{chapterPathLabel(node.state.chapter)}）</small>
           </p>
         </section>
       )}

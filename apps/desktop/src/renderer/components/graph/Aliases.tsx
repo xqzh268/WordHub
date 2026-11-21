@@ -4,11 +4,9 @@ import type {
   FactGraphNode,
   TimelineEntry,
 } from "@wordhub/contracts";
+import { chapterPathLabel } from "@wordhub/novel";
 import { cleanIpcError } from "../../lib/errors";
 import { useWorkbench } from "../../state/store";
-
-const chapterName = (chapter: string): string =>
-  chapter.replace(/^chapters\//u, "").replace(/\.[^.]+$/u, "");
 
 /**
  * 别名合并：同一个人在不同章节用了不同的称呼（“黑衣人”其实是“萧某”）。
@@ -61,7 +59,7 @@ export function Aliases({
     }
   };
   const label = (link: AliasLink): string =>
-    link.chapter ? `${chapterName(link.chapter)}揭晓` : "一直是同一人";
+    link.chapter ? `${chapterPathLabel(link.chapter)}揭晓` : "一直是同一人";
 
   return (
     <section data-testid="aliases">

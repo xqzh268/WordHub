@@ -1,16 +1,16 @@
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CommandPayloads } from "@wordhub/contracts";
+import { NOVEL_PROJECT_TYPE, type NovelExportFormat } from "@wordhub/novel";
 import { cleanIpcError } from "../lib/errors";
 
-type Format = CommandPayloads["export.run"]["format"];
 type Scope = CommandPayloads["export.run"]["scope"];
 
-const FORMATS: Array<{ id: Format; label: string }> = [
-  { id: "docx", label: "Word（.docx）" },
-  { id: "txt-utf8", label: "文本 UTF-8" },
-  { id: "txt-gb18030", label: "文本 GB18030" },
-];
+const FORMAT_LABELS: Record<NovelExportFormat, string> = {
+  docx: "Word（.docx）",
+  "txt-utf8": "文本 UTF-8",
+  "txt-gb18030": "文本 GB18030",
+};
 
 type Prefs = {
   body: string;
@@ -47,7 +47,9 @@ export function ExportPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<Scope>("chapter");
-  const [format, setFormat] = useState<Format>("docx");
+  const [format, setFormat] = useState<NovelExportFormat>(
+    NOVEL_PROJECT_TYPE.exportFormats[0],
+  );
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [fonts, setFonts] = useState<string[]>([]);
   const [fontsState, setFontsState] = useState<"idle" | "loading" | "done">(
@@ -151,12 +153,14 @@ export function ExportPanel({
             <select
               className="text-input"
               value={format}
-              onChange={(event) => setFormat(event.target.value as Format)}
+              onChange={(event) =>
+                setFormat(event.target.value as NovelExportFormat)
+              }
               aria-label="导出格式"
             >
-              {FORMATS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
+              {NOVEL_PROJECT_TYPE.exportFormats.map((item) => (
+                <option key={item} value={item}>
+                  {FORMAT_LABELS[item]}
                 </option>
               ))}
             </select>

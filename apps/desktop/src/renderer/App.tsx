@@ -2,6 +2,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { useEffect } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import type { AppEvent } from "@wordhub/contracts";
+import { AcademicWorkspace } from "./components/AcademicWorkspace";
 import { ChatPane } from "./components/Chat";
 import { PaperPane } from "./components/Paper";
 import { GraphView } from "./components/graph/Graph";
@@ -95,6 +96,7 @@ export function App() {
   useThemeSync();
   useBackend();
   const view = useWorkbench((s) => s.view);
+  const academic = useWorkbench((s) => s.project.kind === "academic");
 
   return (
     <MotionConfig reducedMotion="user">
@@ -112,9 +114,10 @@ export function App() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               >
-                {view === "workspace" && <Workspace />}
-                {view === "references" && <ReferencesView />}
-                {view === "graph" && <GraphView />}
+                {view === "workspace" &&
+                  (academic ? <AcademicWorkspace /> : <Workspace />)}
+                {!academic && view === "references" && <ReferencesView />}
+                {!academic && view === "graph" && <GraphView />}
                 {view === "settings" && <SettingsView />}
               </motion.div>
             </AnimatePresence>

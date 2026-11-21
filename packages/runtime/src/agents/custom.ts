@@ -1,3 +1,4 @@
+import { CHAPTER_GLOB, NOVEL_PROJECT_TYPE } from "@wordhub/novel";
 import { lstat, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stringify as stringifyYaml } from "yaml";
@@ -28,24 +29,13 @@ export const FORM_TOOLS = [
 const WRITE_TOOLS = new Set(["doc.write", "doc.propose", "bible.propose"]);
 
 /** 可写范围只提供这两个，不允许自定义路径（例如 .wordhub/agents 或项目外）。 */
-export const WRITE_SCOPE_CHOICES = [
-  "chapters/**",
-  ".wordhub/bible/**",
-] as const;
-export const READ_SCOPE_CHOICES = [
-  "bible",
-  "outline",
-  "chapters",
-  "references",
-] as const;
+export const WRITE_SCOPE_CHOICES = [CHAPTER_GLOB, ".wordhub/bible/**"] as const;
+export const READ_SCOPE_CHOICES = NOVEL_PROJECT_TYPE.readScopes;
 
-const RESERVED_NAMES = new Set([
-  "planner",
-  "writer",
-  "editor",
-  "reviewer",
-  "observer",
-  "all",
+const RESERVED_NAMES = new Set<string>([
+  NOVEL_PROJECT_TYPE.rolePack.coordinator,
+  ...NOVEL_PROJECT_TYPE.rolePack.collaborators,
+  NOVEL_PROJECT_TYPE.workflows.collaboration,
 ]);
 const NAME_PATTERN = /^[a-z][a-z0-9-]{1,63}$/u;
 const COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/u;
@@ -155,7 +145,7 @@ export function validateAgentForm(
       fail("使用 bible.propose 需要选择写入范围“设定集”");
     if (
       (tools.includes("doc.write") || tools.includes("doc.propose")) &&
-      !writeScopes.includes("chapters/**")
+      !writeScopes.includes(CHAPTER_GLOB)
     )
       fail("使用 doc.write / doc.propose 需要选择写入范围“章节”");
   }

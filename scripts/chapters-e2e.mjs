@@ -33,8 +33,10 @@ const write = (name, text, secondsAgo = 0) => {
   return file;
 };
 write("第一章.md", "# 第一章 暮鼓\n\n暮鼓三百声，长安闭坊。", 300);
-write("第二章.md", "# 第二章 残月\n\n残月悬在天边。", 200);
+write("02-残月.markdown", "# 残月\n\n残月悬在天边。", 200);
 write("第十章.md", "# 第十章 归来\n\n他终于回到崇仁坊。", 100);
+write("序章.txt", "这是没有章号的旧稿。", 400);
+write(".第八章.md", "这是隐藏文件。", 0);
 
 const findings = [];
 const check = (name, passed, detail = "") => {
@@ -77,6 +79,7 @@ try {
   await page.waitForSelector('[data-testid="project-card"]', { timeout: 8000 });
 
   const sheet = page.locator('[data-testid="paper-sheet"]');
+  const chapterSelect = page.getByTestId("chapter-select");
   const sheetHas = async (text, timeout = 6000) => {
     try {
       await page.waitForFunction(
@@ -113,19 +116,31 @@ try {
     await sheetHas("他终于回到崇仁坊"),
     await sheet.innerText(),
   );
-  const options = await page
-    .locator('[data-testid="chapter-select"] option')
-    .allInnerTexts();
+  const options = await chapterSelect.locator("option").allInnerTexts();
   check(
-    "章节选择器按章号排序（第十章在第二章之后）",
-    JSON.stringify(options) === JSON.stringify(["第一章", "第二章", "第十章"]),
+    "章名混合中文与数字时仍按章号排序，序章在最后且跳过隐藏文件",
+    JSON.stringify(options) ===
+      JSON.stringify(["第一章", "02-残月", "第十章", "序章"]),
     options.join(" | "),
   );
 
-  await page.selectOption(
-    '[data-testid="chapter-select"]',
-    "chapters/第一章.md",
+  await page.getByRole("button", { name: "下一章", exact: true }).click();
+  check("通过下一章打开无章号的 TXT 旧稿", await sheetHas("没有章号的旧稿"));
+
+  await page.getByTestId("composer-input").fill("@评审 简要说明第 两 回的节奏");
+  await page.getByTestId("send").click();
+  check(
+    "聊天里的第 两 回打开实际的旧 Markdown 文件，纸面显示章号和章名",
+    (await sheetHas("残月悬在天边")) &&
+      (await chapterSelect.inputValue()) === "chapters/02-残月.markdown" &&
+      (await sheet.locator(".chapter-no").textContent()) === "第2章" &&
+      (await sheet
+        .getByRole("heading", { name: "残月", exact: true })
+        .count()) === 1,
   );
+  await page.getByTestId("send").waitFor({ timeout: 8000 });
+
+  await chapterSelect.selectOption("chapters/第一章.md");
   check("切换到第一章，显示第一章正文", await sheetHas("暮鼓三百声"));
   check("切换章节后不再显示其他章节", await sheetGone("回到崇仁坊"));
 
@@ -220,8 +235,9 @@ try {
   fs.unlinkSync(path.join(chapterDir, "第一章.md")); // 注意：Node 24 的 fs.rmSync 删除中文路径文件会直接崩溃，这里用 unlinkSync
 
   check(
-    "正在查看的章节被删除后，纸面回退到其他章节而不是留着旧内容",
-    await sheetGone("我在外面的编辑器里加了一段", 8000),
+    "正在查看的章节被删除后，纸面回退到最近修改的第三章",
+    (await sheetHas("更鼓一声", 8000)) &&
+      (await chapterSelect.inputValue()) === "chapters/第三章.md",
   );
 
   check(

@@ -1,3 +1,4 @@
+import { chapterBasenameWithoutExtension } from "@wordhub/novel";
 import {
   type AliasLink,
   type ChapterSummary,
@@ -38,12 +39,6 @@ export type InterviewContext = {
 };
 
 export class InterviewError extends Error {}
-
-const baseName = (chapter: string): string =>
-  (chapter.replaceAll("\\", "/").split("/").at(-1) ?? chapter).replace(
-    /\.[^.]+$/u,
-    "",
-  );
 
 const clip = (text: string, max: number): string =>
   text.length > max ? `${text.slice(0, max)}…` : text;
@@ -93,7 +88,8 @@ export function buildInterviewContext(input: {
   const timeline = graphTimeline(input.facts, input.summaries);
   const upTo = timeline.findIndex((entry) => entry.chapter === input.chapter);
   if (upTo < 0) throw new InterviewError("所选章节不在时间轴上");
-  const chapterLabel = timeline[upTo]?.label ?? baseName(input.chapter);
+  const chapterLabel =
+    timeline[upTo]?.label ?? chapterBasenameWithoutExtension(input.chapter);
   const aliases = input.aliases ?? [];
   const knowledge = characterKnowledge({
     node: input.node,
@@ -121,7 +117,7 @@ export function buildInterviewContext(input: {
       fact.kind === "relation"
         ? `${fact.subject} →${fact.relation}→ ${fact.object}：${fact.statement}`
         : fact.statement;
-    return `[${ref}]（${baseName(fact.chapter)}·${FACT_KIND_LABELS[fact.kind]}）${head}　原文：“${fact.quote}”`;
+    return `[${ref}]（${chapterBasenameWithoutExtension(fact.chapter)}·${FACT_KIND_LABELS[fact.kind]}）${head}　原文：“${fact.quote}”`;
   });
 
   // 他亲历过的章节（有他的事实的章节）的摘要
@@ -136,7 +132,8 @@ export function buildInterviewContext(input: {
       (a, b) => (position.get(a.chapter) ?? 0) - (position.get(b.chapter) ?? 0),
     )
     .map(
-      (summary) => `- ${baseName(summary.chapter)}：${clip(summary.text, 400)}`,
+      (summary) =>
+        `- ${chapterBasenameWithoutExtension(summary.chapter)}：${clip(summary.text, 400)}`,
     );
 
   const profile = profileFor(input.characters, node.id);

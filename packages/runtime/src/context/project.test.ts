@@ -130,11 +130,78 @@ describe("M4.2固定上下文", () => {
   it("人物档案按本章大纲筛选，同时保留主角段落", () => {
     const text = charactersForChapter(
       "# 人物档案\n\n## 主角：裴照\n- 身份：不良人。\n\n## 主要配角：韩敬\n- 身份：不良帅。\n\n## 主要配角：崔七娘\n- 身份：香料铺掌柜。",
-      "第3章：裴照与韩敬在巡铺对话。",
+      "第3章：韩敬来到巡铺。",
     );
     expect(text).toContain("主角：裴照");
     expect(text).toContain("主要配角：韩敬");
     expect(text).not.toContain("崔七娘");
+  });
+
+  it("按真实草稿的粗体人物段落筛选，保留首位主角及人物字段", () => {
+    const source = [
+      "**裴照**",
+      "身份：不良人，负责坊市巡捕。",
+      "**性格**",
+      "话少，办事讲章程。",
+      "他会追查 **旧案**。",
+      "**韦韬**",
+      "身份：县尉。",
+      "**陈九**（已故，暗线人物）",
+      "身份：生前为不良人。",
+      "硬设定：右手食指断了一节。",
+      "**郭元礼**",
+      "身份：内常侍。",
+      "**人物关系**",
+      "裴照是陈九的徒弟。",
+    ].join("\n\n");
+
+    const text = charactersForChapter(source, "第四章：揭开陈九的旧事。");
+
+    expect(text).toContain("**裴照**");
+    expect(text).toContain("**性格**\n\n话少，办事讲章程。");
+    expect(text).toContain("他会追查 **旧案**。");
+    expect(text).toContain("**陈九**（已故，暗线人物）");
+    expect(text).toContain("硬设定：右手食指断了一节。");
+    expect(text).toContain("**人物关系**\n\n裴照是陈九的徒弟。");
+    expect(text).not.toContain("**韦韬**");
+    expect(text).not.toContain("**郭元礼**");
+  });
+
+  it("显式标记主角时以标记为准，并保留不同格式的相关人物", () => {
+    const source = [
+      "**韦韬**",
+      "身份：县尉。",
+      "**裴照**（主角）",
+      "- **身份：** 不良人。",
+      "## 暗线人物：陈九",
+      "身份：裴照的师父。",
+    ].join("\n\n");
+
+    const text = charactersForChapter(source, "陈九的往事");
+
+    expect(text).toContain("**裴照**（主角）");
+    expect(text).toContain("## 暗线人物：陈九");
+    expect(text).not.toContain("**韦韬**");
+  });
+
+  it("无可靠人名匹配时保留全文，避免省略未点名的人物", () => {
+    const source =
+      "**裴照**\r\n\r\n身份：不良人。\r\n\r\n**陈九**\r\n\r\n身份：师父。";
+
+    expect(charactersForChapter(source, "第三章：主角追查旧案。")).toBe(source);
+  });
+
+  it("本章提到缺少身份字段的条目时保留全文", () => {
+    const source = [
+      "**裴照**",
+      "身份：不良人。",
+      "**韦韬**",
+      "身份：县尉。",
+      "**张阿满**",
+      "在坊外修鼓。",
+    ].join("\n\n");
+
+    expect(charactersForChapter(source, "裴照找张阿满询问更鼓。")).toBe(source);
   });
 
   it("上一章尾部窗口保持500–800字并从完整句子开始", () => {

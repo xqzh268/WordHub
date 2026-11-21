@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@wordhub/contracts": "0.1.0-alpha.0",
+    "@wordhub/novel": "0.1.0-alpha.0",
     "lucide-react": "^1.50.0",
     "motion": "^14.0.0",
     "react": "19.3.0",

@@ -1,30 +1,14 @@
+import {
+  CHAPTER_PATH_PREFIX,
+  isChapterPath,
+  NOVEL_REVIEW_CHECKLIST,
+  type NovelReviewCategory,
+} from "@wordhub/novel";
 import { readFile } from "node:fs/promises";
 import { safeProjectTarget } from "@wordhub/store";
 
 /** 评审质询的一致性分类（M4.4 清单）。 */
-export const CHALLENGE_CATEGORIES = [
-  "timeline",
-  "character",
-  "fact",
-  "commonsense",
-  "style",
-] as const;
-export type ChallengeCategory = (typeof CHALLENGE_CATEGORIES)[number];
-
-export const CATEGORY_LABELS: Record<ChallengeCategory, string> = {
-  timeline: "时间线",
-  character: "人物塑造",
-  fact: "基本事实",
-  commonsense: "常识",
-  style: "风格",
-};
-
-/** 时间线、人物、基本事实类矛盾必须同时引用矛盾的两端；常识与风格至少引用正文一处。 */
-const NEEDS_TWO_SIDES = new Set<ChallengeCategory>([
-  "timeline",
-  "character",
-  "fact",
-]);
+export type ChallengeCategory = NovelReviewCategory;
 
 export type Citation = { source: string; quote: string };
 
@@ -51,10 +35,12 @@ export async function verifyCitations(
   citations: readonly Citation[] | undefined,
 ): Promise<void> {
   const list = citations ?? [];
-  const needed = NEEDS_TWO_SIDES.has(category) ? 2 : 1;
+  const rule = NOVEL_REVIEW_CHECKLIST.find(({ id }) => id === category);
+  if (!rule) throw new Error("未知的质询分类");
+  const needed = rule.requiredCitations;
   if (list.length < needed)
     throw new Error(
-      `「${CATEGORY_LABELS[category]}」类质询至少要引用${needed}处原文（${
+      `「${rule.label}」类质询至少要引用${needed}处原文（${
         needed === 2
           ? "矛盾的两端：正文与设定，或正文与另一章"
           : "正文中的问题处"
@@ -67,9 +53,9 @@ export async function verifyCitations(
     throw new Error("引用的原文重复，请分别引用矛盾的两端。");
   for (const item of list) {
     const source = item.source.replaceAll("\\", "/").replace(/#.*$/u, "");
-    if (!/^(chapters\/|\.wordhub\/bible\/)/u.test(source))
+    if (!isChapterPath(source) && !source.startsWith(".wordhub/bible/"))
       throw new Error(
-        `出处「${item.source}」无效：只能引用 chapters/ 下的章节或 .wordhub/bible/ 下的设定文件。`,
+        `出处「${item.source}」无效：只能引用 ${CHAPTER_PATH_PREFIX} 下的章节或 .wordhub/bible/ 下的设定文件。`,
       );
     const parts = segments(item.quote);
     if (!parts.length || parts.some((part) => part.length < MIN_QUOTE_LENGTH))

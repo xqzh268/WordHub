@@ -1,4 +1,4 @@
-import { utilityProcess, type UtilityProcess } from "electron";
+import { app, utilityProcess, type UtilityProcess } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppEvent, WorkspaceSnapshot } from "@wordhub/contracts";
@@ -90,14 +90,19 @@ export class PiWorkerHost {
     this.crashing = false;
     this.syncedCredentials = "";
     this.setState("starting");
-    const workerPath = path.join(
-      path.dirname(fileURLToPath(import.meta.url)),
-      "worker.js",
+    const mainDirectory = path.dirname(fileURLToPath(import.meta.url));
+    const workerPath = path.join(mainDirectory, "worker.js");
+    const workspaceRoot = path.resolve(
+      process.env.WORDHUB_WORKSPACE_ROOT ??
+        (app.isPackaged
+          ? process.resourcesPath
+          : path.join(mainDirectory, "..", "..")),
     );
     const child = utilityProcess.fork(workerPath, [], {
-      cwd: process.env.WORDHUB_WORKSPACE_ROOT ?? process.cwd(),
+      cwd: workspaceRoot,
       env: {
         ...process.env,
+        WORDHUB_WORKSPACE_ROOT: workspaceRoot,
         ...(process.env.DEEPSEEK_API_KEY || process.env.WORDHUB_DEEPSEEK_API_KEY
           ? {
               DEEPSEEK_API_KEY:

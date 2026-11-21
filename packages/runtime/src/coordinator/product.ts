@@ -4,6 +4,7 @@ import type { RunRequest, AppendRunEvent } from "../runs/run-types.js";
 import type { ProjectService } from "../projects/service.js";
 import type { ModelSettings } from "../models/settings.js";
 import { estimateRun } from "../budget/estimate.js";
+import { configureRunBudget } from "../budget/hard-limit.js";
 import { decideNext } from "./graph.js";
 import { definitionFor, workflowRoute } from "./routing.js";
 import type { WorkflowDefinition } from "./workflow.js";
@@ -12,7 +13,12 @@ import { isNovelIntakePrompt } from "../novel/intake.js";
 import { checkEditorText, DEFAULT_EDITOR_RULES } from "../editor/checks.js";
 import { analyzeStyle, styleBrief } from "../editor/style-metrics.js";
 import { listChapters, readChapter } from "../chapters/service.js";
-import { parseChapterNumber } from "@wordhub/contracts";
+import {
+  CHAPTER_PATH_PREFIX,
+  chapterNumberTokenInText,
+  chapterPathInText,
+  parseChapterNumber,
+} from "@wordhub/novel";
 import { loadProjectPrefs } from "../projects/prefs.js";
 
 export function createWorkflowService(deps: {
@@ -36,10 +42,8 @@ export function createWorkflowService(deps: {
       );
     });
   const hasUnresolvedBlockingChallenge = (
-    store: WordHubStore,
-    request: RunRequest,
+    events: ReturnType<typeof challengeEvents>,
   ) => {
-    const events = challengeEvents(store, request);
     const resolved = new Set(
       events.flatMap((event) => {
         if (
@@ -121,7 +125,9 @@ export function createWorkflowService(deps: {
             if (event.runId !== childRunId || event.type !== "file.updated")
               return false;
             const path = (event.payload as Record<string, unknown>).path;
-            return typeof path === "string" && path.startsWith("chapters/");
+            return (
+              typeof path === "string" && path.startsWith(CHAPTER_PATH_PREFIX)
+            );
           })
       : undefined;
     const pathFromEvent = updatedPath
@@ -132,7 +138,7 @@ export function createWorkflowService(deps: {
       .filter(
         (candidate) =>
           candidate.status === "current" &&
-          candidate.artifactId.startsWith("file:chapters/") &&
+          candidate.artifactId.startsWith(`file:${CHAPTER_PATH_PREFIX}`) &&
           (typeof pathFromEvent !== "string" ||
             candidate.artifactId === `file:${pathFromEvent}`),
       )
@@ -169,14 +175,10 @@ export function createWorkflowService(deps: {
   };
   /** 从“定稿 chapters/第三章.md”或“定稿第三章”里找出要定稿的章节文件。 */
   const finalizeTarget = async (request: RunRequest) => {
-    const direct = request.prompt.match(
-      /chapters\/[^\s"“”'，。；;]+?\.(?:md|markdown|txt)/iu,
-    )?.[0];
+    const direct = chapterPathInText(request.prompt);
     const chapters = await listChapters(request.projectPath!);
     if (direct) return chapters.find((chapter) => chapter.path === direct);
-    const token = request.prompt.match(
-      /第\s*([零〇一二两三四五六七八九十百千\d]+)\s*[章回]/u,
-    )?.[1];
+    const token = chapterNumberTokenInText(request.prompt, "章回");
     const number = token ? parseChapterNumber(token) : undefined;
     return number === undefined
       ? undefined
@@ -422,7 +424,9 @@ export function createWorkflowService(deps: {
             .map((t) => t.id),
           concurrency: 2,
         });
-        const unresolved = hasUnresolvedBlockingChallenge(store, request);
+        const unresolved = hasUnresolvedBlockingChallenge(
+          challengeEvents(store, request),
+        );
         const ready = next.ready.filter((task) => {
           const node = definition.nodes.find(
             (candidate) => `${request.runId}:${candidate.id}` === task.id,
@@ -531,8 +535,8 @@ export function createWorkflowService(deps: {
                 (output) =>
                   typeof (output as { content?: unknown }).content ===
                     "string" &&
-                  /^chapters\//u.test(
-                    String((output as { path?: unknown }).path),
+                  String((output as { path?: unknown }).path).startsWith(
+                    CHAPTER_PATH_PREFIX,
                   ),
               )
               .at(-1) as { content: string } | undefined;
@@ -583,7 +587,7 @@ export function createWorkflowService(deps: {
                 event.type === "challenge.resolved" &&
                 (event.payload as Record<string, unknown>).threadId,
             );
-            if (resolved)
+            if (resolved && !hasUnresolvedBlockingChallenge(allEvents))
               for (const pending of store.listTasks(request.runId)) {
                 if (
                   pending.status === "pending" &&
@@ -632,6 +636,7 @@ export function createWorkflowService(deps: {
         maxAttempts: 1,
       });
     const preview = await estimate(request);
+    await configureRunBudget(linked.store, request);
     linked.store.startRun({
       projectId: linked.projectId,
       sessionId: linked.sessionId,

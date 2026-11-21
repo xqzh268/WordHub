@@ -1,6 +1,8 @@
 import type { AliasLink } from "./aliases.js";
 import type { ChapterSummary, NovelFact } from "./facts.js";
 import type { KnowledgeEntry } from "./knowledge.js";
+import type { ProjectKind } from "./projects.js";
+import type { NovelExportFormat, NovelWorkflowId } from "@wordhub/novel";
 export type WorkspaceCommand =
   | "workspace.getSnapshot"
   | "workspace.chooseFolder"
@@ -178,6 +180,7 @@ export interface ReferenceHitPayload {
 
 export interface WorkspaceSnapshot {
   projectId?: string;
+  projectKind?: ProjectKind;
   projectName: string;
   linkedFolder: string | null;
   activeSessionId?: string;
@@ -204,7 +207,7 @@ export type ResolvedTheme = "light" | "dark";
 
 export interface CommandPayloads {
   "workspace.getSnapshot": undefined;
-  "workspace.chooseFolder": undefined;
+  "workspace.chooseFolder": { kind?: ProjectKind } | undefined;
   "project.listRecent": undefined;
   "session.list": { projectId: string };
   "session.create": { projectId: string; title: string; sessionId?: string };
@@ -241,7 +244,7 @@ export interface CommandPayloads {
   "export.run": {
     scope: "chapter" | "book";
     chapterPath?: string;
-    format: "docx" | "txt-utf8" | "txt-gb18030";
+    format: NovelExportFormat;
     fonts?: { body?: string; heading?: string; latin?: string };
     bodySizePt?: number;
     lineSpacing?: number;
@@ -299,9 +302,9 @@ export interface CommandPayloads {
     turns: Array<{ role: "user" | "character"; text: string; basis?: string[] }>;
   };
   "project.prefs.get": { projectId: string };
-  "project.prefs.set": { projectId: string; autoReviewOnFinalize?: boolean };
+  "project.prefs.set": { projectId: string; autoReviewOnFinalize?: boolean; runBudgetUsd?: number | null };
   "run.start": { prompt: string; rawPrompt?: string; agentId?: string; mentions?: string[]; projectPath?: string; projectId?: string; sessionId?: string; runId?: string };
-  "run.estimate": { prompt: string; rawPrompt?: string; agentId?: string; projectPath?: string; workflow?: "write-chapter" | "write-chapter-full" | "review-only" | "finalize-chapter" | "all" };
+  "run.estimate": { prompt: string; rawPrompt?: string; agentId?: string; projectPath?: string; workflow?: NovelWorkflowId };
   "run.abort": { runId: string };
   "run.resume": { runId: string };
   "run.approve": { runId: string; approved: boolean };
@@ -346,8 +349,8 @@ export interface CommandPayloads {
 
 export interface CommandResults {
   "workspace.getSnapshot": WorkspaceSnapshot;
-  "workspace.chooseFolder": { path: string | null; projectId?: string; sessionId?: string };
-  "project.listRecent": { projects: Array<{ id: string; name: string; folderPath: string; createdAt: string; updatedAt: string }> };
+  "workspace.chooseFolder": { path: string | null; projectId?: string; sessionId?: string; kind?: ProjectKind };
+  "project.listRecent": { projects: Array<{ id: string; name: string; folderPath: string; kind: ProjectKind; createdAt: string; updatedAt: string }> };
   "session.list": { sessions: Array<{ id: string; projectId: string; title: string; createdAt: string; updatedAt: string }> };
   "session.create": { session: { id: string; projectId: string; title: string; createdAt: string; updatedAt: string } };
   "session.rename": { sessionId: string };
@@ -431,8 +434,8 @@ export interface CommandResults {
     model: string;
   };
   "graph.simulateSave": { path: string };
-  "project.prefs.get": { autoReviewOnFinalize: boolean };
-  "project.prefs.set": { autoReviewOnFinalize: boolean };
+  "project.prefs.get": { autoReviewOnFinalize: boolean; runBudgetUsd: number | null };
+  "project.prefs.set": { autoReviewOnFinalize: boolean; runBudgetUsd: number | null };
   "run.start": { runId: string; projectId?: string; sessionId?: string };
   "run.estimate": { inputTokens: number; outputTokens: number; costUsd: number; unpricedModels?: string[]; tasks: unknown[]; workflow?: string; label?: string };
   "run.abort": { runId: string; aborted: boolean };

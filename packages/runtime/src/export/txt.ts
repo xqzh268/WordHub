@@ -1,3 +1,4 @@
+import { chapterFileStem } from "@wordhub/novel";
 import iconv from "iconv-lite";
 import { type Block, parseChapter, plainText } from "./blocks.js";
 
@@ -30,8 +31,7 @@ const blockText = (block: Block): string => {
 };
 
 export const chapterTitle = (chapter: ExportChapter): string =>
-  parseChapter(chapter.markdown).title ??
-  chapter.name.replace(/\.(?:md|markdown|txt)$/iu, "");
+  parseChapter(chapter.markdown).title ?? chapterFileStem(chapter.name);
 
 /** 整理成纯文本：章标题、空行、段落（段首缩进）；多章之间空两行。 */
 export function toPlainText(

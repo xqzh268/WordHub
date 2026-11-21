@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AgentFormPayload, CommandResults } from "@wordhub/contracts";
+import { CHAPTER_DIRECTORY, CHAPTER_GLOB } from "@wordhub/novel";
 import { cleanIpcError } from "../lib/errors";
 import { pickReasoning } from "../lib/models";
 import { useWorkbench } from "../state/store";
@@ -29,11 +30,11 @@ const WRITE_LEVELS: Array<{
   },
 ];
 const WRITE_SCOPES: Array<{ id: string; label: string }> = [
-  { id: "chapters/**", label: "章节（chapters/）" },
+  { id: CHAPTER_GLOB, label: `章节（${CHAPTER_DIRECTORY}/）` },
   { id: ".wordhub/bible/**", label: "设定集（.wordhub/bible/）" },
 ];
 const READ_SCOPES: Array<{ id: string; label: string }> = [
-  { id: "chapters", label: "章节" },
+  { id: CHAPTER_DIRECTORY, label: "章节" },
   { id: "bible", label: "设定集" },
   { id: "outline", label: "大纲" },
   { id: "references", label: "参考库" },
@@ -77,7 +78,7 @@ function deriveTools(draft: Draft): string[] {
       : [tool],
   );
   if (draft.write === "none") return tools;
-  if (draft.writeScopes.includes("chapters/**"))
+  if (draft.writeScopes.includes(CHAPTER_GLOB))
     tools.push(draft.write === "write" ? "doc.write" : "doc.propose");
   if (draft.writeScopes.includes(".wordhub/bible/**"))
     tools.push("bible.propose");
@@ -111,7 +112,7 @@ export function AgentForm({
     readTools: ["doc.read", "bible.read"],
     write: "none",
     writeScopes: [],
-    readScopes: ["chapters", "bible", "outline"],
+    readScopes: [CHAPTER_DIRECTORY, "bible", "outline"],
     confirmBeforeWrite: true,
     maxTurns: "8",
     glyph: "",

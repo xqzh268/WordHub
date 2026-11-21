@@ -1,3 +1,4 @@
+import { CHAPTER_DIRECTORY, type NovelExportFormat } from "@wordhub/novel";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { listChapters, readChapter } from "../chapters/service.js";
@@ -9,7 +10,7 @@ import {
   toPlainText,
 } from "./txt.js";
 
-export type ExportFormat = "docx" | "txt-utf8" | "txt-gb18030";
+export type ExportFormat = NovelExportFormat;
 
 export type ExportRequest = {
   /** 写作文件夹（含 chapters/） */
@@ -26,7 +27,7 @@ export type ExportRequest = {
 
 export type ExportResult = { path: string; bytes: number; chapters: number };
 
-const ENCODINGS: Record<string, TextEncoding> = {
+const ENCODINGS: Record<Exclude<ExportFormat, "docx">, TextEncoding> = {
   "txt-utf8": "utf-8",
   "txt-gb18030": "gb18030",
 };
@@ -43,7 +44,8 @@ async function collect(request: ExportRequest): Promise<ExportChapter[]> {
     const file = await readChapter(request.folder, info.path);
     chapters.push({ name: info.name, markdown: file.content });
   }
-  if (!chapters.length) throw new Error("项目的 chapters/ 里还没有章节可导出");
+  if (!chapters.length)
+    throw new Error(`项目的 ${CHAPTER_DIRECTORY}/ 里还没有章节可导出`);
   return chapters;
 }
 

@@ -1,6 +1,7 @@
 import { MessageSquareText, Save, Send, Trash2 } from "lucide-react";
 import { Fragment, useRef, useState } from "react";
 import type { CommandResults } from "@wordhub/contracts";
+import { chapterPathLabel } from "@wordhub/novel";
 import { cleanIpcError } from "../../lib/errors";
 import { useWorkbench } from "../../state/store";
 
@@ -15,9 +16,6 @@ export type Turn = {
 };
 export type Talk = { mode: Mode; turns: Turn[]; savedAs?: string };
 export const emptyTalk = (): Talk => ({ mode: "character", turns: [] });
-
-const chapterName = (chapter: string): string =>
-  chapter.replace(/^chapters\//u, "").replace(/\.[^.]+$/u, "");
 
 /** 把回答里的 [F#] 标注换成上标序号；没有对应依据的标注直接去掉。 */
 function CitedText({ turn }: { turn: Turn }) {
@@ -34,7 +32,7 @@ function CitedText({ turn }: { turn: Turn }) {
           <sup
             key={`${index}-${ref}`}
             className="cite"
-            title={`${chapterName(basis?.chapter ?? "")}：${basis?.statement ?? ""}`}
+            title={`${chapterPathLabel(basis?.chapter ?? "")}：${basis?.statement ?? ""}`}
           >
             {number}
           </sup>
@@ -126,7 +124,7 @@ export function Interview({
           role: turn.role,
           text: turn.text.replace(/\[F\d+\]/gu, ""),
           basis: turn.basis?.map(
-            (item) => `${chapterName(item.chapter)}：${item.statement}`,
+            (item) => `${chapterPathLabel(item.chapter)}：${item.statement}`,
           ),
         })),
       });
@@ -181,7 +179,8 @@ export function Interview({
               <ol className="interview-basis" data-testid="interview-basis">
                 {turn.basis.map((item) => (
                   <li key={item.ref}>
-                    <span>{chapterName(item.chapter)}</span> {item.statement}
+                    <span>{chapterPathLabel(item.chapter)}</span>{" "}
+                    {item.statement}
                     <q>{item.quote}</q>
                   </li>
                 ))}

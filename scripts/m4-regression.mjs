@@ -12,7 +12,11 @@ import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { _electron } from "playwright";
 import { writeTestModelOverrides } from "./lib/test-models.mjs";
-import { summarizeRunEvents } from "./lib/m4-diagnostics.mjs";
+import {
+  assessPlantedContradiction,
+  reportedModelUsage,
+  summarizeRunEvents,
+} from "./lib/m4-diagnostics.mjs";
 
 const KEY = process.env.DEEPSEEK_API_KEY;
 if (!KEY) {
@@ -24,6 +28,10 @@ if (!KEY) {
   process.exit(0);
 }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// 重跑时可指定独立目录，保留首轮现场供对照。
+const reportDirectory = path.resolve(
+  process.env.WORDHUB_M4_REPORT_DIR ?? path.join(root, "artifacts"),
+);
 const electron = createRequire(import.meta.url)("electron");
 const { ELECTRON_RUN_AS_NODE, ...cleanEnv } = process.env;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wordhub-regression-"));
@@ -68,19 +76,6 @@ const events = () => {
   database.close();
   return rows.map((r) => ({ ...r, payload: JSON.parse(r.payload_json) }));
 };
-const costOf = (slice) =>
-  slice
-    .filter((e) => e.type === "run.usage")
-    .reduce(
-      (sum, e) =>
-        sum + Number(e.payload.usage?.cost?.total ?? e.payload.cost ?? 0),
-      0,
-    );
-const tokensOf = (slice) =>
-  slice
-    .filter((e) => e.type === "run.usage")
-    .reduce((sum, e) => sum + Number(e.payload.usage?.totalTokens ?? 0), 0);
-
 async function phase(name, fn) {
   const t0 = Date.now();
   const before = events().length;
@@ -90,8 +85,7 @@ async function phase(name, fn) {
     const slice = events().slice(before);
     report.phases[name] = {
       seconds: Math.round((Date.now() - t0) / 1000),
-      costUsd: Number(costOf(slice).toFixed(4)),
-      tokens: tokensOf(slice),
+      ...reportedModelUsage(slice),
       diagnostics: summarizeRunEvents(slice),
     };
     console.log(`  [${name}] ${JSON.stringify(report.phases[name])}`);
@@ -253,7 +247,7 @@ try {
       check(
         `${label}：写作工作流正常收尾`,
         r.finished,
-        r.failed ? "workflow.failed" : "超时",
+        r.finished ? "" : r.failed ? "workflow.failed" : "超时",
       );
       const files = fs.existsSync(chaptersDir)
         ? fs.readdirSync(chaptersDir)
@@ -354,19 +348,30 @@ try {
     await sleep(2500);
     const r = await runWorkflow("请评审第四章", 900000);
     const raised = r.slice.filter((e) => e.type === "challenge.raise");
-    const cites = raised.flatMap((e) => e.payload.citations ?? []);
-    const citesBoth =
-      cites.some((c) => /第四章/u.test(c.source)) &&
-      cites.some(
-        (c) =>
-          /第三章|第\d+章|chapters\//u.test(c.source) &&
-          !/第四章/u.test(c.source),
-      );
+    const assessment = assessPlantedContradiction(
+      r.slice,
+      `chapters/${report.planted?.chapter}`,
+      "chapters/第四章.md",
+    );
+    const citesBoth = assessment.citesBoth;
     report.crossChapter = {
       finished: r.finished,
       challenges: raised.length,
       categories: [...new Set(raised.map((e) => e.payload.category))],
       citesBothChapters: citesBoth,
+      evidence: assessment.challenges,
+      failure: r.failure,
+      failureEvents: r.finished
+        ? []
+        : r.slice
+            .filter((e) =>
+              ["run.error", "task.failed", "workflow.failed"].includes(e.type),
+            )
+            .map(({ type, run_id, payload }) => ({
+              type,
+              runId: run_id,
+              payload,
+            })),
       claims: raised.map((e) => String(e.payload.claim ?? "").slice(0, 120)),
     };
     check(
@@ -378,7 +383,7 @@ try {
     );
     check(
       "检出跨章矛盾（第三章已死的老周在第四章活着）",
-      raised.length > 0,
+      assessment.detected,
       `${raised.length} 条质询`,
     );
     check("质询同时引用了第四章与前文原文", citesBoth);
@@ -410,9 +415,9 @@ try {
 } catch (error) {
   check("脚本未异常", false, String(error?.message ?? error).slice(0, 400));
   try {
-    fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
+    fs.mkdirSync(reportDirectory, { recursive: true });
     fs.writeFileSync(
-      path.join(root, "artifacts", "m4-regression-events.json"),
+      path.join(reportDirectory, "m4-regression-events.json"),
       JSON.stringify(
         events().map((e) => ({
           seq: e.seq,
@@ -426,7 +431,7 @@ try {
       "utf8",
     );
     await (await app?.firstWindow())?.screenshot({
-      path: path.join(root, "artifacts", "m4-regression-failure.png"),
+      path: path.join(reportDirectory, "m4-regression-failure.png"),
     });
   } catch {
     /* 取证失败忽略 */
@@ -436,11 +441,10 @@ try {
     const all = events();
     report.totals = {
       seconds: Object.values(report.phases).reduce((n, p) => n + p.seconds, 0),
-      costUsd: Number(costOf(all).toFixed(4)),
-      tokens: tokensOf(all),
+      ...reportedModelUsage(all),
     };
     // 留下生成的章节与设定，便于人工查看
-    const out = path.join(root, "artifacts", "m4-regression-output");
+    const out = path.join(reportDirectory, "m4-regression-output");
     fs.mkdirSync(out, { recursive: true });
     for (const dir of [chaptersDir, path.join(folder, ".wordhub", "bible")])
       if (fs.existsSync(dir))
@@ -456,9 +460,9 @@ try {
     });
   const failed = report.checks.filter((c) => !c.passed);
   report.ok = failed.length === 0;
-  fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
+  fs.mkdirSync(reportDirectory, { recursive: true });
   fs.writeFileSync(
-    path.join(root, "artifacts", "m4-regression-result.json"),
+    path.join(reportDirectory, "m4-regression-result.json"),
     JSON.stringify(report, null, 2),
     "utf8",
   );

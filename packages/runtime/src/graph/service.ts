@@ -1,3 +1,4 @@
+import { chapterBasenameWithoutExtension } from "@wordhub/novel";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -225,7 +226,7 @@ export function createGraphService(deps: Deps) {
       .replace(/[-:]/gu, "")
       .replace(/\.\d+Z$/u, "")
       .replace("T", "-");
-    const chapter = path.basename(request.chapter).replace(/\.[^.]+$/u, "");
+    const chapter = chapterBasenameWithoutExtension(request.chapter);
     const relative = path.posix.join(
       ".wordhub",
       "graph",
@@ -369,7 +370,7 @@ export function createGraphService(deps: Deps) {
         if (!seen.has(fact.id))
           seen.set(
             fact.id,
-            `- （${path.basename(fact.chapter).replace(/\.[^.]+$/u, "")}）${
+            `- （${chapterBasenameWithoutExtension(fact.chapter)}）${
               fact.kind === "relation"
                 ? `${fact.subject} →${fact.relation}→ ${fact.object}：`
                 : ""
@@ -403,7 +404,7 @@ export function createGraphService(deps: Deps) {
     if (request.log.length === 0 || !request.report.trim())
       throw new Error("还没有可保存的推演结果");
     const found = project(request.projectId);
-    const chapter = path.basename(request.chapter).replace(/\.[^.]+$/u, "");
+    const chapter = chapterBasenameWithoutExtension(request.chapter);
     const relative = path.posix.join(
       ".wordhub",
       "graph",

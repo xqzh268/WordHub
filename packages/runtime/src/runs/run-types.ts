@@ -1,8 +1,13 @@
 import type { Actor, Event } from "@wordhub/contracts";
+import type { NovelWorkflowId } from "@wordhub/novel";
 import type { WordHubStore } from "@wordhub/store";
-import type { AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
+import type {
+  AgentMessage,
+  AgentOptions,
+  AgentTool,
+} from "@earendil-works/pi-agent-core";
 import type { Models } from "@earendil-works/pi-ai";
-import type { ModelRef, AgentDefinition } from "../types.js";
+import type { ModelRef, AgentDefinition, ModelConfig } from "../types.js";
 import type { PermissionGuard } from "../tools/permissions.js";
 
 export type RunRequest = {
@@ -15,17 +20,13 @@ export type RunRequest = {
   model?: string;
   reasoning?: string;
   mode?: "live" | "mock";
+  maxCostUsd?: number;
   toolRoundTrip?: boolean;
   projectPath?: string;
   projectId?: string;
   sessionId?: string;
   resume?: boolean;
-  workflow?:
-    | "write-chapter"
-    | "write-chapter-full"
-    | "review-only"
-    | "finalize-chapter"
-    | "all";
+  workflow?: NovelWorkflowId;
   workflowId?: string;
   taskId?: string;
   taskKind?: string;
@@ -77,6 +78,7 @@ export type RunHostDeps = {
   guard: PermissionGuard;
   configuredTools: AgentTool[];
   systemPrompt: string;
+  streamFn?: AgentOptions["streamFn"];
   echoTool: AgentTool;
   pendingApprovals: Map<string, PendingApproval>;
   restoredApprovals: Map<string, boolean>;
@@ -100,6 +102,7 @@ export type RunLoopDeps = {
     modelRef: ModelRef;
     fallbackRef?: ModelRef;
   }>;
+  loadModelConfig: (projectPath?: string) => Promise<ModelConfig>;
   buildRunContext: (
     request: RunRequest,
     store: WordHubStore,

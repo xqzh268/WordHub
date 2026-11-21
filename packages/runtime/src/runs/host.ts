@@ -15,6 +15,7 @@ export function createRunHost(
 ) {
   return new PiAgentHost({
     models: deps.runtimeModels,
+    streamFn: deps.streamFn,
     model: activeModel,
     reasoning: activeRef.reasoning,
     systemPrompt: deps.systemPrompt,

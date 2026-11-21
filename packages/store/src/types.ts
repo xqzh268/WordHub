@@ -1,9 +1,16 @@
-import type { Actor, Event, Hash, Revision } from "@wordhub/contracts";
+import type {
+  Actor,
+  Event,
+  Hash,
+  ProjectKind,
+  Revision,
+} from "@wordhub/contracts";
 
 export type ProjectRecord = {
   id: string;
   name: string;
   folderPath: string;
+  kind: ProjectKind;
   createdAt: string;
   updatedAt: string;
 };

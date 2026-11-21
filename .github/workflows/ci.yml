@@ -29,6 +29,10 @@ jobs:
         timeout-minutes: 8
       - run: npm run test:m1:e2e
         timeout-minutes: 8
+      - run: npm run test:project-kind:e2e
+        timeout-minutes: 8
+      - run: npm run test:budget:e2e
+        timeout-minutes: 8
       - run: npm run test:chapters:e2e
         timeout-minutes: 8
       - run: npm run test:facts:e2e

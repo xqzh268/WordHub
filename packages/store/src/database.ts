@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { Actor, Event, Hash, Revision } from "@wordhub/contracts";
+import {
+  DEFAULT_PROJECT_KIND,
+  type Actor,
+  type Event,
+  type Hash,
+  type ProjectKind,
+  type Revision,
+} from "@wordhub/contracts";
 import { normalizeSearchText, searchPhrase } from "./fts.js";
 import type {
   NewEvent,
@@ -84,6 +91,7 @@ function projectRow(row: SqlRow): ProjectRecord {
     id: asString(row.id),
     name: asString(row.name),
     folderPath: asString(row.folder_path),
+    kind: row.kind as ProjectKind,
     createdAt: asString(row.created_at),
     updatedAt: asString(row.updated_at),
   };
@@ -192,6 +200,7 @@ export class WordHubStore {
       SCHEMA,
       "ALTER TABLE events ADD COLUMN actor_version TEXT;",
       TASKS_MIGRATION,
+      "ALTER TABLE projects ADD COLUMN kind TEXT NOT NULL DEFAULT 'novel' CHECK (kind IN ('novel', 'academic'));",
     ];
     if (version > migrations.length)
       throw new Error("数据库版本高于当前应用，拒绝降级打开");
@@ -289,23 +298,26 @@ export class WordHubStore {
     id?: string;
     name: string;
     folderPath: string;
+    kind?: ProjectKind;
   }): ProjectRecord {
     const timestamp = now();
     const project = {
       id: input.id ?? id("project"),
       name: input.name,
       folderPath: path.resolve(input.folderPath),
+      kind: input.kind ?? DEFAULT_PROJECT_KIND,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
     this.db
       .prepare(
-        "INSERT INTO projects(id,name,folder_path,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(folder_path) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at",
+        "INSERT INTO projects(id,name,folder_path,kind,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(folder_path) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at",
       )
       .run(
         project.id,
         project.name,
         project.folderPath,
+        project.kind,
         project.createdAt,
         project.updatedAt,
       );
@@ -413,7 +425,7 @@ export class WordHubStore {
       .run(runId);
   }
 
-  appendEvent(input: NewEvent): Event {
+  appendEvent(input: NewEvent, beforeInsert?: () => void): Event {
     if (input.idempotencyKey) {
       const existing = this.db
         .prepare(
@@ -424,6 +436,8 @@ export class WordHubStore {
     }
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      // 依赖既有事件的检查与本次写入共用数据库写锁。
+      beforeInsert?.();
       const nextSeq = Number(
         (
           this.db
@@ -497,6 +511,18 @@ export class WordHubStore {
             .prepare("SELECT * FROM events WHERE project_id=? ORDER BY seq")
             .all(projectId)
     ) as SqlRow[];
+    return rows.map(eventRow);
+  }
+  listRunAuditEvents(
+    projectId: string,
+    runId: string,
+    actorId: string,
+  ): Event[] {
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM events WHERE project_id=? AND run_id=? AND actor_type='system' AND actor_id=? AND visibility='audit' ORDER BY seq",
+      )
+      .all(projectId, runId, actorId) as SqlRow[];
     return rows.map(eventRow);
   }
   searchEvents(projectId: string, query: string): Event[] {

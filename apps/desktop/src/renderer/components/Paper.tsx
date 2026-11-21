@@ -14,6 +14,7 @@ import { agentById } from "../lib/agents";
 import { ExportPanel } from "./ExportPanel";
 import { formatUpdated, neighborChapter } from "../state/chapters";
 import { FACT_KIND_LABELS, type NovelFact } from "@wordhub/contracts";
+import { CHAPTER_DIRECTORY, chapterPathLabel } from "@wordhub/novel";
 import { useWorkbench } from "../state/store";
 import type { PaperTab } from "../state/types";
 import {
@@ -184,7 +185,7 @@ export function PaperPane() {
               </div>
               <div className="blank-note">
                 <Quote size={20} strokeWidth={1.25} aria-hidden="true" />
-                <p>项目的 chapters/ 文件夹里还没有章节。</p>
+                <p>项目的 {CHAPTER_DIRECTORY}/ 文件夹里还没有章节。</p>
                 <p className="sub">
                   写好的章节，或你在别的编辑器里放进去的稿子，都会显示在这里（纸面只读）。
                 </p>
@@ -579,9 +580,7 @@ function FactsPanel() {
         const summary = summaries.find((item) => item.chapter === chapter);
         return (
           <section key={chapter} className="facts-chapter">
-            <h4>
-              {chapter.replace(/^chapters\//u, "").replace(/\.[^.]+$/u, "")}
-            </h4>
+            <h4>{chapterPathLabel(chapter)}</h4>
             {summary && <p className="facts-summary">{summary.text}</p>}
             <ul>
               {visible

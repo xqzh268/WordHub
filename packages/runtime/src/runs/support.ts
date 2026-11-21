@@ -1,10 +1,6 @@
 import { createId, timestamp, WordHubStore } from "@wordhub/store";
-import {
-  canonicalChapterName,
-  parseChapterNumber,
-  type Actor,
-  type Event,
-} from "@wordhub/contracts";
+import type { Actor, Event } from "@wordhub/contracts";
+import { canonicalChapterPath, chapterNumbersInText } from "@wordhub/novel";
 import type { RuntimeRequest } from "./executor-types.js";
 import type { ModelSettings } from "../models/settings.js";
 import { projectContext } from "../context/project.js";
@@ -27,17 +23,11 @@ export function expectedChapterPathForRequest(
   if (!isWriterTask || !definition.tools.includes("doc.write"))
     return undefined;
   // 提示里出现多个章号（如“参考第二章写第三章”）时无法确定目标，不施加约束。
-  const numbers = new Set(
-    [
-      ...request.prompt.matchAll(
-        /第\s*([零〇一二两三四五六七八九十百千\d]+)\s*[章回]/gu,
-      ),
-    ].map((match) => parseChapterNumber(match[1] ?? "")),
-  );
+  const numbers = new Set(chapterNumbersInText(request.prompt, "章回"));
   const [number] = numbers;
   return numbers.size !== 1 || number === undefined
     ? undefined
-    : `chapters/${canonicalChapterName(number)}`;
+    : canonicalChapterPath(number);
 }
 
 export function createRunSupport(deps: SupportDeps) {

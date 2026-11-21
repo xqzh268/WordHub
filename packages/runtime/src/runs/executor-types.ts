@@ -1,4 +1,5 @@
 import type { Models } from "@earendil-works/pi-ai";
+import type { ProjectKind } from "@wordhub/contracts";
 import type { ModelRef } from "../types.js";
 import type { AgentFormInput } from "../agents/custom.js";
 import type { ExportRequest } from "../export/run.js";
@@ -27,6 +28,7 @@ export type RuntimeRequest =
       name: string;
       folderPath: string;
       projectId?: string;
+      kind?: ProjectKind;
       requestId: string;
     }
   | { type: "project.listRecent"; requestId: string }
@@ -244,6 +246,7 @@ export type RuntimeRequest =
       type: "project.prefs.set";
       projectId: string;
       autoReviewOnFinalize?: boolean;
+      runBudgetUsd?: number | null;
       requestId: string;
     }
   | {

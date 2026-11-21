@@ -33,6 +33,13 @@ const bible = path.join(folder, ".wordhub", "bible");
 fs.mkdirSync(path.dirname(chapterFile), { recursive: true });
 fs.mkdirSync(bible, { recursive: true });
 writeTestModelOverrides(folder);
+// npm run test:paper:live -- --with-budget 同时验证真实模型的预算预留和结算。
+const testBudgetUsd = process.argv.includes("--with-budget") ? 2 : null;
+if (testBudgetUsd !== null)
+  fs.writeFileSync(
+    path.join(folder, ".wordhub", "preferences.json"),
+    JSON.stringify({ runBudgetUsd: testBudgetUsd }),
+  );
 fs.writeFileSync(
   path.join(bible, "outline.md"),
   "## 第一章\n- 目标：裴照夜巡崇仁坊，发现质库后门的血迹\n",
@@ -173,6 +180,28 @@ try {
     "只读提问没有改动章节文件",
     fs.readFileSync(chapterFile, "utf8").includes(MARKER),
   );
+  if (testBudgetUsd !== null) {
+    const reserved = slice.filter((e) => e.type === "run.budget.reserved");
+    const settled = slice.filter((e) => e.type === "run.budget.settled");
+    const spent = settled.reduce((sum, e) => sum + e.payload.amountUsd, 0);
+    check(
+      "真实调用共用指定预算，按报告用量逐笔结算",
+      slice.some(
+        (e) =>
+          e.type === "run.budget.configured" &&
+          e.payload.limitUsd === testBudgetUsd,
+      ) &&
+        reserved.length > 0 &&
+        reserved.length === settled.length &&
+        reserved.every((r) =>
+          settled.some(
+            (s) => s.payload.reservationId === r.payload.reservationId,
+          ),
+        ) &&
+        spent > 0 &&
+        spent <= testBudgetUsd,
+    );
+  }
 } catch (error) {
   check("脚本异常", false, String(error?.stack ?? error).slice(0, 600));
 }

@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { type Actor, type Hash, projectFacts } from "@wordhub/contracts";
+import { CHAPTER_PATH_PREFIX, normalizeChapterPath } from "@wordhub/novel";
 import {
   ControlledFileWriter,
   FileConflictError,
@@ -102,10 +103,10 @@ export function projectTools(input: {
       ),
     writeDocument: async (value) => {
       try {
-        const normalizedPath = value.path.replaceAll("\\", "/");
+        const normalizedPath = normalizeChapterPath(value.path);
         if (
           input.expectedChapterPath &&
-          normalizedPath.startsWith("chapters/") &&
+          normalizedPath.startsWith(CHAPTER_PATH_PREFIX) &&
           normalizedPath !== input.expectedChapterPath
         )
           throw new Error(
@@ -260,9 +261,11 @@ export function projectTools(input: {
       return { threadId: value.threadId, round };
     },
     factPropose: async (value) => {
-      const chapter = value.chapter.replaceAll("\\", "/");
-      if (!/^chapters\//u.test(chapter))
-        throw new Error("事实的出处必须是 chapters/ 下的章节文件。");
+      const chapter = normalizeChapterPath(value.chapter);
+      if (!chapter.startsWith(CHAPTER_PATH_PREFIX))
+        throw new Error(
+          `事实的出处必须是 ${CHAPTER_PATH_PREFIX} 下的章节文件。`,
+        );
       const isRelation = value.kind === "relation";
       const object = value.object?.trim();
       const relation = value.relation?.trim();
@@ -298,9 +301,9 @@ export function projectTools(input: {
       return { factId };
     },
     chapterSummarize: async (value) => {
-      const chapter = value.chapter.replaceAll("\\", "/");
-      if (!/^chapters\//u.test(chapter))
-        throw new Error("摘要的章节必须是 chapters/ 下的文件。");
+      const chapter = normalizeChapterPath(value.chapter);
+      if (!chapter.startsWith(CHAPTER_PATH_PREFIX))
+        throw new Error(`摘要的章节必须是 ${CHAPTER_PATH_PREFIX} 下的文件。`);
       input.event("chapter.summary", { chapter, text: value.summary });
       return { chapter };
     },

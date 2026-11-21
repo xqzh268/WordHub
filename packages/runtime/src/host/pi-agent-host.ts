@@ -11,6 +11,7 @@ import { resumeTools } from "./resume-tools.js";
 
 export type PiAgentHostOptions = {
   models: Models;
+  streamFn?: AgentOptions["streamFn"];
   model: Model<Api>;
   reasoning: ReasoningLevel;
   systemPrompt: string;
@@ -60,7 +61,8 @@ export class PiAgentHost {
         systemPrompt: options.systemPrompt,
         tools,
       },
-      streamFn: options.models.streamSimple.bind(options.models),
+      streamFn:
+        options.streamFn ?? options.models.streamSimple.bind(options.models),
       getApiKey: options.getApiKey,
       transformContext: options.transformContext,
       toolExecution: "sequential",

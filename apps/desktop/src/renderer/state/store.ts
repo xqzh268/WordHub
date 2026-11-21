@@ -4,11 +4,14 @@ import type {
   AppEvent,
   ChapterInfo,
   ChapterSummary,
+  CommandResults,
   KnowledgeEntry,
   NovelFact,
+  ProjectKind,
   ThemePreference,
   WorkspaceSnapshot,
 } from "@wordhub/contracts";
+import { isChapterPath, normalizeChapterPath } from "@wordhub/novel";
 import {
   type AgentMeta,
   agentByName,
@@ -41,6 +44,25 @@ const emptySession = (title: string): Session => ({
   items: [],
 });
 
+function runEstimateNotice(
+  estimate: CommandResults["run.estimate"] | undefined,
+  budget: number | null | undefined,
+): string | undefined {
+  if (!estimate && budget == null) return undefined;
+  const estimateText = estimate
+    ? `${estimate.label ?? "本次运行"}预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元。`
+    : "本次费用暂无法预估。";
+  let budgetText = "项目预算暂无法读取。已保存的上限仍适用。";
+  if (budget === null) budgetText = "运行不设上限。";
+  else if (budget !== undefined)
+    budgetText = `本次运行预算上限：${budget} 美元。每次调用按模型的上下文与输出上限预留费用。即使预估低于上限，运行也会在余额不足以发起下一次调用时停止。`;
+  const unknown = estimate?.unpricedModels;
+  if (!unknown?.length) return estimateText + budgetText;
+  const unknownText =
+    budget == null ? "这部分费用未计入预估。" : "启用预算时无法调用这些模型。";
+  return `${estimateText}${budgetText}注意：${unknown.join("、")} 的价格未知。${unknownText}可在服务商设置中补充价格。`;
+}
+
 function latestPaperFromEvents(events: unknown[]) {
   for (const event of [...events].reverse()) {
     if (!event || typeof event !== "object") continue;
@@ -52,7 +74,7 @@ function latestPaperFromEvents(events: unknown[]) {
     if (
       typeof data.path === "string" &&
       typeof data.text === "string" &&
-      /^chapters[\\/]/u.test(data.path)
+      isChapterPath(data.path)
     )
       return paperFromText(data.path, data.text);
   }
@@ -63,12 +85,17 @@ export type State = Prefs & {
   demo: boolean;
   view: View;
   paperTab: PaperTab;
-  project: { id?: string; name: string; folder: string | null };
+  project: {
+    id?: string;
+    name: string;
+    folder: string | null;
+    kind?: ProjectKind;
+  };
   worker: WorkerState;
   sessions: Session[];
   activeSessionId: string;
   paper: PaperDoc | null;
-  /** 项目 chapters/ 目录下的章节（磁盘为准），按章号排序 */
+  /** 磁盘上的项目章节，按章号排序。 */
   chapters: ChapterInfo[];
   activeChapter: string | null;
   /** 史官抽取的事实（待确认 / 已确认 / 已驳回），来自事件日志投影 */
@@ -104,7 +131,7 @@ export type State = Prefs & {
   bumpModels(): void;
   newSession(): Promise<void>;
   selectSession(id: string): void;
-  linkFolder(): Promise<void>;
+  linkFolder(kind?: ProjectKind): Promise<boolean>;
   restartWorker(): Promise<void>;
   send(text: string): Promise<void>;
   abort(): Promise<void>;
@@ -149,6 +176,29 @@ export const useWorkbench = create<State>((set, get) => {
         ),
       })),
     }));
+
+  const openAcademicProject = (project: State["project"]) => {
+    registerCustomAgents([]);
+    set((state) => ({
+      project,
+      view: state.view === "settings" ? "settings" : "workspace",
+      paperTab: "paper",
+      sessions: [],
+      activeSessionId: "",
+      paper: null,
+      paperEditing: false,
+      chapters: [],
+      activeChapter: null,
+      facts: [],
+      summaries: [],
+      finalized: [],
+      aliases: [],
+      knowledge: [],
+      customAgents: [],
+      activeRunId: null,
+      composer: "",
+    }));
+  };
 
   return {
     ...loadPrefs(),
@@ -207,12 +257,21 @@ export const useWorkbench = create<State>((set, get) => {
         JSON.stringify({ theme: get().theme, reading }),
       );
     },
-    setView: (view) => set({ view }),
+    setView: (view) => {
+      if (
+        get().project.kind === "academic" &&
+        view !== "workspace" &&
+        view !== "settings"
+      )
+        return;
+      set({ view });
+    },
     setPaperTab: (paperTab) => set({ paperTab }),
 
     async refreshFacts() {
-      const projectId = get().project.id;
-      if (!projectId || !window.wordhub || get().demo) return;
+      const { id: projectId, kind } = get().project;
+      if (!projectId || kind === "academic" || !window.wordhub || get().demo)
+        return;
       try {
         const result = await window.wordhub.invoke("fact.list", { projectId });
         if (get().project.id !== projectId) return;
@@ -261,8 +320,9 @@ export const useWorkbench = create<State>((set, get) => {
     async syncChapters(requested) {
       // 编辑中不被 Agent 写入或“第N章”提示带到别的章节
       const preferred = get().paperEditing ? undefined : requested;
-      const projectId = get().project.id;
-      if (!projectId || !window.wordhub || get().demo) return;
+      const { id: projectId, kind } = get().project;
+      if (!projectId || kind === "academic" || !window.wordhub || get().demo)
+        return;
       try {
         const { chapters } = await window.wordhub.invoke("chapter.list", {
           projectId,
@@ -300,8 +360,9 @@ export const useWorkbench = create<State>((set, get) => {
     },
 
     async watchChapters() {
-      const projectId = get().project.id;
-      if (!projectId || !window.wordhub || get().demo) return;
+      const { id: projectId, kind } = get().project;
+      if (!projectId || kind === "academic" || !window.wordhub || get().demo)
+        return;
       await window.wordhub
         .invoke("chapter.watch", { projectId })
         .catch(() => undefined);
@@ -316,6 +377,7 @@ export const useWorkbench = create<State>((set, get) => {
     },
 
     async newSession() {
+      if (get().project.kind === "academic") return;
       const count = get().sessions.length + 1;
       const session = emptySession(`新会话 ${count}`);
       const projectId = get().project.id;
@@ -334,13 +396,22 @@ export const useWorkbench = create<State>((set, get) => {
     },
     selectSession: (id) => set({ activeSessionId: id, view: "workspace" }),
 
-    async linkFolder() {
+    async linkFolder(kind) {
       const result = await window.wordhub?.invoke(
         "workspace.chooseFolder",
-        undefined,
+        kind ? { kind } : undefined,
       );
       const folder = result?.path;
-      if (folder && result.projectId && result.sessionId) {
+      if (!folder) return false;
+      const project = {
+        id: result.projectId,
+        name: folder.split(/[\\/]/).pop() || folder,
+        folder,
+        kind: result.kind,
+      };
+      if (project.kind === "academic") {
+        openAcademicProject(project);
+      } else if (result.projectId && result.sessionId) {
         const sessions = await window.wordhub?.invoke("session.list", {
           projectId: result.projectId,
         });
@@ -349,11 +420,7 @@ export const useWorkbench = create<State>((set, get) => {
           sessionId: result.sessionId,
         });
         set({
-          project: {
-            id: result.projectId,
-            name: folder.split(/[\\/]/).pop() || folder,
-            folder,
-          },
+          project,
           sessions: (sessions?.sessions ?? []).map((session) => ({
             id: session.id,
             title: session.title,
@@ -367,10 +434,8 @@ export const useWorkbench = create<State>((set, get) => {
         });
         void get().watchChapters();
         void get().refreshFacts();
-      } else if (folder)
-        set({
-          project: { name: folder.split(/[\\/]/).pop() || folder, folder },
-        });
+      } else set({ project });
+      return true;
     },
 
     async restartWorker() {
@@ -380,7 +445,8 @@ export const useWorkbench = create<State>((set, get) => {
     async send(text) {
       const trimmed = text.trim();
       const state = get();
-      if (!trimmed || state.activeRunId) return;
+      if (!trimmed || state.activeRunId || state.project.kind === "academic")
+        return;
       // 开头的 @名字 不认识：可能是刚手写/外部新增了 AGENT.md，先刷新一次再路由
       const mention = /^@(\S+)/u.exec(trimmed)?.[1];
       if (mention && !agentByName(mention)) await get().refreshAgents();
@@ -408,22 +474,31 @@ export const useWorkbench = create<State>((set, get) => {
         void get().selectChapter(mentioned);
       if (!window.wordhub) return;
       try {
-        const estimate = await window.wordhub
-          .invoke("run.estimate", {
-            prompt: body || trimmed,
-            rawPrompt: trimmed,
-            agentId: agent.id,
-            projectPath: state.project.folder ?? undefined,
-          })
-          .catch(() => undefined);
-        if (estimate)
-          patchItems(get().activeSessionId, (items) => [
+        const [estimate, budget] = await Promise.all([
+          window.wordhub
+            .invoke("run.estimate", {
+              prompt: body || trimmed,
+              rawPrompt: trimmed,
+              agentId: agent.id,
+              projectPath: state.project.folder ?? undefined,
+            })
+            .catch(() => undefined),
+          state.project.id
+            ? window.wordhub
+                .invoke("project.prefs.get", { projectId: state.project.id })
+                .then((prefs) => prefs?.runBudgetUsd)
+                .catch(() => undefined)
+            : null,
+        ]);
+        const notice = runEstimateNotice(estimate, budget);
+        if (notice)
+          patchItems(state.activeSessionId, (items) => [
             ...items,
             {
               kind: "notice",
               id: uid("estimate"),
               at: Date.now(),
-              text: `${estimate.label ?? "本次运行"}预估：约${estimate.inputTokens}输入Token、${estimate.outputTokens}输出Token，${estimate.costUsd.toFixed(4)}美元（运行不设上限）。${estimate.unpricedModels?.length ? `注意：${estimate.unpricedModels.join("、")}的价格未知，这部分费用未计入，可在设置里为它填写价格。` : ""}`,
+              text: notice,
             },
           ]);
         await window.wordhub.invoke("run.start", {
@@ -568,12 +643,18 @@ export const useWorkbench = create<State>((set, get) => {
     handleEvent(event) {
       if (event.type === "workspace.snapshot") {
         const snapshot = event.payload as WorkspaceSnapshot;
+        const project = {
+          id: snapshot.projectId,
+          name: snapshot.projectName,
+          folder: snapshot.linkedFolder,
+          kind: snapshot.projectKind,
+        };
+        if (project.kind === "academic") {
+          openAcademicProject(project);
+          return;
+        }
         set((state) => ({
-          project: {
-            id: snapshot.projectId,
-            name: snapshot.projectName,
-            folder: snapshot.linkedFolder,
-          },
+          project,
           activeSessionId: snapshot.activeSessionId ?? state.activeSessionId,
         }));
         if (snapshot.projectId && snapshot.activeSessionId && window.wordhub) {
@@ -586,7 +667,8 @@ export const useWorkbench = create<State>((set, get) => {
               sessionId: snapshot.activeSessionId,
             }),
           ])
-            .then(([sessions, chat]) =>
+            .then(([sessions, chat]) => {
+              if (get().project.id !== project.id) return;
               set((state) => ({
                 sessions: sessions.sessions.map((session) => ({
                   id: session.id,
@@ -597,9 +679,10 @@ export const useWorkbench = create<State>((set, get) => {
                       : [],
                 })),
                 paper: latestPaperFromEvents(chat.events) ?? state.paper,
-              })),
-            )
-            .then(() => get().watchChapters());
+              }));
+              return get().watchChapters();
+            })
+            .catch(() => undefined);
         }
         return;
       }
@@ -631,7 +714,8 @@ export const useWorkbench = create<State>((set, get) => {
         }
         return;
       }
-      if (event.type !== "run.event") return;
+      if (event.type !== "run.event" || get().project.kind === "academic")
+        return;
       const message = event.payload as RunMessage;
       const runId = message.runId;
       const ctx = { set, get, patchItems, patchRun };
@@ -647,10 +731,10 @@ export const useWorkbench = create<State>((set, get) => {
           if (
             typeof message.path === "string" &&
             typeof message.content === "string" &&
-            /^chapters[\\/]/u.test(message.path)
+            isChapterPath(message.path)
           ) {
             // Agent 刚写完的章节：先用事件内容即时显示，再以磁盘为准对齐
-            const path = message.path.replaceAll("\\", "/");
+            const path = normalizeChapterPath(message.path);
             set({
               paper: paperFromText(path, message.content),
               activeChapter: path,

@@ -18,6 +18,10 @@ files:
 extraResources:
   - from: LICENSE
     to: LICENSE.txt
+  - from: packages/novel/agents
+    to: packages/novel/agents
+  - from: packages/novel/workflows
+    to: packages/novel/workflows
 
 asar: true
 

@@ -19,8 +19,12 @@ export function TitleBar() {
       </div>
       <nav className="titlebar-crumb" aria-label="当前位置">
         <span>{projectName}</span>
-        <ChevronRight size={13} strokeWidth={1.5} aria-hidden="true" />
-        <strong>{sessionTitle}</strong>
+        {sessionTitle && (
+          <>
+            <ChevronRight size={13} strokeWidth={1.5} aria-hidden="true" />
+            <strong>{sessionTitle}</strong>
+          </>
+        )}
       </nav>
       <div className="titlebar-actions">
         <button

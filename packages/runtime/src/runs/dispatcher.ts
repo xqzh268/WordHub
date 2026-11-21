@@ -1,6 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  CHAPTER_PATH_PREFIX,
+  isEditableChapterPath,
+  normalizeChapterPath,
+} from "@wordhub/novel";
+import {
   STYLE_SAMPLES_FILE,
   STYLE_SAMPLE_LIMITS,
   addStyleSample,
@@ -119,12 +124,10 @@ type DispatcherDeps = {
 
 /** 渲染端的写入/撤销只允许落在 chapters/ 下的 Markdown 文件，不能借此改设定、偏好等其他项目文件。 */
 export function assertChapterPath(relativePath: string): void {
-  const normalized = relativePath.replaceAll("\\", "/");
-  if (
-    !/^chapters\/[^/]+\.(?:md|markdown)$/iu.test(normalized) ||
-    normalized.includes("..")
-  )
-    throw new Error(`只能编辑 chapters/ 下的 Markdown 章节：${relativePath}`);
+  if (!isEditableChapterPath(relativePath))
+    throw new Error(
+      `只能编辑 ${CHAPTER_PATH_PREFIX} 下的 Markdown 章节：${relativePath}`,
+    );
 }
 
 /** 给界面的元数据：不带原件哈希，封面只告诉有没有。 */
@@ -555,7 +558,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
           request.projectId,
           request.folderPath,
         ).undo({
-          artifactId: `file:${request.path.replaceAll("\\", "/")}`,
+          artifactId: `file:${normalizeChapterPath(request.path)}`,
           relativePath: request.path,
           sessionId: request.sessionId,
           author: { type: "user", id: "user" },
@@ -604,6 +607,9 @@ export function createRequestHandler(deps: DispatcherDeps) {
         sendResponse(
           request.requestId,
           await saveProjectPrefs(chapterFolder(request.projectId), {
+            ...(request.runBudgetUsd === undefined
+              ? {}
+              : { runBudgetUsd: request.runBudgetUsd }),
             ...(request.autoReviewOnFinalize === undefined
               ? {}
               : { autoReviewOnFinalize: request.autoReviewOnFinalize }),

@@ -90,6 +90,7 @@ export function parseDraft(text: string): DraftDocuments {
 
 export type GenerateDraftOptions = {
   models: Models;
+  stream?: Models["streamSimple"];
   model: Model<Api>;
   reasoning: ReasoningLevel;
   answers: IntakeAnswer;
@@ -103,8 +104,10 @@ export async function generateDraft(
 ): Promise<{ documents: DraftDocuments; usage: DraftUsage }> {
   const usage: DraftUsage = { input: 0, output: 0, total: 0 };
   let lastError: Error = new Error("纲领草稿生成失败");
+  const stream =
+    options.stream ?? options.models.streamSimple.bind(options.models);
   for (let attempt = 0; attempt <= (options.retries ?? 1); attempt += 1) {
-    const reply = await options.models.completeSimple(
+    const reply = await stream(
       options.model,
       {
         systemPrompt: SYSTEM_PROMPT,
@@ -120,7 +123,7 @@ export async function generateDraft(
         reasoning: options.reasoning === "off" ? undefined : options.reasoning,
         signal: options.signal,
       },
-    );
+    ).result();
     usage.input += reply.usage.input;
     usage.output += reply.usage.output;
     usage.total += reply.usage.totalTokens;

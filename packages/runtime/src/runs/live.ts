@@ -12,6 +12,11 @@ import type {
 } from "./run-types.js";
 import { echoTool } from "./echo-tool.js";
 import { hasPendingEscalation } from "./escalation.js";
+import {
+  budgetedStream,
+  budgetForRun,
+  configureRunBudget,
+} from "../budget/hard-limit.js";
 export function createRunLoop(deps: RunLoopDeps) {
   async function runLive(request: RunRequest): Promise<void> {
     const store = await deps.ensureRunContext(request);
@@ -180,17 +185,29 @@ export function createRunLoop(deps: RunLoopDeps) {
     };
     const createHost = (activeModel: typeof model, activeRef: ModelRef) =>
       createRunHost(hostDeps, state, activeModel, activeRef);
-    let host = createHost(model, runtime.modelRef);
-    deps.active.set(request.runId, host);
-    if (request.resume)
-      deps.post({
-        type: "run.started",
-        runId: request.runId,
-        model: model.id,
-        reasoning: runtime.modelRef.reasoning,
-        resumed: true,
-      });
     try {
+      await configureRunBudget(store, request);
+      const budget = budgetForRun(store, request);
+      if (budget) {
+        const config = await deps.loadModelConfig(request.projectPath);
+        hostDeps.streamFn = budgetedStream(
+          runtimeModels,
+          config,
+          budget,
+          request.mode,
+        );
+      }
+      if (deps.runContexts.get(request.runId)?.cancelled) return;
+      let host = createHost(model, runtime.modelRef);
+      deps.active.set(request.runId, host);
+      if (request.resume)
+        deps.post({
+          type: "run.started",
+          runId: request.runId,
+          model: model.id,
+          reasoning: runtime.modelRef.reasoning,
+          resumed: true,
+        });
       const promptMessages = snapshot
         ? (snapshot.messages as AgentMessage[])
         : (await deps.buildRunContext(request, store, runtime.definition))

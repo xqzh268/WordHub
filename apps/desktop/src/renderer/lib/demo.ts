@@ -1,3 +1,4 @@
+import { canonicalChapterPath } from "@wordhub/novel";
 import type { PaperParagraph, Session } from "../state/types";
 
 /** 设计预览数据：仅在 `?demo=1`（或 WORDHUB_DEMO=1）时载入，用于检视各种群聊与纸面状态。 */
@@ -146,7 +147,7 @@ export const demoSessions = (): Session[] => [
         at: t(9, 59),
         title: "Agent请求写入",
         body: "doc.write需要你的确认后才能继续。",
-        path: "chapters/第四章.md",
+        path: canonicalChapterPath(4),
         contentLength: 85,
         diff: { addedLines: 8, removedLines: 0 },
         // 故意包含一整行不含空格的长句和长路径，用来检验卡片内的自动折行。

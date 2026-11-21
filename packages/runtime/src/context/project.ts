@@ -1,11 +1,19 @@
 import { readdir, readFile } from "node:fs/promises";
 import {
   FACT_KIND_LABELS,
-  chapterNumberFromName,
-  parseChapterNumber,
   projectFacts,
   projectSummaries,
 } from "@wordhub/contracts";
+import {
+  CHAPTER_DIRECTORY,
+  CHAPTER_PATH_PREFIX,
+  NOVEL_PROJECT_TYPE,
+  chapterNumberFromName,
+  chapterNumberTokenInText,
+  chapterOrdinal,
+  chapterPathForName,
+  parseChapterNumber,
+} from "@wordhub/novel";
 import { safeProjectTarget, type WordHubStore } from "@wordhub/store";
 import { parseStyleSamples } from "../references/style.js";
 import { ContextBuilder } from "./builder.js";
@@ -18,12 +26,13 @@ const BIBLE_FILES = {
 } as const;
 
 const STYLE_SAMPLES_NAME = "style-samples.md";
+const { contextLayers, rolePack } = NOVEL_PROJECT_TYPE;
 
 const chapterNumber = (text: string): number | undefined => {
-  const match = text.match(
-    /第\s*([0-9零〇一二两三四五六七八九十百千万]+)\s*[章回节]/u,
-  );
-  return match?.[1] ? parseChapterNumber(match[1]) : undefined;
+  const token = chapterNumberTokenInText(text, "章回节", {
+    allowTenThousands: true,
+  });
+  return token ? parseChapterNumber(token) : undefined;
 };
 
 const chapterNameMatches = (name: string, number: number): boolean =>
@@ -60,39 +69,101 @@ const outlineChapterNumber = (line: string): number | undefined => {
   return /^第\s*/u.test(normalized) ? chapterNumber(normalized) : undefined;
 };
 
-/** 在人物档案的二级标题中保留本章相关人物，始终保留主角段落。 */
+const CHARACTER_FIELDS =
+  /^(?:姓名|身份|外貌(?:特征)?|性格|说话与行事(?:倾向)?|动机|弱点|人物弧光|惯用小动作|口头禅|硬设定)[:：]?$/u;
+const CHARACTER_NOTES = /^(?:人物档案|人物关系)$/u;
+
+type CharacterSection = {
+  index: number;
+  title: string;
+  kind: "heading" | "bold" | "notes" | "ambiguous";
+};
+
+function characterSectionAt(
+  lines: string[],
+  index: number,
+): CharacterSection | undefined {
+  const line = lines[index] ?? "";
+  const heading = line.match(/^#{2,6}\s+(.+?)\s*$/u)?.[1];
+  if (heading) {
+    const title = stripMarker(heading);
+    return {
+      index,
+      title,
+      kind: CHARACTER_NOTES.test(title) ? "notes" : "heading",
+    };
+  }
+  // 纲领草稿常把人名单独写成粗体，后面接身份字段；允许名字后的括注。
+  if (index > 0 && lines[index - 1]?.trim()) return undefined;
+  const bold = line.match(
+    /^ {0,3}\*\*([^*]+?)\*\*(?:[ \t]*([（(][^（）()]+[）)]))?[ \t]*$/u,
+  );
+  if (!bold?.[1]) return undefined;
+  const name = bold[1].trim();
+  const title = name + (bold[2] ?? "");
+  if (CHARACTER_NOTES.test(name)) return { index, title, kind: "notes" };
+  if (CHARACTER_FIELDS.test(name)) return undefined;
+  let next = index + 1;
+  while (next < lines.length && !lines[next]?.trim()) next += 1;
+  const kind = /^身份\s*[:：]/u.test(stripMarker(lines[next] ?? ""))
+    ? "bold"
+    : "ambiguous";
+  return { index, title, kind };
+}
+
+/** 保留本章提及的人物、主角及全局关系说明；无法匹配人名时保留全文。 */
 export function charactersForChapter(text: string, references: string): string {
   const lines = text.split(/\r?\n/u);
-  const headings = lines
-    .map((line, index) => {
-      const match = line.match(/^(#{2,6})\s+(.+?)\s*$/u);
-      if (!match?.[1]) return undefined;
-      return { index, level: match[1].length, title: match[2] ?? "" };
-    })
-    .filter((item): item is { index: number; level: number; title: string } =>
-      Boolean(item),
-    );
-  if (!headings.length) return text;
-  const sections = headings.map((heading, index) => ({
-    ...heading,
-    end: headings[index + 1]?.index ?? lines.length,
-  }));
-  const selected = sections.filter((section) => {
-    const title = stripMarker(section.title);
-    if (/主角/u.test(title)) return true;
-    const names = title
-      .replace(/^[^:：]+[:：]/u, "")
-      .replace(/[（(][^）)]*[）)]/gu, "")
-      .split(/[、,，/]/u)
-      .map((name) => name.trim())
-      .filter((name) => name.length >= 2);
-    return names.some((name) => references.includes(name));
-  });
-  if (!selected.length || selected.length === sections.length) return text;
-  const prefix = lines.slice(0, sections[0]?.index ?? 0);
+  const candidates = lines
+    .map((_, index) => characterSectionAt(lines, index))
+    .filter((section): section is CharacterSection => section !== undefined);
+  const profiles = candidates.filter((section) => section.kind !== "notes");
+  const matches = new Set(
+    profiles.filter(({ title }) => {
+      const names = title
+        .replace(/[（(][^）)]*[）)]/gu, "")
+        .replace(/^[^:：]+[:：]/u, "")
+        .split(/[、,，/]/u)
+        .map((name) => name.trim())
+        .filter((name) => name.length >= 2 && name !== "主角");
+      return names.some((name) => references.includes(name));
+    }),
+  );
+  // 相关人物或主角的条目边界不明确时，裁剪可能误删正文。
+  if (
+    !matches.size ||
+    profiles.some(
+      (section) =>
+        section.kind === "ambiguous" &&
+        (matches.has(section) || /主角/u.test(section.title)),
+    )
+  )
+    return text;
+  const sections = candidates.filter((section) => section.kind !== "ambiguous");
+  const hasNamedLead = profiles.some(
+    ({ title }) => /主角/u.test(title) && title !== "主角",
+  );
+  // 草稿未标注主角时，保留通常排在首位的粗体人物条目。
+  const firstBold = hasNamedLead
+    ? undefined
+    : profiles.find(({ kind }) => kind === "bold");
+  const selected = sections.flatMap((section, index) =>
+    section.kind === "notes" ||
+    matches.has(section) ||
+    /主角/u.test(section.title) ||
+    section === firstBold
+      ? [
+          {
+            from: section.index,
+            to: sections[index + 1]?.index ?? lines.length,
+          },
+        ]
+      : [],
+  );
+  if (selected.length === sections.length) return text;
   return [
-    ...prefix,
-    ...selected.flatMap((section) => lines.slice(section.index, section.end)),
+    ...lines.slice(0, sections[0]?.index),
+    ...selected.flatMap(({ from, to }) => lines.slice(from, to)),
   ]
     .join("\n")
     .trim();
@@ -165,7 +236,7 @@ async function previousChapter(
     .find(
       (candidate) =>
         candidate.status === "current" &&
-        candidate.artifactId.startsWith("file:chapters/") &&
+        candidate.artifactId.startsWith(`file:${CHAPTER_PATH_PREFIX}`) &&
         chapterNameMatches(candidate.artifactId, targetNumber),
     );
   if (revision)
@@ -173,7 +244,10 @@ async function previousChapter(
       path: revision.artifactId.slice(5),
       text: await readFile(revision.snapshotPath, "utf8"),
     };
-  const directory = await safeProjectTarget(input.projectPath, "chapters");
+  const directory = await safeProjectTarget(
+    input.projectPath,
+    CHAPTER_DIRECTORY,
+  );
   const names = await readdir(directory).catch(
     (error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return [];
@@ -184,7 +258,7 @@ async function previousChapter(
     .filter((candidate) => chapterNameMatches(candidate, targetNumber))
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
   if (!name) return undefined;
-  const relativePath = `chapters/${name}`;
+  const relativePath = chapterPathForName(name);
   const target = await safeProjectTarget(input.projectPath, relativePath);
   return { path: relativePath, text: await readFile(target, "utf8") };
 }
@@ -206,13 +280,13 @@ export async function collectProjectContextLayers(input: {
     chapterOutline = outline ? outlineForChapter(outline.text, number) : "";
     if (chapterOutline.trim())
       layers.push({
-        id: number === undefined ? "outline" : `chapter-${number}`,
-        kind: "outline",
+        ...contextLayers.outline,
+        id:
+          number === undefined ? contextLayers.outline.id : `chapter-${number}`,
         sourcePath: outline
-          ? `${outline.path}${number === undefined ? "" : `#第${number}章`}`
+          ? `${outline.path}${number === undefined ? "" : `#${chapterOrdinal(number)}`}`
           : undefined,
         text: chapterOutline,
-        tokenBudget: 1200,
       });
   }
 
@@ -220,11 +294,9 @@ export async function collectProjectContextLayers(input: {
     const setting = await readBibleFile(input.projectPath, BIBLE_FILES.setting);
     if (setting?.text.trim())
       layers.push({
-        id: "setting",
-        kind: "bible",
+        ...contextLayers.setting,
         sourcePath: setting.path,
         text: setting.text,
-        tokenBudget: 1800,
       });
     const characters = await readBibleFile(
       input.projectPath,
@@ -232,14 +304,12 @@ export async function collectProjectContextLayers(input: {
     );
     if (characters?.text.trim())
       layers.push({
-        id: "characters",
-        kind: "bible",
+        ...contextLayers.characters,
         sourcePath: characters.path,
         text: charactersForChapter(
           characters.text,
           `${chapterOutline}\n${input.prompt}`,
         ),
-        tokenBudget: 1800,
       });
   }
 
@@ -261,21 +331,18 @@ export async function collectProjectContextLayers(input: {
       .sort((a, b) => order(a.chapter) - order(b.chapter));
     if (summaries.length)
       layers.push({
-        id: "summaries",
-        kind: "memory",
+        ...contextLayers.summaries,
         sourcePath: "章节摘要",
         text: summaries
           .map((item) => `${item.chapter}：${item.text}`)
           .join("\n"),
-        tokenBudget: 1000,
       });
     const facts = projectFacts(events)
       .filter((fact) => fact.status === "confirmed" && before(fact.chapter))
       .sort((a, b) => order(a.chapter) - order(b.chapter));
     if (facts.length)
       layers.push({
-        id: "facts",
-        kind: "memory",
+        ...contextLayers.facts,
         sourcePath: "已确认事实",
         text: facts
           .map(
@@ -287,7 +354,6 @@ export async function collectProjectContextLayers(input: {
               }：${fact.statement}（原文：“${fact.quote}”）`,
           )
           .join("\n"),
-        tokenBudget: 1200,
       });
   }
 
@@ -295,11 +361,10 @@ export async function collectProjectContextLayers(input: {
     const previous = await previousChapter(input, number);
     if (previous?.text.trim())
       layers.push({
+        ...contextLayers.previousChapter,
         id: `previous-chapter-${number! - 1}`,
-        kind: "document",
         sourcePath: previous.path,
         text: previousChapterTail(previous.text),
-        tokenBudget: 400,
       });
   }
 
@@ -307,15 +372,13 @@ export async function collectProjectContextLayers(input: {
     const style = await readBibleFile(input.projectPath, BIBLE_FILES.style);
     if (style?.text.trim())
       layers.push({
-        id: "style",
-        kind: "bible",
+        ...contextLayers.style,
         sourcePath: style.path,
         text: style.text,
-        tokenBudget: 800,
       });
     // 文风示范（作者从参考库里挑的片段）：只给会写正文的 Agent 和纲领
     const writes =
-      input.agent.name === "planner" ||
+      input.agent.name === rolePack.coordinator ||
       input.agent.tools.some(
         (tool) => tool === "doc.write" || tool === "doc.propose",
       );
@@ -326,11 +389,9 @@ export async function collectProjectContextLayers(input: {
       );
       if (samples?.text.trim() && parseStyleSamples(samples.text).length)
         layers.push({
-          id: "style-samples",
-          kind: "bible",
+          ...contextLayers.styleSamples,
           sourcePath: samples.path,
           text: samples.text,
-          tokenBudget: 1400,
         });
     }
   }

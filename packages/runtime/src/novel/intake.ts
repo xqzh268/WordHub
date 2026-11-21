@@ -1,7 +1,12 @@
 import type { Api, Model, Models } from "@earendil-works/pi-ai";
 import { ControlledFileWriter, WordHubStore } from "@wordhub/store";
 import type { Event } from "@wordhub/contracts";
-import type { ReasoningLevel } from "../types.js";
+import {
+  budgetForRun,
+  budgetedStream,
+  configureRunBudget,
+} from "../budget/hard-limit.js";
+import type { ModelConfig, ReasoningLevel } from "../types.js";
 import {
   DRAFT_FILES,
   type DraftDocuments,
@@ -351,6 +356,7 @@ export function buildBibleArtifacts(
 }
 
 export type DraftModel = {
+  config: ModelConfig;
   models: Models;
   model: Model<Api>;
   reasoning: ReasoningLevel;
@@ -405,6 +411,7 @@ export function createNovelIntakeService(deps: {
       answers: {},
       confirmed: false,
     };
+    await configureRunBudget(store, request);
     store.startRun({
       projectId: linked.projectId,
       sessionId: linked.sessionId,
@@ -499,8 +506,17 @@ export function createNovelIntakeService(deps: {
         located.project.folderPath,
         context.mode,
       );
+      const budget = budgetForRun(located.store, located.request);
       const out = await generateDraft({
         models: resolved.models,
+        stream: budget
+          ? budgetedStream(
+              resolved.models,
+              resolved.config,
+              budget,
+              context.mode,
+            )
+          : undefined,
         model: resolved.model,
         reasoning: resolved.reasoning,
         answers,
