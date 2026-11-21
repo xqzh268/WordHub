@@ -1,0 +1,18 @@
+\documentclass[UTF8,fontset=fandol]{ctexart}
+\usepackage{amsmath,booktabs}
+\usepackage{gbt7714}
+\citestyle{numbers}
+\usepackage{hyperref}
+\title{中文学术排版验证}
+\author{文枢}
+\date{}
+\begin{document}
+\maketitle
+\input{chapter.tex}
+\newpage
+\section{第二页与参考文献}
+式~\eqref{eq:mean} 与表~\ref{tab:summary} 的页内链接跳回第一页。
+\bibliographystyle{gbt7714-2025-numeric}
+\bibliography{references}
+\end{document}
+

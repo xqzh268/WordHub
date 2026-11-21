@@ -1,6 +1,6 @@
 # M7 学术写作：范围与计划
 
-更新日期：2026-11-20。依据：[research/domain-and-competitors.md](research/domain-and-competitors.md)、[research/documents-references.md](research/documents-references.md)、[M6计划](m6-plan.md)，以及对 [Papilot](https://github.com/PapilotAI/papilot) 和 [瀚海文助（USTC LaTeX 学术写作助手）](https://latex.ustc.edu.cn/hhwz/index.html) 的对照。
+更新日期：2026-11-22。依据：[research/domain-and-competitors.md](research/domain-and-competitors.md)、[research/documents-references.md](research/documents-references.md)、[M6计划](m6-plan.md)，以及对 [Papilot](https://github.com/PapilotAI/papilot) 和 [瀚海文助（USTC LaTeX 学术写作助手）](https://latex.ustc.edu.cn/hhwz/index.html) 的对照。
 
 ## 已定（2026-11-20，不再讨论）
 
@@ -106,16 +106,51 @@ Overleaf 同步（git bridge 或 zip）、Zotero 写回、Word 模式编辑器�
 
 ## M7.1 之前要做的 spike（限时 1 天）
 
-| 风险 | 要验证什么 |
+| 项目 | Spike 结论 |
 |---|---|
-| bundle 下载 | Tectonic 的宏包 bundle 托管在海外，需要实测国内下载速度和失败率。如果不可用，评估自建镜像（发布时已定有国内镜像，可以一并托管）或指定自定义 bundle 地址 |
-| 中文字体 | ctex 在 Tectonic 下使用的字体集（Fandol 或调用系统字体）在 Windows 和 macOS 上能否编译，输出是否美观 |
-| biber | Tectonic 不自带 biber。确认 ustcthesis、gbt7714 走 BibTeX 能正常工作；对需要 biblatex 的模板，提示改用本机 TeX |
-| 二进制 | 确认 Windows x64 和 macOS arm64、x64 的预编译二进制可用、签名和体积；当前稳定版本号 |
-| SyncTeX | Tectonic 输出的 SyncTeX 文件能否被 JS 解析器读出可用的定位 |
+| bundle 下载 | Windows 首次编译和缓存离线重编已通过；国内其他地区的下载速度和失败率待测 |
+| 中文字体 | Windows x64 Fandol 已编译并渲染检查；macOS 和字体覆盖待测 |
+| BibTeX 与 biber | 通用 ctex 样例以 GB/T 7714—2025 样式使用 BibTeX 通过；biber 未找到可执行程序。ustcthesis 在更早的 LaTeX3 初始化处失败 |
+| 二进制 | 0.17.0 三个平台资产的下载体积和 SHA-256 已核对；macOS 只做了静态检查，Gatekeeper 与实机编译待测 |
+| SyncTeX | Node 探针在两页、多源样例中验证正向、反向和往返定位 |
 
-spike 的结论写进本文档。如果某项不可行，先缩小范围，不进入 M7.1 的界面开发。
+已通过的通用 ctex、BibTeX 和 SyncTeX 项可进入 M7.1 基础工作台；下文列出的模板和平台缺口保留为明确兼容边界。
+
+### 2026-11-22 发布包核查
+
+下表记录 Tectonic 0.17.0 官方发布包的实际下载结果。三个包的本地 SHA-256 均与 GitHub Release API 返回的摘要吻合。计时来自同一台 Windows 机器的现有网络代理，每个平台取一次。[官方发布](https://github.com/tectonic-typesetting/tectonic/releases/tag/tectonic%400.17.0)
+
+| 发布包 | 压缩字节数 | 下载耗时 | SHA-256 |
+|---|---:|---:|---|
+| Windows x64 MSVC | 21,060,223 | 8.59 秒 | `f61ce51f0b0ade1015b7de7ef368541c5424e9756ecbd0d7af97d6d48030845f` |
+| macOS arm64 | 21,704,674 | 10.30 秒 | `a3f1cac7c5678f01661a92212f58480ae3b0634115d880dbc59e2953ded45667` |
+| macOS x64 | 21,790,177 | 11.01 秒 | `7c90ef5b6ddb1eb1937e4337add5237b79338e4b9676459fa91187d24d6cdf80` |
+
+Windows 包中只有 `tectonic.exe`，已在本机启动，Authenticode 检查为 `NotSigned`。arm64 Mach-O 带 ad-hoc 签名，x64 Mach-O 无代码签名。引擎管理应将版本和经过复核的摘要一起固定。macOS 两个包均在 Windows 上检查，Gatekeeper、中文字体和编译仍需相应架构的 macOS 验收。
+
+本机访问官方 [v33 bundle 入口](https://relay.fullyjustified.net/default_bundle_v33.tar) 时重定向到 `data1b.fullyjustified.net/tlextras-2022.0r0.tar`。远端归档为 2,881,562,112 字节，引擎按需取文件。经代理完整下载压缩索引为 1,276,215 字节，耗时 2.50 秒。绕过本机显式代理后，分别对入口及 data1b 索引取前 1 KiB，各 3/3 成功。另一个 data1 主机的索引同样抽测三次，两次收到 HTTP 429。应沿用官方入口并允许重试。这些数据只反映一台机器，国内不同地区的下载速度和失败率仍需采样。
+
+**依赖 biber 的模板。** 在本机使用真实引擎运行包含 `\usepackage[backend=biber]{biblatex}`、一条有效引用及 `\printbibliography` 的最小工程。引擎下载宏包后记录 `Running external tool biber` 和 `error: program not found`，退出码 1。M7.1 可在这里给出缺少 biber 的明确提示，并提供切换到已安装 biber 的本机 TeX 工具链的入口。
+
+### 2026-11-22 Spike 实测
+
+**可行路径。** 在 Windows x64 下载并启动官方 Tectonic 0.17.0。缓存为空的 Fandol 中文样例首编译成功，历时 248.54 秒，缓存 337 个文件、63,724,414 字节。启用 `--only-cached` 后，在另一输出目录离线重编同一份 GB/T 7714—2025 样例成功，历时 5.82 秒。编译覆盖中文、数学、表格、页内引用、中英文参考文献和 SyncTeX。BibTeX 与 GB/T 7714—2025 数字顺序制样式 v3.1.2 生成两页 PDF。PDF 已逐页渲染检查，公式、中文字体和文献表清晰可读；日志有数学字体大小替代警告，需要在更复杂公式和不同机器继续验证。[可复跑样例](../scripts/fixtures/tectonic-spike/gbt7714)、[GB/T 7714 样式 v3.1.2](https://github.com/zepinglee/gbt7714-bibtex-style/releases/tag/v3.1.2)
+
+**SyncTeX。** 新增的 Node 探针解析真实 `.synctex.gz`，通过 PDF.js 取得文字坐标，并验证主文件和被包含文件的三组正向、反向及往返定位。三个点都落在指定页和源码行，坐标偏差小于 0.00001 PDF pt。过程也发现同一行的大包围框可能把反向跳转指到相邻命令行。探针现优先选用带源码映射的字形记录，重编夹具后通过。已有本机引擎和缓存时的完整 PowerShell 复跑命令如下：
+
+```powershell
+$env:TECTONIC_CACHE_DIR = (Resolve-Path artifacts/tectonic-spike/cache-gbt-cold)
+New-Item -ItemType Directory -Force artifacts/tectonic-spike/synctex-build | Out-Null
+artifacts/tectonic-spike/engine/tectonic.exe --only-cached --untrusted --synctex -o artifacts/tectonic-spike/synctex-build scripts/fixtures/tectonic-spike/synctex/main.tex
+node scripts/tectonic-synctex-probe.mjs scripts/fixtures/tectonic-spike/synctex (Join-Path $PWD 'artifacts/tectonic-spike/synctex-build/main') main.tex 4 1 'WordHub first page probe.' parts/chapter.tex 2 2 'WordHub included source probe.' parts/chapter.tex 4 2 'WordHub second page probe.'
+```
+
+**USTCThesis 兼容性。** 官方 `ustcthesis` v5.1.1 原样模板在默认 v33 bundle 上未能完成编译。错误落在 `\maketitle` 调用的 `\str_case:Nn`，所加载的 LaTeX3 层为 2022-02-24。引擎退出码为 1，没有生成新 PDF。尚无证据表明当前默认 bundle 可编译这版模板。M7.1 应先用现代 TeX Live bundle 或 macOS/Windows 机器进一步验证；若无法提供匹配 bundle，第一版需要将 USTC 模板标为需要本机 TeX 引擎，并先支持通用 ctex 项目。USTC 原包为 2,211,880 字节，SHA-256 为 `0b6acb4b7ef4ba455cc1cb2fc7896e8f73946e813d88fc673ad0c9757fd622eb`。[模板 v5.1.1](https://github.com/ustctug/ustcthesis/tree/v5.1.1)
+
+**平台包与下载。** 官方三平台压缩包都从 Release 下载并逐包校验了 API SHA-256。Windows 二进制为 51,538,432 字节且 Authenticode 未签名；macOS arm64 包含 ad-hoc 签名，macOS x64 没有代码签名段。macOS 的 Gatekeeper 与实机编译尚未验证。发布中没有独立签名文件，当前 Release 标为非 immutable，Git tag 未签名。官方 bundle 入口返回可分段读取的 2.88 GB 归档，其 1,276,215 字节索引在本机 2.50 秒下载完成。一次本机直连探测中，官方 relay 和 data1b 索引各 3/3 成功，另一数据主机 data1 有两次 HTTP 429。数据仅代表本机出口，不能推断国内各地区速度和失败率。产品应校验引擎 SHA-256、采用官方 bundle URL、对临时下载失败可重试，并继续在多个地区测量下载体验。[Tectonic 0.17.0 官方发布](https://github.com/tectonic-typesetting/tectonic/releases/tag/tectonic%400.17.0)
+
+**范围判断。** 通用 ctex、BibTeX、当前 GB/T 7714—2025 样式和 SyncTeX 已具备进入 M7.1 基础工作台实现的本机证据。USTC 模板、macOS 执行、跨地区下载、字体覆盖与性能分位数仍待验收。首个样例改用通用 ctex 论文，先实现打开 `main.tex`、编译、PDF 预览和错误定位。TeX 子进程的文件系统隔离尚未在本次 CLI spike 中验证，工作台执行不可信项目之前还需落实并验证 Windows worker 仅访问项目与缓存目录。Tectonic 管理器对下载签名状态明确告警，biber 工程明确提示缺少外部工具。
 
 ## 第一个端到端验收样例
 
-拿一份 ustcthesis 项目走完以下流程：导入 → Tectonic 编译 → 选区改写 → Agent 修复一个编译错误 → 插入引用 → 评审查出一条预埋的虚假引用 → 导出 PDF 和源码 zip。另外用一份专利草稿走结构化文档轨道：纲领问答 → 写出权利要求和说明书 → 评审查出一条不被说明书支持的权利要求 → 导出 DOCX。两个样例都用真实 deepseek-flash 跑。
+拿一份通用 ctex 论文项目走完以下流程：导入 → Tectonic 编译 → 选区改写 → Agent 修复一个编译错误 → 插入引用 → 评审查出一条预埋的虚假引用 → 导出 PDF 和源码 zip。待默认 bundle 与模板兼容后，再将 ustcthesis 加入同一验收。另外用一份专利草稿走结构化文档轨道：纲领问答 → 写出权利要求和说明书 → 评审查出一条不被说明书支持的权利要求 → 导出 DOCX。两个样例都用真实 deepseek-flash 跑。
