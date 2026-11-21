@@ -21,6 +21,7 @@ export * from "./export/fonts.js";
 export * from "./export/run.js";
 export * from "./export/txt.js";
 export * from "./latex/compiler.js";
+export * from "./latex/engine.js";
 export * from "./editor/checks.js";
 export * from "./types.js";
 
