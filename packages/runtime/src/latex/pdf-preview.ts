@@ -174,8 +174,6 @@ export function createLatexPdfPreviewStore(storageRoot: string) {
     const fileInfo = await lstat(filePath);
     if (!fileInfo.isFile() || fileInfo.isSymbolicLink())
       throw new Error("PDF 文件无效");
-    if (!samePath(await realpath(filePath), filePath))
-      throw new Error("PDF 文件无效");
     const handle = await open(
       filePath,
       constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
@@ -242,8 +240,6 @@ export function createLatexPdfPreviewStore(storageRoot: string) {
             return false;
           const fileInfo = await lstat(expectedPath);
           if (!fileInfo.isFile() || fileInfo.isSymbolicLink()) return false;
-          if (!samePath(await realpath(expectedPath), expectedPath))
-            return false;
           const data = await readPdfBytes(expectedPath);
           const directory = directoryFor(projectId);
           await mkdir(directory, { recursive: true, mode: 0o700 });

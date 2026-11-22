@@ -149,6 +149,22 @@ describe("LaTeX PDF preview store", () => {
     expect(await store.read("p1", project)).toEqual({ status: "empty" });
   });
 
+  it("通过存储目录 junction 读取预览快照", async () => {
+    const realStorage = path.join(base, "real-appdata");
+    await mkdir(realStorage);
+    const storageAlias = path.join(base, "appdata-alias");
+    await symlink(realStorage, storageAlias, "junction");
+    const store = createLatexPdfPreviewStore(storageAlias);
+    const pdfPath = path.join(output, "main.pdf");
+    await writeFile(pdfPath, firstPdf);
+
+    expect(await store.recordSuccess("p1", project, "main.tex", pdfPath)).toBe(
+      true,
+    );
+    const snapshot = await store.read("p1", project);
+    expect(snapshot.status).toBe("ready");
+  });
+
   it("项目 ID 对应项目目录校验，避免复用另一项目快照", async () => {
     const store = createLatexPdfPreviewStore(storage);
     const pdfPath = path.join(output, "main.pdf");
