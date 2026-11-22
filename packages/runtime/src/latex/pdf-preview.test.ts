@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,6 +79,44 @@ describe("LaTeX PDF preview store", () => {
     expect(await store.recordSuccess("p1", project, "main.tex", pdfPath)).toBe(
       false,
     );
+    expect(await store.read("p1", project)).toEqual({ status: "empty" });
+  });
+
+  it("解析项目目录 junction 后接受指向预期产物的路径", async () => {
+    const store = createLatexPdfPreviewStore(storage);
+    const pdfPath = path.join(output, "main.pdf");
+    await writeFile(pdfPath, firstPdf);
+    const projectAlias = path.join(base, "project-alias");
+    await symlink(project, projectAlias, "junction");
+
+    expect(
+      await store.recordSuccess(
+        "p1",
+        projectAlias,
+        "main.tex",
+        path.join(projectAlias, ".wordhub", "build", "latex", "main.pdf"),
+      ),
+    ).toBe(true);
+    const snapshot = await store.read("p1", projectAlias);
+    expect(snapshot.status).toBe("ready");
+  });
+
+  it("拒绝重定向到项目外的输出目录 junction", async () => {
+    const store = createLatexPdfPreviewStore(storage);
+    const outsideOutput = path.join(base, "outside-output");
+    await mkdir(outsideOutput);
+    await writeFile(path.join(outsideOutput, "main.pdf"), firstPdf);
+    await rm(output, { recursive: true });
+    await symlink(outsideOutput, output, "junction");
+
+    expect(
+      await store.recordSuccess(
+        "p1",
+        project,
+        "main.tex",
+        path.join(output, "main.pdf"),
+      ),
+    ).toBe(false);
     expect(await store.read("p1", project)).toEqual({ status: "empty" });
   });
 

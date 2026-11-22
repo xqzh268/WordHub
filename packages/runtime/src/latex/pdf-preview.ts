@@ -225,7 +225,8 @@ export function createLatexPdfPreviewStore(storageRoot: string) {
             realOutput,
             `${path.basename(mainPath, path.extname(mainPath))}.pdf`,
           );
-          if (!samePath(candidatePath, expectedPath)) return false;
+          if (!samePath(await realpath(candidatePath), expectedPath))
+            return false;
           const fileInfo = await lstat(expectedPath);
           if (!fileInfo.isFile() || fileInfo.isSymbolicLink()) return false;
           if (!samePath(await realpath(expectedPath), expectedPath))
