@@ -79,6 +79,9 @@ export type WorkspaceCommand =
   | "latex.installEngine"
   | "latex.cancelInstall"
   | "latex.clearCache"
+  | "latex.files"
+  | "latex.readFile"
+  | "latex.setMainFile"
   | "latex.trustStatus"
   | "latex.setTrust"
   | "latex.compile"
@@ -208,6 +211,31 @@ export interface ChapterContent {
   content: string;
   contentHash: string;
   mtimeMs: number;
+}
+
+/** LaTeX 项目中可在工作台打开的文件。path 始终是相对项目根的 `/` 路径。 */
+export interface LatexFileInfo {
+  path: string;
+  name: string;
+  size: number;
+  mtimeMs: number;
+}
+
+export interface LatexFilesPayload {
+  files: LatexFileInfo[];
+  /** 当前主文件。旧项目没有 latex.json 时默认为 main.tex。 */
+  mainFile: string;
+}
+
+export interface LatexFileContentPayload {
+  path: string;
+  content: string;
+  contentHash: string;
+  mtimeMs: number;
+}
+
+export interface LatexMainFilePayload {
+  mainFile: string;
 }
 
 export interface LatexEngineStatusPayload {
@@ -407,6 +435,9 @@ export interface CommandPayloads {
   "latex.installEngine": undefined;
   "latex.cancelInstall": undefined;
   "latex.clearCache": undefined;
+  "latex.files": { projectId: string };
+  "latex.readFile": { projectId: string; path: string };
+  "latex.setMainFile": { projectId: string; mainFile: string };
   "latex.trustStatus": { projectId: string };
   "latex.setTrust": { projectId: string; trusted: boolean };
   "latex.compile": { projectId: string; mainFile: string };
@@ -565,6 +596,9 @@ export interface CommandResults {
   "latex.installEngine": { canceled: boolean; status: LatexEngineStatusPayload };
   "latex.cancelInstall": { canceled: boolean };
   "latex.clearCache": LatexEngineStatusPayload;
+  "latex.files": LatexFilesPayload;
+  "latex.readFile": LatexFileContentPayload;
+  "latex.setMainFile": LatexMainFilePayload;
   "latex.trustStatus": LatexTrustPayload;
   "latex.setTrust": LatexTrustPayload;
   "latex.compile": LatexCompileResultPayload;

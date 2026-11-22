@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -243,5 +250,83 @@ describe("安装引擎", () => {
     });
     expect((await service.installEngine()).canceled).toBe(false);
     expect(service.cancelInstall()).toEqual({ canceled: false });
+  });
+});
+
+describe("latex.files / latex.readFile / latex.setMainFile", () => {
+  it("递归列出受支持的源码和图片，排除内部目录与符号链接", async () => {
+    await mkdir(path.join(project, "parts"));
+    await mkdir(path.join(project, "node_modules", "pkg"), { recursive: true });
+    await mkdir(path.join(project, ".wordhub"));
+    await writeFile(path.join(project, "parts", "chapter.tex"), "chapter");
+    await writeFile(path.join(project, "parts", "refs.bib"), "refs");
+    await writeFile(path.join(project, "figure.png"), Buffer.from([1, 2, 3]));
+    await writeFile(path.join(project, "notes.txt"), "ignored");
+    await writeFile(path.join(project, ".wordhub", "hidden.tex"), "ignored");
+    await writeFile(
+      path.join(project, "node_modules", "pkg", "hidden.tex"),
+      "ignored",
+    );
+    let linked = false;
+    try {
+      await symlink(
+        path.join(project, "parts", "chapter.tex"),
+        path.join(project, "linked.tex"),
+      );
+      linked = true;
+    } catch {
+      // Windows without symlink privileges still exercises the other boundaries.
+    }
+    const service = make(async () => done());
+    const result = await service.files("p1");
+    expect(result.mainFile).toBe("main.tex");
+    expect(result.files.map((file) => file.path)).toEqual([
+      "figure.png",
+      "main.tex",
+      "parts/chapter.tex",
+      "parts/refs.bib",
+    ]);
+    if (linked)
+      expect(result.files.some((file) => file.path === "linked.tex")).toBe(
+        false,
+      );
+  });
+
+  it("安全读取源码并拒绝越界、图片和超大文件", async () => {
+    await writeFile(path.join(project, "parts.tex"), "\\section{Hi}");
+    const service = make(async () => done());
+    const result = await service.readFile("p1", "parts.tex");
+    expect(result).toMatchObject({
+      path: "parts.tex",
+      content: "\\section{Hi}",
+    });
+    expect(result.contentHash).toMatch(/^sha256:[0-9a-f]{64}$/u);
+    await expect(service.readFile("p1", "../outside.tex")).rejects.toThrow();
+    await writeFile(path.join(project, "picture.png"), Buffer.from([1]));
+    await expect(service.readFile("p1", "picture.png")).rejects.toThrow("源码");
+    await writeFile(
+      path.join(project, "large.tex"),
+      Buffer.alloc(5 * 1024 * 1024 + 1),
+    );
+    await expect(service.readFile("p1", "large.tex")).rejects.toThrow("过大");
+  });
+
+  it("设置主文件后持久化到 .wordhub/latex.json，并可被文件列表读回", async () => {
+    await mkdir(path.join(project, "parts"));
+    await writeFile(path.join(project, "parts", "main.tex"), "main");
+    const service = make(async () => done());
+    await expect(service.setMainFile("p1", "parts/main.tex")).resolves.toEqual({
+      mainFile: "parts/main.tex",
+    });
+    expect(
+      JSON.parse(
+        await readFile(path.join(project, ".wordhub", "latex.json"), "utf8"),
+      ),
+    ).toMatchObject({ schemaVersion: 1, mainFile: "parts/main.tex" });
+    expect((await service.files("p1")).mainFile).toBe("parts/main.tex");
+    await expect(service.setMainFile("p1", "missing.tex")).rejects.toThrow();
+    await expect(service.setMainFile("p1", "parts/main.bib")).rejects.toThrow(
+      ".tex",
+    );
   });
 });

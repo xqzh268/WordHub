@@ -774,6 +774,24 @@ export function createRequestHandler(deps: DispatcherDeps) {
         sendResponse(request.requestId, await latex.clearCache());
         return;
       }
+      if (request.type === "latex.files") {
+        sendResponse(request.requestId, await latex.files(request.projectId));
+        return;
+      }
+      if (request.type === "latex.readFile") {
+        sendResponse(
+          request.requestId,
+          await latex.readFile(request.projectId, request.path),
+        );
+        return;
+      }
+      if (request.type === "latex.setMainFile") {
+        sendResponse(
+          request.requestId,
+          await latex.setMainFile(request.projectId, request.mainFile),
+        );
+        return;
+      }
       if (request.type === "latex.trustStatus") {
         sendResponse(
           request.requestId,

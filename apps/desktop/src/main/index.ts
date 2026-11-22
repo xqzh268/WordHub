@@ -131,6 +131,9 @@ const LATEX_COMMANDS: ReadonlySet<WorkspaceCommand> = new Set([
   "latex.installEngine",
   "latex.cancelInstall",
   "latex.clearCache",
+  "latex.files",
+  "latex.readFile",
+  "latex.setMainFile",
   "latex.trustStatus",
   "latex.setTrust",
   "latex.compile",
@@ -713,6 +716,12 @@ function registerIpc(): void {
                   ? { tectonicOverride: process.env.WORDHUB_TECTONIC_PATH }
                   : {}),
               }
+            : {}),
+          ...(command === "latex.readFile"
+            ? { path: String(payload.path ?? "") }
+            : {}),
+          ...(command === "latex.setMainFile"
+            ? { mainFile: String(payload.mainFile ?? "") }
             : {}),
         });
       }

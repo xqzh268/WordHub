@@ -14,6 +14,7 @@ import {
   installEngine,
   type EngineStatus,
 } from "./engine.js";
+import { listLatexFiles, readLatexFile, setLatexMainFile } from "./files.js";
 import { findOutsidePaths } from "./sanitize.js";
 import { LatexTrustStore, isFreshFolder } from "./trust.js";
 
@@ -60,6 +61,7 @@ export function createLatexService(deps: LatexServiceDeps) {
     string,
     { controller: AbortController; done: Promise<void> }
   >();
+  const mainFileWrites = new Map<string, Promise<unknown>>();
 
   const toPayload = (status: EngineStatus): LatexEngineStatusPayload => ({
     state: status.state,
@@ -161,6 +163,28 @@ export function createLatexService(deps: LatexServiceDeps) {
         throw new Error("有编译正在进行，请稍后再清理缓存");
       await clearCache(engineRoot);
       return toPayload(await statusOf(engineRoot));
+    },
+    async files(projectId: string) {
+      return listLatexFiles(deps.projectFolder(projectId));
+    },
+    async readFile(projectId: string, relativePath: string) {
+      return readLatexFile(deps.projectFolder(projectId), relativePath);
+    },
+    async setMainFile(projectId: string, mainFile: string) {
+      const folder = deps.projectFolder(projectId);
+      const resolved = path.resolve(folder);
+      const key =
+        process.platform === "win32" ? resolved.toLowerCase() : resolved;
+      const previous = mainFileWrites.get(key) ?? Promise.resolve();
+      const saving = previous
+        .catch(() => undefined)
+        .then(() => setLatexMainFile(folder, mainFile));
+      mainFileWrites.set(key, saving);
+      try {
+        return await saving;
+      } finally {
+        if (mainFileWrites.get(key) === saving) mainFileWrites.delete(key);
+      }
     },
     async trustStatus(projectId: string): Promise<LatexTrustPayload> {
       return trust.status(projectId, deps.projectFolder(projectId));

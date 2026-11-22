@@ -24,6 +24,7 @@ export * from "./latex/compiler.js";
 export * from "./latex/engine.js";
 export * from "./latex/sanitize.js";
 export * from "./latex/service.js";
+export * from "./latex/files.js";
 export * from "./latex/trust.js";
 export * from "./editor/checks.js";
 export * from "./types.js";

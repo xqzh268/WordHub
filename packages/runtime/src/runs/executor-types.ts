@@ -327,6 +327,19 @@ export type RuntimeRequest =
   | { type: "latex.installEngine"; requestId: string }
   | { type: "latex.cancelInstall"; requestId: string }
   | { type: "latex.clearCache"; requestId: string }
+  | { type: "latex.files"; projectId: string; requestId: string }
+  | {
+      type: "latex.readFile";
+      projectId: string;
+      path: string;
+      requestId: string;
+    }
+  | {
+      type: "latex.setMainFile";
+      projectId: string;
+      mainFile: string;
+      requestId: string;
+    }
   | { type: "latex.trustStatus"; projectId: string; requestId: string }
   | {
       type: "latex.setTrust";
