@@ -40,12 +40,25 @@ interface PreviewMetadata {
   lastFailure?: LatexCompileStatusPayload;
 }
 
+export function normalizeWindowsPathForComparison(value: string): string {
+  const resolved = path.win32.resolve(value);
+  const extendedUncPrefix = "\\\\?\\UNC\\";
+  let normalized = resolved;
+  if (resolved.toLowerCase().startsWith(extendedUncPrefix.toLowerCase())) {
+    normalized = `\\\\${resolved.slice(extendedUncPrefix.length)}`;
+  } else if (/^\\\\\?\\[a-z]:\\/iu.test(resolved)) {
+    normalized = resolved.slice("\\\\?\\".length);
+  }
+  return path.win32.normalize(normalized).toLowerCase();
+}
+
 const samePath = (left: string, right: string): boolean => {
-  const a = path.resolve(left);
-  const b = path.resolve(right);
-  return process.platform === "win32"
-    ? a.toLowerCase() === b.toLowerCase()
-    : a === b;
+  if (process.platform === "win32")
+    return (
+      normalizeWindowsPathForComparison(left) ===
+      normalizeWindowsPathForComparison(right)
+    );
+  return path.resolve(left) === path.resolve(right);
 };
 
 function isMetadata(value: unknown): value is PreviewMetadata {

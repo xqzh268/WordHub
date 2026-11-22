@@ -4,7 +4,10 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LatexCompileOptions, LatexCompileResult } from "./compiler.js";
 import type { EngineStatus } from "./engine.js";
-import { createLatexPdfPreviewStore } from "./pdf-preview.js";
+import {
+  createLatexPdfPreviewStore,
+  normalizeWindowsPathForComparison,
+} from "./pdf-preview.js";
 import { createLatexService } from "./service.js";
 
 let base: string;
@@ -13,6 +16,32 @@ let project: string;
 let output: string;
 const firstPdf = Buffer.from("%PDF-1.7\nfirst artifact\n%%EOF", "ascii");
 const secondPdf = Buffer.from("%PDF-1.7\nsecond artifact\n%%EOF", "ascii");
+
+describe("Windows path comparison", () => {
+  it("treats extended-length drive and UNC paths as equivalent", () => {
+    expect(
+      normalizeWindowsPathForComparison("\\\\?\\D:\\a\\wordhub\\project"),
+    ).toBe(normalizeWindowsPathForComparison("d:\\a\\wordhub\\project"));
+    expect(
+      normalizeWindowsPathForComparison(
+        "\\\\?\\UNC\\server\\share\\wordhub\\project",
+      ),
+    ).toBe(
+      normalizeWindowsPathForComparison("\\\\SERVER\\SHARE\\wordhub\\project"),
+    );
+  });
+
+  it("keeps device namespace paths distinct from ordinary paths", () => {
+    expect(
+      normalizeWindowsPathForComparison("\\\\.\\C:\\wordhub\\project"),
+    ).not.toBe(normalizeWindowsPathForComparison("C:\\wordhub\\project"));
+    expect(
+      normalizeWindowsPathForComparison("\\\\?\\Volume{abc}\\wordhub\\project"),
+    ).not.toBe(
+      normalizeWindowsPathForComparison("\\\\Volume{abc}\\wordhub\\project"),
+    );
+  });
+});
 
 beforeEach(async () => {
   base = await mkdtemp(path.join(os.tmpdir(), "wh-pdf-preview-"));
