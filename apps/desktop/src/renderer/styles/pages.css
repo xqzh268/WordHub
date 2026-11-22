@@ -68,3 +68,17 @@
 .latex-compile-status { min-width: 0; font-size: 12.5px; color: var(--ink-3); }
 .latex-outside-warning { padding: 12px 14px; border-radius: var(--r-md); font-size: 12.5px; line-height: 1.7; background: var(--danger-soft); box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent); }
 .latex-outside-warning ul { margin: 4px 0; padding-left: 18px; word-break: break-all; font-family: var(--font-mono); }
+.academic-workspace-inner { max-width: 1180px; margin: 0 auto; }
+.academic-workspace-inner > .coming-icon { display: inline-flex; }
+.latex-workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 520px; margin-top: 20px; overflow: hidden; text-align: left; border-radius: var(--r-lg); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }
+.latex-file-tree { min-width: 0; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--bg-canvas); }
+.latex-file-tree-head, .latex-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 8px 12px; font-size: 13px; }
+.latex-file-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px; border: 0; border-radius: var(--r-sm); color: var(--ink-2); background: transparent; text-align: left; cursor: pointer; }
+.latex-file-item:hover, .latex-file-item.active { color: var(--ink-1); background: var(--bg-active); }
+.latex-file-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 12px; }
+.latex-file-item small { margin-left: auto; color: var(--accent); font-size: 10px; white-space: nowrap; }
+.latex-editor-panel { display: flex; min-width: 0; flex-direction: column; }
+.latex-editor-head { border-bottom: 1px solid var(--line); }
+.latex-editor { flex: 1; min-height: 460px; width: 100%; resize: none; border: 0; padding: 16px; color: var(--ink-1); background: var(--paper-2); outline: none; font-family: var(--font-mono); font-size: 13px; line-height: 1.7; tab-size: 2; }
+.latex-editor-empty { display: grid; flex: 1; min-height: 460px; place-items: center; color: var(--ink-4); font-size: 13px; }
+@media (max-width: 760px) { .latex-workspace { grid-template-columns: 1fr; } .latex-file-tree { border-right: 0; border-bottom: 1px solid var(--line); } .latex-editor { min-height: 360px; } }
