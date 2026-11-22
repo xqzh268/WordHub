@@ -126,6 +126,17 @@ const WORKSPACE_COMMAND_PREFIXES = [
   "session.",
 ];
 
+const LATEX_COMMANDS: ReadonlySet<WorkspaceCommand> = new Set([
+  "latex.engineStatus",
+  "latex.installEngine",
+  "latex.cancelInstall",
+  "latex.clearCache",
+  "latex.trustStatus",
+  "latex.setTrust",
+  "latex.compile",
+  "latex.abort",
+]);
+
 function requiresWritingWorkspace(command: WorkspaceCommand): boolean {
   if (command === "run.abort" || command === "run.restartWorker") return false;
   return (
@@ -682,6 +693,29 @@ function registerIpc(): void {
           projectPath: linkedFolder ?? undefined,
         });
       }
+      if (LATEX_COMMANDS.has(command)) {
+        const payload = (request.payload ?? {}) as Record<string, unknown>;
+        // 项目 ID 以外的信息（文件夹、信任状态）全部由后台进程自己查，渲染端不能指定。
+        return await worker.request({
+          type: command,
+          ...(typeof payload.projectId === "string"
+            ? { projectId: payload.projectId }
+            : {}),
+          ...(command === "latex.setTrust"
+            ? { trusted: payload.trusted === true }
+            : {}),
+          ...(command === "latex.compile"
+            ? {
+                mainFile: String(payload.mainFile ?? ""),
+                // 假引擎只在测试模式下生效，正式运行永远不会传给后台。
+                ...(process.env.WORDHUB_MOCK === "1" &&
+                process.env.WORDHUB_TECTONIC_PATH
+                  ? { tectonicOverride: process.env.WORDHUB_TECTONIC_PATH }
+                  : {}),
+              }
+            : {}),
+        });
+      }
       if (command === "app.setTheme") {
         const payload = request.payload as CommandPayloads["app.setTheme"];
         applyTheme(payload.preference, payload.resolved);
@@ -782,6 +816,8 @@ async function runUtilitySpike(): Promise<void> {
 }
 
 async function createWindow(): Promise<void> {
+  // 必须在加载页面之前设置：页面启动时的请求会拉起后台进程，晚了会落到默认存储目录。
+  worker.setStorageRoot(app.getPath("userData"));
   const initial = OVERLAY[nativeTheme.shouldUseDarkColors ? "dark" : "light"];
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -828,7 +864,6 @@ async function createWindow(): Promise<void> {
       ),
       { query },
     );
-  worker.setStorageRoot(app.getPath("userData"));
   worker.start();
   void restoreRecentProject();
 }

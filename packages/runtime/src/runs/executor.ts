@@ -26,6 +26,7 @@ import { createWorkflowService } from "../coordinator/product.js";
 import { createNovelIntakeService } from "../novel/intake.js";
 import { createGraphService } from "../graph/service.js";
 import { createLinkService } from "../graph/links.js";
+import { createLatexService } from "../latex/service.js";
 
 export function createRunExecutor(options: ExecutorOptions) {
   const post = options.post;
@@ -193,9 +194,26 @@ export function createRunExecutor(options: ExecutorOptions) {
   };
   const ready = projectService.init().then(syncProviders);
   const recoverProjectFiles = (id: string) => projectService.store(id);
-  const createProject = (
+  const latex = createLatexService({
+    storageRoot: options.storageRoot,
+    post,
+    projectFolder: (projectId) => {
+      const project = projectService
+        .recent()
+        .find((item) => item.id === projectId);
+      if (!project) throw new Error("项目不存在");
+      return project.folderPath;
+    },
+  });
+  const createProject = async (
     request: Extract<RuntimeRequest, { type: "project.create" }>,
-  ) => projectService.create(request);
+  ) => {
+    // 必须在链接前判断：链接会写入 .wordhub，之后就不再是空文件夹。
+    const fresh = await latex.isFreshFolder(request.folderPath);
+    const project = await projectService.create(request);
+    await latex.noteProjectLinked(project, fresh);
+    return project;
+  };
   const { resolveAgent, buildRunContext, createAgentTools, appendRunEvent } =
     createRunSupport({ post, modelSettings, runContexts });
   const intake = createNovelIntakeService({
@@ -516,6 +534,7 @@ export function createRunExecutor(options: ExecutorOptions) {
     },
   });
   const handle = createRequestHandler({
+    latex,
     ready,
     storageRoot: options.storageRoot,
     post,

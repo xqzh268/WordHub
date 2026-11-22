@@ -1,0 +1,184 @@
+import type {
+  LatexCompileResultPayload,
+  LatexTrustPayload,
+} from "@wordhub/contracts";
+import { ShieldAlert } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cleanIpcError } from "../lib/errors";
+
+const MAIN_FILE = "main.tex";
+
+function describe(result: LatexCompileResultPayload): string {
+  const seconds = (result.durationMs / 1000).toFixed(1);
+  switch (result.status) {
+    case "succeeded":
+      return `编译成功，用时 ${seconds} 秒`;
+    case "failed":
+      return `编译失败（退出码 ${result.exitCode ?? "无"}）`;
+    case "timeout":
+      return "编译超时，已停止";
+    case "aborted":
+      return "编译已停止";
+    case "offline-cache-miss":
+      return "离线且缓存中缺少所需宏包";
+    case "missing-tool":
+      return (
+        result.message ??
+        `缺少外部工具${result.missingTool ? `：${result.missingTool}` : ""}`
+      );
+    case "untrusted":
+      return result.message ?? "项目未信任，已拒绝编译";
+  }
+}
+
+export function LatexCompilePanel({ projectId }: { projectId: string }) {
+  const [trust, setTrust] = useState<LatexTrustPayload | null>(null);
+  const [compiling, setCompiling] = useState(false);
+  const [result, setResult] = useState<LatexCompileResultPayload>();
+  const [error, setError] = useState<string>();
+  // 项目切换后，旧项目迟到的结果不能覆盖新项目的状态。
+  const current = useRef(projectId);
+  current.current = projectId;
+
+  const refresh = useCallback(async () => {
+    try {
+      const next = await window.wordhub.invoke("latex.trustStatus", {
+        projectId,
+      });
+      if (current.current === projectId) setTrust(next);
+    } catch (cause) {
+      setError(cleanIpcError(cause));
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    setTrust(null);
+    setResult(undefined);
+    setError(undefined);
+    setCompiling(false);
+    void refresh();
+  }, [refresh]);
+
+  const confirmTrust = async () => {
+    setError(undefined);
+    try {
+      setTrust(
+        await window.wordhub.invoke("latex.setTrust", {
+          projectId,
+          trusted: true,
+        }),
+      );
+    } catch (cause) {
+      setError(cleanIpcError(cause));
+    }
+  };
+
+  const compile = async () => {
+    setError(undefined);
+    setResult(undefined);
+    setCompiling(true);
+    try {
+      const next = await window.wordhub.invoke("latex.compile", {
+        projectId,
+        mainFile: MAIN_FILE,
+      });
+      if (current.current !== projectId) return;
+      setResult(next);
+      if (next.status === "untrusted") void refresh();
+    } catch (cause) {
+      if (current.current === projectId) setError(cleanIpcError(cause));
+    } finally {
+      if (current.current === projectId) setCompiling(false);
+    }
+  };
+
+  const stop = () =>
+    void window.wordhub.invoke("latex.abort", { projectId }).catch(() => {
+      /* 没有进行中的编译时无需处理 */
+    });
+
+  return (
+    <div className="latex-panel" data-testid="latex-panel">
+      {trust && !trust.trusted && (
+        <div
+          className="latex-trust-banner"
+          role="alert"
+          data-testid="latex-trust-banner"
+        >
+          <ShieldAlert size={18} strokeWidth={1.5} aria-hidden="true" />
+          <div>
+            <strong>此项目来自外部，尚未信任</strong>
+            <p>
+              LaTeX 编译可读写项目外的文件：不可信的 .tex
+              可能读取你的私密文件并写进
+              PDF，或在任意位置写文件。只有确认来源可靠才选择信任。
+            </p>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() => void confirmTrust()}
+            data-testid="latex-trust-button"
+          >
+            信任此项目
+          </button>
+        </div>
+      )}
+      <div className="latex-compile-row">
+        <button
+          className="btn btn-primary"
+          disabled={!trust?.trusted || compiling}
+          onClick={() => void compile()}
+          data-testid="latex-compile"
+        >
+          编译 {MAIN_FILE}
+        </button>
+        <button
+          className="btn"
+          disabled={!compiling}
+          onClick={stop}
+          data-testid="latex-stop"
+        >
+          停止
+        </button>
+        <span
+          className="latex-compile-status"
+          role="status"
+          data-testid="latex-compile-status"
+          data-status={compiling ? "running" : (result?.status ?? "idle")}
+        >
+          {compiling
+            ? "正在编译…"
+            : result
+              ? describe(result)
+              : trust?.trusted
+                ? "尚未编译"
+                : ""}
+        </span>
+      </div>
+      {result?.readOutsideProject && (
+        <div
+          className="latex-outside-warning"
+          role="alert"
+          data-testid="latex-outside-warning"
+        >
+          <strong>编译读取了项目外的文件</strong>
+          <ul>
+            {result.outsidePaths.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <p>如果这不是你预期的，请不要继续信任此项目。</p>
+        </div>
+      )}
+      {error && (
+        <p
+          className="project-error"
+          role="alert"
+          data-testid="latex-panel-error"
+        >
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

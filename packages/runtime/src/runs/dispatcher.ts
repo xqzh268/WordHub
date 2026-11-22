@@ -76,6 +76,7 @@ import type { RemoteModel } from "../models/remote.js";
 import type { RunEstimate } from "../budget/estimate.js";
 import type { createGraphService } from "../graph/service.js";
 import type { createLinkService } from "../graph/links.js";
+import type { LatexService } from "../latex/service.js";
 
 type DispatcherDeps = {
   ready: Promise<unknown>;
@@ -120,6 +121,7 @@ type DispatcherDeps = {
     request: Extract<RuntimeRequest, { type: "intake.confirm" }>,
   ) => Promise<void>;
   resumeRun: (runId: string) => Promise<void>;
+  latex: LatexService;
 };
 
 /** 渲染端的写入/撤销只允许落在 chapters/ 下的 Markdown 文件，不能借此改设定、偏好等其他项目文件。 */
@@ -181,6 +183,7 @@ export function createRequestHandler(deps: DispatcherDeps) {
     intakeAnswer,
     intakeConfirm,
     resumeRun,
+    latex,
   } = deps;
   const chapterFolder = (projectId: string): string => {
     const project = projectService
@@ -753,6 +756,51 @@ export function createRequestHandler(deps: DispatcherDeps) {
         );
         await reloadProviders();
         sendResponse(request.requestId, { saved: true });
+        return;
+      }
+      if (request.type === "latex.engineStatus") {
+        sendResponse(request.requestId, await latex.engineStatus());
+        return;
+      }
+      if (request.type === "latex.installEngine") {
+        sendResponse(request.requestId, await latex.installEngine());
+        return;
+      }
+      if (request.type === "latex.cancelInstall") {
+        sendResponse(request.requestId, latex.cancelInstall());
+        return;
+      }
+      if (request.type === "latex.clearCache") {
+        sendResponse(request.requestId, await latex.clearCache());
+        return;
+      }
+      if (request.type === "latex.trustStatus") {
+        sendResponse(
+          request.requestId,
+          await latex.trustStatus(request.projectId),
+        );
+        return;
+      }
+      if (request.type === "latex.setTrust") {
+        sendResponse(
+          request.requestId,
+          await latex.setTrust(request.projectId, request.trusted),
+        );
+        return;
+      }
+      if (request.type === "latex.compile") {
+        sendResponse(
+          request.requestId,
+          await latex.compile({
+            projectId: request.projectId,
+            mainFile: request.mainFile,
+            tectonicOverride: request.tectonicOverride,
+          }),
+        );
+        return;
+      }
+      if (request.type === "latex.abort") {
+        sendResponse(request.requestId, latex.abort(request.projectId));
         return;
       }
       if (request.type === "settings.fetchModels") {

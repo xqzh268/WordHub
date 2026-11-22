@@ -49,6 +49,7 @@
     "test:providers:live": "node scripts/providers-live-e2e.mjs",
     "test:m1:e2e": "node scripts/m1-restart-e2e.mjs",
     "test:project-kind:e2e": "node scripts/project-kind-e2e.mjs",
+    "test:latex:e2e": "node scripts/latex-ipc-e2e.mjs",
     "test:budget:e2e": "node scripts/budget-e2e.mjs",
     "test:facts:e2e": "node scripts/facts-e2e.mjs",
     "test:m4:death-facts": "node scripts/facts-death-eval.mjs",

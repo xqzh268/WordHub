@@ -323,6 +323,26 @@ export type RuntimeRequest =
       apiKey?: string;
       requestId: string;
     }
+  | { type: "latex.engineStatus"; requestId: string }
+  | { type: "latex.installEngine"; requestId: string }
+  | { type: "latex.cancelInstall"; requestId: string }
+  | { type: "latex.clearCache"; requestId: string }
+  | { type: "latex.trustStatus"; projectId: string; requestId: string }
+  | {
+      type: "latex.setTrust";
+      projectId: string;
+      trusted: boolean;
+      requestId: string;
+    }
+  | {
+      type: "latex.compile";
+      projectId: string;
+      mainFile: string;
+      /** 仅测试模式：主进程传入假引擎路径。 */
+      tectonicOverride?: string;
+      requestId: string;
+    }
+  | { type: "latex.abort"; projectId: string; requestId: string }
   | { type: "credentials.sync"; keys: Record<string, string> }
   | {
       type: "run.estimate";

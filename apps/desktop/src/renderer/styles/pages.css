@@ -43,3 +43,28 @@
 
 .toggle-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
 .toggle-row input:disabled + span { opacity: 0.5; }
+
+/* LaTeX 引擎与编译面板 */
+.latex-engine-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.latex-engine-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.latex-engine-line .btn:disabled { opacity: 0.45; }
+.latex-state { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.latex-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); }
+.latex-state-ready::before { background: var(--ok); }
+.latex-state-corrupt { color: var(--danger); }
+.latex-state-corrupt::before { background: var(--danger); }
+.latex-progress-wrap { display: flex; align-items: center; gap: 10px; }
+.latex-progress { flex: 1; height: 6px; border-radius: 3px; overflow: hidden; background: var(--bg-active); }
+.latex-progress span { display: block; height: 100%; background: var(--accent); transition: width var(--dur-base) var(--ease-out); }
+.latex-progress-text { flex: none; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.latex-panel { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; text-align: left; }
+.latex-trust-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 16px; border-radius: var(--r-md); color: var(--ink-1); background: var(--danger-soft); box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent); }
+.latex-trust-banner svg { margin-top: 2px; color: var(--danger); }
+.latex-trust-banner strong { font-size: 14px; font-weight: 600; }
+.latex-trust-banner p { margin-top: 3px; font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+.latex-compile-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.latex-compile-row .btn:disabled { opacity: 0.45; }
+.latex-compile-status { min-width: 0; font-size: 12.5px; color: var(--ink-3); }
+.latex-outside-warning { padding: 12px 14px; border-radius: var(--r-md); font-size: 12.5px; line-height: 1.7; background: var(--danger-soft); box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent); }
+.latex-outside-warning ul { margin: 4px 0; padding-left: 18px; word-break: break-all; font-family: var(--font-mono); }

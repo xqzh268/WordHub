@@ -75,6 +75,14 @@ export type WorkspaceCommand =
   | "settings.testConnection"
   | "settings.setProviderEnabled"
   | "settings.fetchModels"
+  | "latex.engineStatus"
+  | "latex.installEngine"
+  | "latex.cancelInstall"
+  | "latex.clearCache"
+  | "latex.trustStatus"
+  | "latex.setTrust"
+  | "latex.compile"
+  | "latex.abort"
   | "app.setTheme";
 
 export interface SimulationBasePayload {
@@ -200,6 +208,57 @@ export interface ChapterContent {
   content: string;
   contentHash: string;
   mtimeMs: number;
+}
+
+export interface LatexEngineStatusPayload {
+  state: "missing" | "ready" | "corrupt";
+  version: string;
+  cacheDir: string;
+  cacheBytes: number;
+  /** 后台正在安装引擎。 */
+  installing: boolean;
+}
+
+/** 安装进度事件：经 run.event 推送，payload.type 为 latex.installProgress。 */
+export interface LatexInstallProgress {
+  type: "latex.installProgress";
+  receivedBytes: number;
+  totalBytes: number;
+}
+
+export interface LatexTrustPayload {
+  trusted: boolean;
+  /** created：在 WordHub 内新建的空文件夹；user：用户手动确认；untrusted：尚未信任。 */
+  reason: "created" | "user" | "untrusted";
+  updatedAt?: string;
+}
+
+export type LatexCompileStatusPayload =
+  | "succeeded"
+  | "failed"
+  | "timeout"
+  | "aborted"
+  | "missing-tool"
+  | "offline-cache-miss"
+  | "untrusted";
+
+export interface LatexCompileResultPayload {
+  status: LatexCompileStatusPayload;
+  /** 给用户看的补充说明（例如未信任、引擎未安装）。 */
+  message?: string;
+  pdfPath?: string;
+  logPath?: string;
+  synctexPath?: string;
+  missingTool?: string;
+  exitCode: number | null;
+  durationMs: number;
+  truncated: boolean;
+  /** 编译输出尾部，仅给用户界面显示，不得转交 Agent。 */
+  log: string;
+  /** 编译读取了项目外的绝对路径。 */
+  readOutsideProject: boolean;
+  /** 仅路径，绝不含内容。 */
+  outsidePaths: string[];
 }
 
 export type ThemePreference = "light" | "dark" | "system";
@@ -344,6 +403,14 @@ export interface CommandPayloads {
   "settings.testConnection": { provider: string; model?: string };
   "settings.setProviderEnabled": { id: string; enabled: boolean };
   "settings.fetchModels": { baseUrl: string; api: "openai-completions" | "openai-responses" | "anthropic-messages"; provider?: string; apiKey?: string };
+  "latex.engineStatus": undefined;
+  "latex.installEngine": undefined;
+  "latex.cancelInstall": undefined;
+  "latex.clearCache": undefined;
+  "latex.trustStatus": { projectId: string };
+  "latex.setTrust": { projectId: string; trusted: boolean };
+  "latex.compile": { projectId: string; mainFile: string };
+  "latex.abort": { projectId: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
 
@@ -494,6 +561,14 @@ export interface CommandResults {
       source: "remote" | "catalog" | "unknown";
     }>;
   };
+  "latex.engineStatus": LatexEngineStatusPayload;
+  "latex.installEngine": { canceled: boolean; status: LatexEngineStatusPayload };
+  "latex.cancelInstall": { canceled: boolean };
+  "latex.clearCache": LatexEngineStatusPayload;
+  "latex.trustStatus": LatexTrustPayload;
+  "latex.setTrust": LatexTrustPayload;
+  "latex.compile": LatexCompileResultPayload;
+  "latex.abort": { aborted: boolean };
   "app.setTheme": { applied: boolean };
 }
 

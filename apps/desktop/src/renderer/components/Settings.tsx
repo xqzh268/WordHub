@@ -1,6 +1,7 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import type { CommandResults } from "@wordhub/contracts";
 import { ProjectWritingSettings } from "./ProjectWritingSettings";
+import { LatexEngineSettings } from "./LatexEngineSettings";
 import { ProviderSettings } from "./ProviderSettings";
 import { motion } from "motion/react";
 import type { ThemePreference } from "@wordhub/contracts";
@@ -73,6 +74,8 @@ export function SettingsView() {
         {!academic && (
           <ProjectWritingSettings key={projectId} projectId={projectId} />
         )}
+
+        <LatexEngineSettings />
 
         <section className="panel-section">
           <h2>外观</h2>

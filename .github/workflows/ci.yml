@@ -51,3 +51,5 @@ jobs:
         timeout-minutes: 8
       - run: npm run test:graph:knowledge:e2e
         timeout-minutes: 8
+      - run: npm run test:latex:e2e
+        timeout-minutes: 8
