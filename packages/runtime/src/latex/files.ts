@@ -1,3 +1,4 @@
+import { isUtf8 } from "node:buffer";
 import {
   lstat,
   mkdir,
@@ -11,14 +12,23 @@ import {
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type {
+  CommandPayloads,
+  Hash,
   LatexFileContentPayload,
   LatexFileInfo,
   LatexFilesPayload,
   LatexMainFilePayload,
+  LatexWriteFilePayload,
 } from "@wordhub/contracts";
-import { contentHash, safeProjectTarget } from "@wordhub/store";
+import {
+  ControlledFileWriter,
+  FileConflictError,
+  type WordHubStore,
+  contentHash,
+  safeProjectTarget,
+} from "@wordhub/store";
 
-/** 单个源码文件的最大读取大小，避免把任意大文件送进渲染器。 */
+/** 单个源码文件的读写上限，避免在进程间传递任意大文件。 */
 export const LATEX_FILE_READ_LIMIT = 5 * 1024 * 1024;
 export const LATEX_MAIN_FILE_CONFIG = path.join(".wordhub", "latex.json");
 
@@ -170,18 +180,76 @@ export async function readLatexFile(
   const normalized = normalizeLatexPath(relativePath);
   if (!isSourceFile(normalized)) throw new Error("只能读取 LaTeX 源码文件");
   const target = await safeProjectTarget(folder, normalized);
+  const { data, mtimeMs } = await readLatexSource(target);
+  return {
+    path: normalized,
+    content: data.toString("utf8"),
+    contentHash: contentHash(data),
+    mtimeMs,
+  };
+}
+
+async function readLatexSource(target: string) {
   const info = await lstat(target);
   if (!info.isFile() || info.isSymbolicLink())
     throw new Error("LaTeX 文件不是普通文件");
   if (info.size > LATEX_FILE_READ_LIMIT)
     throw new Error("LaTeX 文件过大，暂不支持显示");
-  const data = await readFile(target);
-  return {
-    path: normalized,
-    content: data.toString("utf8"),
-    contentHash: contentHash(data),
-    mtimeMs: info.mtimeMs,
-  };
+  return { data: await readFile(target), mtimeMs: info.mtimeMs };
+}
+
+export async function writeLatexFile(
+  folder: string,
+  store: WordHubStore,
+  request: CommandPayloads["latex.writeFile"],
+): Promise<LatexWriteFilePayload> {
+  const normalized = normalizeLatexPath(request.path);
+  if (!isSourceFile(normalized)) throw new Error("只能保存 LaTeX 源码文件");
+  if (normalized.toLowerCase().split("/").includes("node_modules"))
+    throw new Error("不允许修改项目依赖目录");
+  if (typeof request.content !== "string")
+    throw new Error("LaTeX 文件内容无效");
+  if (Buffer.byteLength(request.content, "utf8") > LATEX_FILE_READ_LIMIT)
+    throw new Error("LaTeX 文件过大，暂不支持保存");
+  if (
+    typeof request.expectedHash !== "string" ||
+    !/^sha256:[0-9a-f]{64}$/u.test(request.expectedHash)
+  )
+    throw new Error("保存 LaTeX 文件需要有效的基线哈希");
+
+  const target = await safeProjectTarget(folder, normalized);
+  const existing = await readLatexSource(target).catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    },
+  );
+  if (existing && !isUtf8(existing.data))
+    throw new Error("仅支持保存 UTF-8 编码的 LaTeX 文件");
+  const writer = new ControlledFileWriter(store, request.projectId, folder);
+  try {
+    const saved = await writer.writeText({
+      relativePath: normalized,
+      content: request.content,
+      expectedHash: request.expectedHash as Hash,
+      conflictPolicy: "reject",
+      contentType: "text/plain",
+      author: { type: "user", id: "user" },
+    });
+    const info = await lstat(target).catch(() => undefined);
+    return {
+      status: "saved",
+      file: {
+        path: saved.relativePath,
+        content: request.content,
+        contentHash: saved.contentHash,
+        mtimeMs: info?.mtimeMs ?? Date.parse(saved.revision.createdAt),
+      },
+    };
+  } catch (error) {
+    if (error instanceof FileConflictError) return { status: "conflict" };
+    throw error;
+  }
 }
 
 export async function setLatexMainFile(

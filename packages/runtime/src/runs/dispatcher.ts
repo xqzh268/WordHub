@@ -785,6 +785,10 @@ export function createRequestHandler(deps: DispatcherDeps) {
         );
         return;
       }
+      if (request.type === "latex.writeFile") {
+        sendResponse(request.requestId, await latex.writeFile(request));
+        return;
+      }
       if (request.type === "latex.setMainFile") {
         sendResponse(
           request.requestId,

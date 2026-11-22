@@ -78,7 +78,17 @@
 .latex-file-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 12px; }
 .latex-file-item small { margin-left: auto; color: var(--accent); font-size: 10px; white-space: nowrap; }
 .latex-editor-panel { display: flex; min-width: 0; flex-direction: column; }
-.latex-editor-head { border-bottom: 1px solid var(--line); }
-.latex-editor { flex: 1; min-height: 460px; width: 100%; resize: none; border: 0; padding: 16px; color: var(--ink-1); background: var(--paper-2); outline: none; font-family: var(--font-mono); font-size: 13px; line-height: 1.7; tab-size: 2; }
-.latex-editor-empty { display: grid; flex: 1; min-height: 460px; place-items: center; color: var(--ink-4); font-size: 13px; }
-@media (max-width: 760px) { .latex-workspace { grid-template-columns: 1fr; } .latex-file-tree { border-right: 0; border-bottom: 1px solid var(--line); } .latex-editor { min-height: 360px; } }
+.latex-editor-head { min-height: 48px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.latex-editor-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+.latex-editor-head .btn { flex-shrink: 0; }
+.latex-editor-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+.latex-save-status { margin-right: auto; color: var(--ink-3); font-size: 12px; }
+.latex-save-status[data-status="conflict"] { color: var(--danger); }
+.latex-editor-notice { padding: 8px 12px; color: var(--danger); background: var(--danger-soft); font-size: 12.5px; line-height: 1.6; }
+.latex-reload-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--ink-2); background: var(--bg-active); }
+.latex-reload-notice p { margin-right: auto; }
+.latex-editor { flex: 1; min-width: 0; min-height: 360px; height: min(56vh, 620px); background: var(--paper-2); }
+.latex-editor .cm-editor { height: 100%; }
+.latex-editor:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
+.latex-editor-empty { display: grid; flex: 1; min-height: 360px; place-items: center; color: var(--ink-4); font-size: 13px; }
+@media (max-width: 760px) { .latex-workspace { grid-template-columns: 1fr; } .latex-file-tree { border-right: 0; border-bottom: 1px solid var(--line); } }

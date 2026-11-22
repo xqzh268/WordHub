@@ -1,5 +1,5 @@
 import type { Models } from "@earendil-works/pi-ai";
-import type { ProjectKind } from "@wordhub/contracts";
+import type { CommandPayloads, ProjectKind } from "@wordhub/contracts";
 import type { ModelRef } from "../types.js";
 import type { AgentFormInput } from "../agents/custom.js";
 import type { ExportRequest } from "../export/run.js";
@@ -334,6 +334,10 @@ export type RuntimeRequest =
       path: string;
       requestId: string;
     }
+  | (CommandPayloads["latex.writeFile"] & {
+      type: "latex.writeFile";
+      requestId: string;
+    })
   | {
       type: "latex.setMainFile";
       projectId: string;

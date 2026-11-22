@@ -1,5 +1,5 @@
-// M7.1 LaTeX IPC 与信任门的 Electron 端到端：设置页引擎区、外部学术项目的信任横幅、
-// 假引擎编译、停止、取代、项目外读取警告、信任持久化。
+// M7.1 LaTeX 工作台的 Electron 端到端：编辑保存、外部修改冲突、主文件选择、
+// 引擎设置、项目编译信任和编译状态。
 // 使用 mock 模式、隔离的用户数据目录，引擎用 scripts/fixtures/fake-tectonic.mjs（不下载 21MB）。
 import assert from "node:assert/strict";
 import {
@@ -25,6 +25,9 @@ const storageRoot = path.join(temp, "appdata");
 const external = path.join(temp, "external-paper");
 const fresh = path.join(temp, "fresh-paper");
 const secretFile = path.join(temp, "outside-secret.txt");
+const chapterPath = "chapters/introduction.tex";
+const chapterSource = "\\section{引言}\n";
+const alternateMain = "manuscript.tex";
 
 const {
   ELECTRON_RUN_AS_NODE,
@@ -89,15 +92,30 @@ async function createProject(page, folder, kind) {
   assert.equal(snapshot.projectKind, kind);
   return snapshot.projectId;
 }
-const setMain = (source) => writeFile(path.join(external, "main.tex"), source);
-const compileViaIpc = (page, projectId) =>
-  page.evaluate(
-    (id) =>
-      window.wordhub.invoke("latex.compile", {
-        projectId: id,
-        mainFile: "main.tex",
-      }),
+const mainPath = path.join(external, "main.tex");
+const setMain = (source) => writeFile(mainPath, source);
+const article = (body) =>
+  `\\documentclass{article}\n\\begin{document}\n${body}\n\\end{document}\n`;
+const compileViaIpc = (page, projectId, mainFile = "main.tex") =>
+  page.evaluate((input) => window.wordhub.invoke("latex.compile", input), {
     projectId,
+    mainFile,
+  });
+const fileItem = (page, file) =>
+  page.locator(".latex-file-item").filter({
+    has: page.getByText(file, { exact: true }),
+  });
+const editorSelector = '[data-testid="latex-editor"] .cm-content';
+const waitForEditorContent = (page, content) =>
+  page.waitForFunction(
+    ({ selector, content }) => {
+      const lines = [...document.querySelectorAll(`${selector} .cm-line`)];
+      return (
+        lines.length > 0 &&
+        lines.map((line) => line.textContent).join("\n") === content
+      );
+    },
+    { selector: editorSelector, content },
   );
 const exists = (file) =>
   stat(file).then(
@@ -108,11 +126,14 @@ const pass = (message) => console.log(`PASS  ${message}`);
 
 try {
   await Promise.all([
-    mkdir(external),
+    mkdir(path.join(external, "chapters"), { recursive: true }),
     mkdir(fresh),
     mkdir(shots, { recursive: true }),
   ]);
-  await setMain("\\documentclass{article}\\begin{document}Hi\\end{document}\n");
+  const initialSource = article("Hi");
+  await setMain(initialSource);
+  await writeFile(path.join(external, chapterPath), chapterSource);
+  await writeFile(path.join(external, alternateMain), article("Another entry"));
   await writeFile(secretFile, "TOP-SECRET-CONTENT", "utf8");
   // 预置一点缓存，检查设置页能显示大小并清理
   const cacheDir = path.join(storageRoot, "engines", "tectonic-cache");
@@ -184,6 +205,7 @@ try {
   await page.getByTestId("latex-trust-button").click();
   await page.getByTestId("latex-trust-banner").waitFor({ state: "detached" });
   const compileButton = page.getByTestId("latex-compile");
+  await compileButton.filter({ hasText: "main.tex" }).waitFor();
   assert.equal(await compileButton.isEnabled(), true);
   await compileButton.click();
   const status = page.getByTestId("latex-compile-status");
@@ -206,6 +228,46 @@ try {
   pass(
     "点击信任后编译成功，PDF 输出在项目 .wordhub/build/latex，信任状态存于应用数据目录",
   );
+
+  // 在 CodeMirror 中编辑并保存，再重新打开源文件读回。
+  await waitForEditorContent(page, initialSource);
+  const editor = page.locator(editorSelector);
+  assert.equal(await editor.getAttribute("contenteditable"), "true");
+  const savedSource = article("作者写入的新内容");
+  await editor.fill(savedSource);
+  const saveButton = page.getByTestId("latex-save");
+  await saveButton.click();
+  await page
+    .locator('[data-testid="latex-save-status"][data-status="saved"]')
+    .waitFor();
+  assert.equal(await readFile(mainPath, "utf8"), savedSource);
+  await fileItem(page, chapterPath).click();
+  await waitForEditorContent(page, chapterSource);
+  assert.match(await compileButton.innerText(), /main\.tex/u);
+  const files = await page.evaluate(
+    (id) => window.wordhub.invoke("latex.files", { projectId: id }),
+    externalId,
+  );
+  assert.equal(files.mainFile, "main.tex");
+  await fileItem(page, "main.tex").click();
+  await waitForEditorContent(page, savedSource);
+  pass("CodeMirror 修改已保存并读回，浏览章节保留原编译入口");
+
+  // 在另一个写入者保存之后，旧版本提交应保留两份内容供用户处理。
+  const localDraft = article("编辑器中的草稿");
+  const externalSource = article("外部编辑后的版本");
+  await editor.fill(localDraft);
+  await setMain(externalSource);
+  await saveButton.click();
+  const conflict = page.getByTestId("latex-save-conflict");
+  await conflict.waitFor();
+  await waitForEditorContent(page, localDraft);
+  assert.equal(await readFile(mainPath, "utf8"), externalSource);
+  await page.getByTestId("latex-reload").click();
+  await page.getByTestId("latex-reload-confirm").click();
+  await waitForEditorContent(page, externalSource);
+  await conflict.waitFor({ state: "detached" });
+  pass("外部修改触发保存冲突并保留草稿，确认重载后显示最新磁盘版本");
 
   // 4. 失败状态
   await setMain("%FAKE-FAIL\n");
@@ -254,16 +316,31 @@ try {
     "读取项目外绝对路径时界面警告，结果带 readOutsideProject 与路径（不含内容）",
   );
 
-  // 8. 重启后信任仍在；撤销后再次拒绝
-  await setMain("\\documentclass{article}\n");
+  // 8. 重启后仍用显式选择的编译入口；信任仍在，撤销后再次拒绝。
+  await fileItem(page, alternateMain).click();
+  await waitForEditorContent(page, article("Another entry"));
+  assert.match(await compileButton.innerText(), /main\.tex/u);
+  await page.getByTestId("latex-set-main").click();
+  await compileButton.filter({ hasText: alternateMain }).waitFor();
+  const alternatePdf = path.join(path.dirname(pdf), "manuscript.pdf");
+  assert.equal(await exists(alternatePdf), false);
+  await setMain("%FAKE-FAIL\n");
   page = await restart();
-  await page.getByTestId("latex-compile").waitFor();
+  const persistedCompile = page
+    .getByTestId("latex-compile")
+    .filter({ hasText: alternateMain });
+  await persistedCompile.waitFor();
   await page.waitForFunction(
     () =>
       !document.querySelector('[data-testid="latex-trust-banner"]') &&
       !document.querySelector('[data-testid="latex-compile"]')?.disabled,
   );
-  assert.equal((await compileViaIpc(page, externalId)).status, "succeeded");
+  await persistedCompile.click();
+  await page
+    .locator('[data-testid="latex-compile-status"][data-status="succeeded"]')
+    .waitFor();
+  assert.match(await readFile(alternatePdf, "utf8"), /^%PDF/u);
+  pass("显式设置另一主文件，重启应用后编译该文件并生成对应 PDF");
   const revoked = await page.evaluate(
     (id) =>
       window.wordhub.invoke("latex.setTrust", {
@@ -273,13 +350,21 @@ try {
     externalId,
   );
   assert.equal(revoked.trusted, false);
-  assert.equal((await compileViaIpc(page, externalId)).status, "untrusted");
+  assert.equal(
+    (await compileViaIpc(page, externalId, alternateMain)).status,
+    "untrusted",
+  );
   pass("重启后信任保留；撤销信任后再次拒绝编译");
 
   // 9. 新建（空文件夹）的学术项目默认信任
   const freshId = await createProject(page, fresh, "academic");
   assert.notEqual(freshId, externalId);
-  await page.getByTestId("latex-compile").waitFor();
+  const freshTree = page.getByRole("complementary", { name: "LaTeX 文件树" });
+  await freshTree.getByText("项目中还没有可打开的 LaTeX 文件。").waitFor();
+  const freshSource = article("New project");
+  await writeFile(path.join(fresh, "main.tex"), freshSource);
+  await freshTree.getByRole("button", { name: "刷新" }).click();
+  await waitForEditorContent(page, freshSource);
   await page.waitForFunction(
     () => !document.querySelector('[data-testid="latex-compile"]')?.disabled,
   );
@@ -298,7 +383,6 @@ try {
       window.wordhub.invoke("latex.setTrust", { projectId: id, trusted: true }),
     freshId,
   );
-  await writeFile(path.join(fresh, "main.tex"), "\\documentclass{article}\n");
   page = await restart({ mock: false });
   const real = await compileViaIpc(page, freshId);
   assert.equal(real.status, "missing-tool");

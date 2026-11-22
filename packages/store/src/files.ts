@@ -323,7 +323,8 @@ export class ControlledFileWriter {
       this.write({
         ...input,
         // 两个Agent在同一事件循环同时提交同一产物时，第二个写入保留为并列候选，避免静默覆盖。
-        conflictPolicy: concurrent ? "keep-both" : input.conflictPolicy,
+        conflictPolicy:
+          input.conflictPolicy ?? (concurrent ? "keep-both" : undefined),
         expectedHash:
           concurrent && input.expectedHash === undefined
             ? null

@@ -2,20 +2,24 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { WordHubStore, contentHash } from "@wordhub/store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LatexCompileOptions, LatexCompileResult } from "./compiler.js";
 import type { EngineStatus } from "./engine.js";
+import { LATEX_FILE_READ_LIMIT } from "./files.js";
 import { createLatexService } from "./service.js";
 
 let base: string;
 let storage: string;
 let project: string;
+let writeStore: WordHubStore | undefined;
 
 beforeEach(async () => {
   base = await mkdtemp(path.join(os.tmpdir(), "wh-latex-svc-"));
@@ -25,6 +29,8 @@ beforeEach(async () => {
   await writeFile(path.join(project, "main.tex"), "\\documentclass{article}");
 });
 afterEach(async () => {
+  writeStore?.close();
+  writeStore = undefined;
   await rm(base, { recursive: true, force: true });
 });
 
@@ -49,6 +55,7 @@ const request = { projectId: "p1", mainFile: "main.tex" };
 
 const make = (
   compile: (options: LatexCompileOptions) => Promise<LatexCompileResult>,
+  projectStore = vi.fn<() => Promise<WordHubStore>>(),
 ) =>
   createLatexService({
     storageRoot: storage,
@@ -56,6 +63,7 @@ const make = (
       if (id !== "p1" && id !== "p2") throw new Error("项目不存在");
       return project;
     },
+    projectStore,
     post: vi.fn(),
     compile,
     engineStatus: async () => ready,
@@ -100,6 +108,7 @@ describe("latex.compile 信任门", () => {
     const service = createLatexService({
       storageRoot: storage,
       projectFolder: () => project,
+      projectStore: vi.fn(),
       post: vi.fn(),
       compile: vi.fn(),
       engineStatus: async () => ({
@@ -220,6 +229,7 @@ describe("安装引擎", () => {
     const service = createLatexService({
       storageRoot: storage,
       projectFolder: () => project,
+      projectStore: vi.fn(),
       post: (message) => posted.push(message),
       engineStatus: async () => ({ ...ready, state: "missing" }),
       install: async (options) => {
@@ -328,5 +338,170 @@ describe("latex.files / latex.readFile / latex.setMainFile", () => {
     await expect(service.setMainFile("p1", "parts/main.bib")).rejects.toThrow(
       ".tex",
     );
+  });
+});
+
+describe("latex.writeFile", () => {
+  function makeWriter() {
+    const store = new WordHubStore(storage);
+    writeStore = store;
+    store.createProject({
+      id: "p1",
+      name: "论文",
+      folderPath: project,
+      kind: "academic",
+    });
+    const service = make(
+      async () => done(),
+      vi.fn(async () => store),
+    );
+    return { service, store };
+  }
+
+  it("保留中文路径、UTF-8 和 CRLF，保存读入版本及用户修订", async () => {
+    const { service, store } = makeWriter();
+    const directory = path.join(project, "章节");
+    const target = path.join(directory, "引言.tex");
+    const before = "\uFEFF\\section{引言}\r\n原文\r\n";
+    const content = "\uFEFF\\section{引言}\r\n中文改稿\r\n";
+    await mkdir(directory);
+    await writeFile(target, before, "utf8");
+    const baseline = await service.readFile("p1", "章节/引言.tex");
+    const result = await service.writeFile({
+      projectId: "p1",
+      path: "章节\\引言.tex",
+      content,
+      expectedHash: baseline.contentHash,
+    });
+    expect(result).toEqual({
+      status: "saved",
+      file: await service.readFile("p1", baseline.path),
+    });
+    expect(await readFile(target)).toEqual(Buffer.from(content, "utf8"));
+    const [original, revision] = store.listRevisions(
+      "p1",
+      "file:章节/引言.tex",
+    );
+    expect(original).toMatchObject({ contentHash: contentHash(before) });
+    expect(revision).toMatchObject({
+      parentRevisionId: original?.id,
+      author: { type: "user", id: "user" },
+      status: "current",
+      contentHash: contentHash(content),
+    });
+  });
+
+  it("外部修改或删除导致冲突，保留磁盘状态", async () => {
+    const { service, store } = makeWriter();
+    const target = path.join(project, "main.tex");
+    const baseline = await service.readFile("p1", "main.tex");
+    const change = {
+      projectId: "p1",
+      path: baseline.path,
+      content: "编辑器内容",
+      expectedHash: baseline.contentHash,
+    };
+    const external = "外部修改\r\n";
+    await writeFile(target, external, "utf8");
+    await expect(service.writeFile(change)).resolves.toEqual({
+      status: "conflict",
+    });
+    expect(await readFile(target, "utf8")).toBe(external);
+    expect(store.listRevisions("p1", "file:main.tex")).toEqual([
+      expect.objectContaining({
+        contentHash: contentHash(external),
+        author: { type: "system", id: "external" },
+      }),
+    ]);
+    await rm(target);
+    await expect(service.writeFile(change)).resolves.toEqual({
+      status: "conflict",
+    });
+    await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(
+      store.listRevisions("p1", "file:main.tex").at(-1)?.patch,
+    ).toMatchObject({ deleted: true });
+  });
+
+  it("并发保存同一个基线只提交一份，不创建旁路副本", async () => {
+    const { service } = makeWriter();
+    const { contentHash: expectedHash } = await service.readFile(
+      "p1",
+      "main.tex",
+    );
+    const results = await Promise.all(
+      ["甲", "乙"].map((content) =>
+        service.writeFile({
+          projectId: "p1",
+          path: "main.tex",
+          content,
+          expectedHash,
+        }),
+      ),
+    );
+    const saved = results.find((result) => result.status === "saved");
+    expect(saved?.file.content).toBe(
+      await readFile(path.join(project, "main.tex"), "utf8"),
+    );
+    expect(
+      results.filter((result) => result.status === "conflict"),
+    ).toHaveLength(1);
+    expect(await readdir(project)).toEqual(["main.tex"]);
+  });
+
+  it("拒绝来源不明、非源码、内部目录、越界及超过字节上限的写入", async () => {
+    const { service } = makeWriter();
+    const { contentHash: expectedHash } = await service.readFile(
+      "p1",
+      "main.tex",
+    );
+    const change = {
+      projectId: "p1",
+      path: "main.tex",
+      content: "改稿",
+      expectedHash,
+    };
+    const outside = path.join(base, "outside.tex");
+    await writeFile(outside, "外部", "utf8");
+    await symlink(base, path.join(project, "link"), "junction");
+    for (const target of [
+      "../outside.tex",
+      "link/outside.tex",
+      "figure.png",
+      ".wordhub/hidden.tex",
+      "node_modules/pkg/hidden.tex",
+    ]) {
+      await expect(
+        service.writeFile({ ...change, path: target }),
+      ).rejects.toThrow();
+    }
+    await expect(
+      service.writeFile({ ...change, projectId: "unknown" }),
+    ).rejects.toThrow("项目不存在");
+    await expect(
+      service.writeFile({ ...change, expectedHash: "" }),
+    ).rejects.toThrow("基线哈希");
+    await expect(
+      service.writeFile({
+        ...change,
+        content: "字".repeat(Math.floor(LATEX_FILE_READ_LIMIT / 3) + 1),
+      }),
+    ).rejects.toThrow("过大");
+    const invalidUtf8 = Buffer.from([0xff]);
+    await writeFile(path.join(project, "legacy.tex"), invalidUtf8);
+    await expect(
+      service.writeFile({
+        ...change,
+        path: "legacy.tex",
+        expectedHash: contentHash(invalidUtf8),
+      }),
+    ).rejects.toThrow("UTF-8");
+    expect(await readFile(path.join(project, "legacy.tex"))).toEqual(
+      invalidUtf8,
+    );
+    expect(await readFile(outside, "utf8")).toBe("外部");
+    expect(await service.readFile("p1", "main.tex")).toMatchObject({
+      contentHash: expectedHash,
+    });
   });
 });

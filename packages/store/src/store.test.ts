@@ -17,6 +17,7 @@ import {
   contentHash,
   createChatProjectionState,
   ExternalFileWatcher,
+  FileConflictError,
   projectChat,
   WordHubStore,
 } from "./index.js";
@@ -395,6 +396,31 @@ describe("WordHub M1 store", () => {
     );
     expect(contents).toContain("写手版本");
     expect(contents).toContain("编辑版本");
+  });
+
+  it("显式拒绝并发冲突时不生成副本", async () => {
+    const { store, project, folder } = await makeProject();
+    const writer = new ControlledFileWriter(store, project.id, folder);
+    const relativePath = "main.tex";
+    const { contentHash: expectedHash } = await writer.writeText({
+      relativePath,
+      content: "基线",
+    });
+    const input = {
+      relativePath,
+      expectedHash,
+      conflictPolicy: "reject",
+    } as const;
+    const first = writer.writeText({ ...input, content: "首份稿件" });
+    const second = writer.writeText({ ...input, content: "第二份稿件" });
+    await Promise.all([
+      expect(first).resolves.toMatchObject({ relativePath }),
+      expect(second).rejects.toBeInstanceOf(FileConflictError),
+    ]);
+    expect(store.listAllRevisions(project.id)).toHaveLength(2);
+    expect(await readFile(path.join(folder, relativePath), "utf8")).toBe(
+      "首份稿件",
+    );
   });
 
   it("拒绝通过符号链接写入项目外部", async () => {

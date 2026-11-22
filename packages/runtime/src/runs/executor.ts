@@ -197,6 +197,7 @@ export function createRunExecutor(options: ExecutorOptions) {
   const latex = createLatexService({
     storageRoot: options.storageRoot,
     post,
+    projectStore: recoverProjectFiles,
     projectFolder: (projectId) => {
       const project = projectService
         .recent()

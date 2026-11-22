@@ -81,6 +81,7 @@ export type WorkspaceCommand =
   | "latex.clearCache"
   | "latex.files"
   | "latex.readFile"
+  | "latex.writeFile"
   | "latex.setMainFile"
   | "latex.trustStatus"
   | "latex.setTrust"
@@ -233,6 +234,10 @@ export interface LatexFileContentPayload {
   contentHash: string;
   mtimeMs: number;
 }
+
+export type LatexWriteFilePayload =
+  | { status: "saved"; file: LatexFileContentPayload }
+  | { status: "conflict" };
 
 export interface LatexMainFilePayload {
   mainFile: string;
@@ -437,6 +442,7 @@ export interface CommandPayloads {
   "latex.clearCache": undefined;
   "latex.files": { projectId: string };
   "latex.readFile": { projectId: string; path: string };
+  "latex.writeFile": { projectId: string; path: string; content: string; expectedHash: string };
   "latex.setMainFile": { projectId: string; mainFile: string };
   "latex.trustStatus": { projectId: string };
   "latex.setTrust": { projectId: string; trusted: boolean };
@@ -598,6 +604,7 @@ export interface CommandResults {
   "latex.clearCache": LatexEngineStatusPayload;
   "latex.files": LatexFilesPayload;
   "latex.readFile": LatexFileContentPayload;
+  "latex.writeFile": LatexWriteFilePayload;
   "latex.setMainFile": LatexMainFilePayload;
   "latex.trustStatus": LatexTrustPayload;
   "latex.setTrust": LatexTrustPayload;

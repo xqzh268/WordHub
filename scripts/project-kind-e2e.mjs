@@ -101,7 +101,10 @@ async function createProject(page, folder, kind) {
 async function expectAcademicWorkspace(page) {
   const workspace = page.getByTestId("academic-workspace");
   await workspace.getByRole("heading", { name: "学术写作" }).waitFor();
-  await workspace.getByText("LaTeX 工作台将在后续版本开放").waitFor();
+  await workspace
+    .getByRole("complementary", { name: "LaTeX 文件树" })
+    .waitFor();
+  await workspace.getByTestId("latex-compile").waitFor();
   assert.equal(await page.getByTestId("composer-input").count(), 0);
   assert.equal(await page.getByTestId("paper-sheet").count(), 0);
 }
@@ -143,7 +146,7 @@ try {
   const academicId = await createProject(page, academic, "academic");
   assert.notEqual(academicId, novelId);
   await expectAcademicWorkspace(page);
-  console.log("PASS  界面新建学术项目，显示学术工作台占位并持久化 academic");
+  console.log("PASS  界面新建学术项目，显示 LaTeX 工作台并持久化 academic");
 
   await assert.rejects(
     page.evaluate(
@@ -160,7 +163,7 @@ try {
   page = await restart();
   assert.equal(await expectProject(page, academic, "academic"), academicId);
   await expectAcademicWorkspace(page);
-  console.log("PASS  重开应用后恢复同一个学术项目和占位工作区");
+  console.log("PASS  重开应用后恢复同一个学术项目和 LaTeX 工作台");
 
   await page.getByTestId("rail-settings").click();
   await page.getByTestId("settings").waitFor();

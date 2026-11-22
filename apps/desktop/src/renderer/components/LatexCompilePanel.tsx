@@ -6,8 +6,6 @@ import { ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cleanIpcError } from "../lib/errors";
 
-const MAIN_FILE = "main.tex";
-
 function describe(result: LatexCompileResultPayload): string {
   const seconds = (result.durationMs / 1000).toFixed(1);
   switch (result.status) {
@@ -31,64 +29,74 @@ function describe(result: LatexCompileResultPayload): string {
   }
 }
 
-export function LatexCompilePanel({ projectId }: { projectId: string }) {
+export function LatexCompilePanel({
+  projectId,
+  mainFile,
+  updatingFiles,
+}: {
+  projectId: string;
+  mainFile?: string;
+  updatingFiles: boolean;
+}) {
   const [trust, setTrust] = useState<LatexTrustPayload | null>(null);
-  const [compiling, setCompiling] = useState(false);
-  const [result, setResult] = useState<LatexCompileResultPayload>();
+  const [compiling, setCompiling] = useState<string>();
+  const [lastResult, setLastResult] = useState<{
+    mainFile: string;
+    result: LatexCompileResultPayload;
+  }>();
   const [error, setError] = useState<string>();
-  // 项目切换后，旧项目迟到的结果不能覆盖新项目的状态。
-  const current = useRef(projectId);
-  current.current = projectId;
+  const trustRequest = useRef<symbol | null>(null);
+  const result =
+    lastResult?.mainFile === mainFile ? lastResult?.result : undefined;
 
-  const refresh = useCallback(async () => {
-    try {
-      const next = await window.wordhub.invoke("latex.trustStatus", {
-        projectId,
-      });
-      if (current.current === projectId) setTrust(next);
-    } catch (cause) {
-      setError(cleanIpcError(cause));
-    }
-  }, [projectId]);
+  const updateTrust = useCallback(
+    async (confirm: boolean) => {
+      const id = Symbol();
+      trustRequest.current = id;
+      try {
+        const next = confirm
+          ? await window.wordhub.invoke("latex.setTrust", {
+              projectId,
+              trusted: true,
+            })
+          : await window.wordhub.invoke("latex.trustStatus", { projectId });
+        if (trustRequest.current === id) setTrust(next);
+      } catch (cause) {
+        if (trustRequest.current === id) setError(cleanIpcError(cause));
+      }
+    },
+    [projectId],
+  );
 
   useEffect(() => {
-    setTrust(null);
-    setResult(undefined);
-    setError(undefined);
-    setCompiling(false);
-    void refresh();
-  }, [refresh]);
+    void updateTrust(false);
+    return () => {
+      trustRequest.current = null;
+    };
+  }, [updateTrust]);
 
-  const confirmTrust = async () => {
+  const confirmTrust = () => {
     setError(undefined);
-    try {
-      setTrust(
-        await window.wordhub.invoke("latex.setTrust", {
-          projectId,
-          trusted: true,
-        }),
-      );
-    } catch (cause) {
-      setError(cleanIpcError(cause));
-    }
+    void updateTrust(true);
   };
 
   const compile = async () => {
+    if (!mainFile || updatingFiles || compiling || !trust?.trusted) return;
     setError(undefined);
-    setResult(undefined);
-    setCompiling(true);
+    setLastResult(undefined);
+    setCompiling(mainFile);
     try {
       const next = await window.wordhub.invoke("latex.compile", {
         projectId,
-        mainFile: MAIN_FILE,
+        mainFile,
       });
-      if (current.current !== projectId) return;
-      setResult(next);
-      if (next.status === "untrusted") void refresh();
+      setLastResult({ mainFile, result: next });
+      if (next.status === "untrusted" && trustRequest.current)
+        void updateTrust(false);
     } catch (cause) {
-      if (current.current === projectId) setError(cleanIpcError(cause));
+      setError(cleanIpcError(cause));
     } finally {
-      if (current.current === projectId) setCompiling(false);
+      setCompiling(undefined);
     }
   };
 
@@ -126,11 +134,13 @@ export function LatexCompilePanel({ projectId }: { projectId: string }) {
       <div className="latex-compile-row">
         <button
           className="btn btn-primary"
-          disabled={!trust?.trusted || compiling}
+          disabled={
+            !trust?.trusted || Boolean(compiling) || updatingFiles || !mainFile
+          }
           onClick={() => void compile()}
           data-testid="latex-compile"
         >
-          编译 {MAIN_FILE}
+          {mainFile ? `编译 ${mainFile}` : "编译"}
         </button>
         <button
           className="btn"
@@ -147,11 +157,15 @@ export function LatexCompilePanel({ projectId }: { projectId: string }) {
           data-status={compiling ? "running" : (result?.status ?? "idle")}
         >
           {compiling
-            ? "正在编译…"
+            ? `正在编译 ${compiling}…`
             : result
               ? describe(result)
               : trust?.trusted
-                ? "尚未编译"
+                ? mainFile
+                  ? "尚未编译"
+                  : updatingFiles
+                    ? "正在读取项目文件…"
+                    : "请选择主文件"
                 : ""}
         </span>
       </div>

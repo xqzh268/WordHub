@@ -1,6 +1,5 @@
 import { GraduationCap } from "lucide-react";
 import { useWorkbench } from "../state/store";
-import { LatexCompilePanel } from "./LatexCompilePanel";
 import { LatexWorkspace } from "./LatexWorkspace";
 import { ProjectControls } from "./ProjectControls";
 
@@ -14,8 +13,7 @@ export function AcademicWorkspace() {
         </span>
         <h1>学术写作</h1>
         <p className="lead">打开项目文件，选择主文件并检查编译结果。</p>
-        {projectId && <LatexCompilePanel projectId={projectId} />}
-        {projectId && <LatexWorkspace projectId={projectId} />}
+        {projectId && <LatexWorkspace key={projectId} projectId={projectId} />}
         <div className="academic-project-controls">
           <ProjectControls />
         </div>

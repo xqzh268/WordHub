@@ -133,6 +133,7 @@ const LATEX_COMMANDS: ReadonlySet<WorkspaceCommand> = new Set([
   "latex.clearCache",
   "latex.files",
   "latex.readFile",
+  "latex.writeFile",
   "latex.setMainFile",
   "latex.trustStatus",
   "latex.setTrust",
@@ -719,6 +720,13 @@ function registerIpc(): void {
             : {}),
           ...(command === "latex.readFile"
             ? { path: String(payload.path ?? "") }
+            : {}),
+          ...(command === "latex.writeFile"
+            ? {
+                path: payload.path,
+                content: payload.content,
+                expectedHash: payload.expectedHash,
+              }
             : {}),
           ...(command === "latex.setMainFile"
             ? { mainFile: String(payload.mainFile ?? "") }

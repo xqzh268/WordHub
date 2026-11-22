@@ -2,11 +2,13 @@ import { spawn } from "node:child_process";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
 import type {
+  CommandPayloads,
   LatexCompileResultPayload,
   LatexEngineStatusPayload,
   LatexInstallProgress,
   LatexTrustPayload,
 } from "@wordhub/contracts";
+import type { WordHubStore } from "@wordhub/store";
 import { compileLatex, type LatexCompileResult } from "./compiler.js";
 import {
   clearEngineCache,
@@ -14,7 +16,12 @@ import {
   installEngine,
   type EngineStatus,
 } from "./engine.js";
-import { listLatexFiles, readLatexFile, setLatexMainFile } from "./files.js";
+import {
+  listLatexFiles,
+  readLatexFile,
+  setLatexMainFile,
+  writeLatexFile,
+} from "./files.js";
 import { findOutsidePaths } from "./sanitize.js";
 import { LatexTrustStore, isFreshFolder } from "./trust.js";
 
@@ -27,6 +34,7 @@ export interface LatexServiceDeps {
   storageRoot: string;
   /** 取项目登记的链接文件夹；项目不存在时抛错。 */
   projectFolder: (projectId: string) => string;
+  projectStore: (projectId: string) => Promise<WordHubStore>;
   post: (message: Record<string, unknown>) => void;
   /** 以下仅供测试注入。 */
   compile?: typeof compileLatex;
@@ -169,6 +177,14 @@ export function createLatexService(deps: LatexServiceDeps) {
     },
     async readFile(projectId: string, relativePath: string) {
       return readLatexFile(deps.projectFolder(projectId), relativePath);
+    },
+    async writeFile(request: CommandPayloads["latex.writeFile"]) {
+      const folder = deps.projectFolder(request.projectId);
+      return writeLatexFile(
+        folder,
+        await deps.projectStore(request.projectId),
+        request,
+      );
     },
     async setMainFile(projectId: string, mainFile: string) {
       const folder = deps.projectFolder(projectId);
