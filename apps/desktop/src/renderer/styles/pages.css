@@ -68,6 +68,17 @@
 .latex-compile-status { min-width: 0; font-size: 12.5px; color: var(--ink-3); }
 .latex-outside-warning { padding: 12px 14px; border-radius: var(--r-md); font-size: 12.5px; line-height: 1.7; background: var(--danger-soft); box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent); }
 .latex-outside-warning ul { margin: 4px 0; padding-left: 18px; word-break: break-all; font-family: var(--font-mono); }
+.latex-diagnostics { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg-raised); }
+.latex-diagnostics h2 { margin: 0 6px 6px; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.latex-diagnostics ul { max-height: min(36vh, 360px); margin: 0; padding: 3px; overflow-y: auto; list-style: none; }
+.latex-diagnostics li + li { border-top: 1px solid var(--line); }
+.latex-diagnostic { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 2px 10px; width: 100%; padding: 8px 6px; color: var(--ink-1); text-align: left; font-size: 12.5px; line-height: 1.6; }
+button.latex-diagnostic:hover, button.latex-diagnostic:focus-visible { background: var(--bg-active); }
+.latex-diagnostic-severity { color: var(--accent-ink); font-weight: 600; }
+.latex-diagnostics [data-severity="error"] .latex-diagnostic-severity { color: var(--danger); }
+.latex-diagnostic-message { overflow-wrap: anywhere; white-space: pre-wrap; }
+.latex-diagnostic-location { grid-column: 2; overflow-wrap: anywhere; color: var(--ink-3); font: 11.5px var(--font-mono); }
+button.latex-diagnostic .latex-diagnostic-location { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
 .academic-workspace-inner { max-width: 1180px; margin: 0 auto; }
 .academic-workspace-inner > .coming-icon { display: inline-flex; }
 .latex-workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 520px; margin-top: 20px; overflow: hidden; text-align: left; border-radius: var(--r-lg); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }

@@ -2,6 +2,7 @@ import { StreamLanguage } from "@codemirror/language";
 import { stex } from "@codemirror/legacy-modes/mode/stex";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
+import type { LatexDiagnosticLocationPayload } from "@wordhub/contracts";
 import { basicSetup } from "codemirror";
 import { RefreshCw, Save } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +37,12 @@ const editorTheme = EditorView.theme({
   },
 });
 
-type SourceProps = { projectId: string; path: string };
+type SourceProps = {
+  projectId: string;
+  path: string;
+  sourceJump?: LatexDiagnosticLocationPayload;
+  onJumpComplete: (location: LatexDiagnosticLocationPayload) => void;
+};
 
 function SourceCodeMirror({
   initialText,
@@ -44,6 +50,8 @@ function SourceCodeMirror({
   projectId,
   sourceKey,
   readOnly,
+  sourceJump,
+  onJumpComplete,
 }: SourceProps & {
   initialText: string;
   sourceKey: string;
@@ -101,10 +109,28 @@ function SourceCodeMirror({
     });
   }, [readOnly, readOnlyMode]);
 
+  useLayoutEffect(() => {
+    const editor = view.current;
+    if (!editor || !sourceJump || readOnly) return;
+    const { doc } = editor.state;
+    const position = doc.line(Math.min(sourceJump.line, doc.lines)).from;
+    editor.dispatch({
+      selection: { anchor: position },
+      effects: EditorView.scrollIntoView(position, { y: "center" }),
+    });
+    editor.focus();
+    onJumpComplete(sourceJump);
+  }, [onJumpComplete, readOnly, sourceJump]);
+
   return <div className="latex-editor" data-testid="latex-editor" ref={host} />;
 }
 
-export function LatexSourceEditor({ projectId, path }: SourceProps) {
+export function LatexSourceEditor({
+  projectId,
+  path,
+  sourceJump,
+  onJumpComplete,
+}: SourceProps) {
   const sourceKey = JSON.stringify([projectId, path]);
   const buffer = useSourceBuffer(sourceKey);
   const [confirmReload, setConfirmReload] = useState(false);
@@ -222,6 +248,8 @@ export function LatexSourceEditor({ projectId, path }: SourceProps) {
           projectId={projectId}
           sourceKey={sourceKey}
           readOnly={loading || confirmReload}
+          sourceJump={sourceJump}
+          onJumpComplete={onJumpComplete}
         />
       ) : (
         <div className="latex-editor-empty">

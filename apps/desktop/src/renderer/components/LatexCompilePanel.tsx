@@ -1,5 +1,6 @@
 import type {
   LatexCompileResultPayload,
+  LatexDiagnosticLocationPayload,
   LatexTrustPayload,
 } from "@wordhub/contracts";
 import { ShieldAlert } from "lucide-react";
@@ -33,10 +34,14 @@ export function LatexCompilePanel({
   projectId,
   mainFile,
   updatingFiles,
+  sourcePaths,
+  onJumpToSource,
 }: {
   projectId: string;
   mainFile?: string;
   updatingFiles: boolean;
+  sourcePaths: ReadonlySet<string>;
+  onJumpToSource: (location: LatexDiagnosticLocationPayload) => void;
 }) {
   const [trust, setTrust] = useState<LatexTrustPayload | null>(null);
   const [compiling, setCompiling] = useState<string>();
@@ -183,6 +188,52 @@ export function LatexCompilePanel({
           </ul>
           <p>如果这不是你预期的，请不要继续信任此项目。</p>
         </div>
+      )}
+      {result && result.diagnostics.length > 0 && (
+        <section
+          className="latex-diagnostics"
+          aria-label="编译问题"
+          data-testid="latex-diagnostics"
+        >
+          <h2>编译问题</h2>
+          <ul>
+            {result.diagnostics.map(
+              ({ severity, message, location }, index) => {
+                const content = (
+                  <>
+                    <strong className="latex-diagnostic-severity">
+                      {severity === "error" ? "错误" : "警告"}
+                    </strong>
+                    <span className="latex-diagnostic-message">{message}</span>
+                    {location && (
+                      <span className="latex-diagnostic-location">
+                        {location.relativePath}:{location.line}
+                      </span>
+                    )}
+                  </>
+                );
+                return (
+                  <li key={index} data-severity={severity}>
+                    {location && sourcePaths.has(location.relativePath) ? (
+                      <button
+                        className="latex-diagnostic"
+                        type="button"
+                        data-testid="latex-diagnostic-jump"
+                        data-path={location.relativePath}
+                        data-line={location.line}
+                        onClick={() => onJumpToSource(location)}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <div className="latex-diagnostic">{content}</div>
+                    )}
+                  </li>
+                );
+              },
+            )}
+          </ul>
+        </section>
       )}
       {error && (
         <p

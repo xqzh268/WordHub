@@ -76,6 +76,7 @@ describe("latex.compile 信任门", () => {
     const result = await service.compile(request);
     expect(result.status).toBe("untrusted");
     expect(result.message).toContain("信任");
+    expect(result.diagnostics).toEqual([]);
     expect(compile).not.toHaveBeenCalled();
   });
 
@@ -134,6 +135,28 @@ describe("latex.compile 信任门", () => {
     const result = await service.compile(request);
     expect(result.readOutsideProject).toBe(true);
     expect(result.outsidePaths).toEqual([outside]);
+  });
+
+  it("诊断从完整编译输出解析，原始日志仍仅保留尾部", async () => {
+    const service = make(async () =>
+      done({
+        status: "failed",
+        stderr: [
+          "error: main.tex:1: Undefined control sequence",
+          "a".repeat(21_000),
+        ].join("\n"),
+      }),
+    );
+    await service.setTrust("p1", true);
+    const result = await service.compile(request);
+    expect(result.log).not.toContain("Undefined control sequence");
+    expect(result.diagnostics).toEqual([
+      {
+        severity: "error",
+        message: "Undefined control sequence",
+        location: { relativePath: "main.tex", line: 1 },
+      },
+    ]);
   });
 });
 

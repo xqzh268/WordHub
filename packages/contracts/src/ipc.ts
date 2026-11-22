@@ -275,6 +275,20 @@ export type LatexCompileStatusPayload =
   | "offline-cache-miss"
   | "untrusted";
 
+export interface LatexDiagnosticLocationPayload {
+  /** 规范化的项目内源码相对路径，使用 `/` 分隔。 */
+  relativePath: string;
+  /** 源码行号，从 1 开始。 */
+  line: number;
+}
+
+export interface LatexDiagnosticPayload {
+  severity: "error" | "warning";
+  message: string;
+  /** 仅可在工作台中打开的源码才有定位。 */
+  location?: LatexDiagnosticLocationPayload;
+}
+
 export interface LatexCompileResultPayload {
   status: LatexCompileStatusPayload;
   /** 给用户看的补充说明（例如未信任、引擎未安装）。 */
@@ -288,6 +302,8 @@ export interface LatexCompileResultPayload {
   truncated: boolean;
   /** 编译输出尾部，仅给用户界面显示，不得转交 Agent。 */
   log: string;
+  /** 从本次编译输出提取的问题，仅供用户界面显示。 */
+  diagnostics: LatexDiagnosticPayload[];
   /** 编译读取了项目外的绝对路径。 */
   readOutsideProject: boolean;
   /** 仅路径，绝不含内容。 */

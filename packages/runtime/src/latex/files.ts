@@ -70,7 +70,7 @@ const extensionOf = (file: string): string =>
 const isListedFile = (file: string): boolean =>
   LISTED_EXTENSIONS.has(extensionOf(file));
 
-const isSourceFile = (file: string): boolean =>
+export const isLatexSourceFile = (file: string): boolean =>
   SOURCE_EXTENSIONS.has(extensionOf(file));
 
 /** 将 IPC 传来的相对路径规范化，同时拒绝绝对路径和路径穿越。 */
@@ -178,7 +178,8 @@ export async function readLatexFile(
   relativePath: string,
 ): Promise<LatexFileContentPayload> {
   const normalized = normalizeLatexPath(relativePath);
-  if (!isSourceFile(normalized)) throw new Error("只能读取 LaTeX 源码文件");
+  if (!isLatexSourceFile(normalized))
+    throw new Error("只能读取 LaTeX 源码文件");
   const target = await safeProjectTarget(folder, normalized);
   const { data, mtimeMs } = await readLatexSource(target);
   return {
@@ -204,7 +205,8 @@ export async function writeLatexFile(
   request: CommandPayloads["latex.writeFile"],
 ): Promise<LatexWriteFilePayload> {
   const normalized = normalizeLatexPath(request.path);
-  if (!isSourceFile(normalized)) throw new Error("只能保存 LaTeX 源码文件");
+  if (!isLatexSourceFile(normalized))
+    throw new Error("只能保存 LaTeX 源码文件");
   if (normalized.toLowerCase().split("/").includes("node_modules"))
     throw new Error("不允许修改项目依赖目录");
   if (typeof request.content !== "string")
@@ -257,7 +259,7 @@ export async function setLatexMainFile(
   mainFile: string,
 ): Promise<LatexMainFilePayload> {
   const normalized = normalizeLatexPath(mainFile);
-  if (!isSourceFile(normalized) || extensionOf(normalized) !== ".tex")
+  if (extensionOf(normalized) !== ".tex")
     throw new Error("LaTeX 主文件必须是项目内的 .tex 文件");
   const target = await safeProjectTarget(folder, normalized);
   const info = await lstat(target);

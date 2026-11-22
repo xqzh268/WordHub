@@ -10,6 +10,7 @@ import type {
 } from "@wordhub/contracts";
 import type { WordHubStore } from "@wordhub/store";
 import { compileLatex, type LatexCompileResult } from "./compiler.js";
+import { parseLatexDiagnostics } from "./diagnostics.js";
 import {
   clearEngineCache,
   getEngineStatus,
@@ -90,16 +91,18 @@ export function createLatexService(deps: LatexServiceDeps) {
     durationMs: 0,
     truncated: false,
     log: "",
+    diagnostics: [],
     readOutsideProject: false,
     outsidePaths: [],
     ...extra,
   });
 
-  const toCompilePayload = (
+  const toCompilePayload = async (
     result: LatexCompileResult,
     projectRoot: string,
-  ): LatexCompileResultPayload => {
-    const combined = [result.stdout, result.stderr].filter(Boolean).join("\n");
+  ): Promise<LatexCompileResultPayload> => {
+    const streams = [result.stdout, result.stderr].filter(Boolean);
+    const combined = streams.join("\n");
     const outsidePaths = findOutsidePaths(combined, projectRoot);
     return {
       status: result.status,
@@ -111,6 +114,7 @@ export function createLatexService(deps: LatexServiceDeps) {
       durationMs: result.durationMs,
       truncated: result.truncated,
       log: tail(combined, LATEX_UI_LOG_LIMIT),
+      diagnostics: await parseLatexDiagnostics(streams, projectRoot),
       readOutsideProject: outsidePaths.length > 0,
       outsidePaths,
     };
@@ -288,7 +292,7 @@ export function createLatexService(deps: LatexServiceDeps) {
           signal: controller.signal,
           ...(spawnProcess ? { spawnProcess } : {}),
         });
-        return toCompilePayload(result, projectRoot);
+        return await toCompilePayload(result, projectRoot);
       } finally {
         release();
         if (inflight.get(request.projectId) === entry)

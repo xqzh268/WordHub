@@ -1,6 +1,9 @@
-import type { LatexFilesPayload } from "@wordhub/contracts";
+import type {
+  LatexDiagnosticLocationPayload,
+  LatexFilesPayload,
+} from "@wordhub/contracts";
 import { FileCode2, FileImage, Pin } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanIpcError } from "../lib/errors";
 import { LatexCompilePanel } from "./LatexCompilePanel";
 import { LatexSourceEditor } from "./LatexSourceEditor";
@@ -30,9 +33,20 @@ function isTextFile(path: string): boolean {
 export function LatexWorkspace({ projectId }: { projectId: string }) {
   const [files, setFiles] = useState<LatexFilesPayload>();
   const [selectedPath, setSelectedPath] = useState<string>();
+  const [sourceJump, setSourceJump] =
+    useState<LatexDiagnosticLocationPayload>();
   const [error, setError] = useState<string>();
   const [updatingFiles, setUpdatingFiles] = useState(false);
   const request = useRef<symbol | null>(null);
+  const sourcePaths = useMemo(
+    () =>
+      new Set(
+        files?.files
+          .filter((file) => isTextFile(file.path))
+          .map((file) => file.path),
+      ),
+    [files],
+  );
 
   const updateFiles = useCallback(
     async (load: () => Promise<LatexFilesPayload>) => {
@@ -96,12 +110,23 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
     });
   };
 
+  const jumpToSource = (location: LatexDiagnosticLocationPayload) => {
+    setSelectedPath(location.relativePath);
+    setSourceJump({ ...location });
+  };
+
+  const finishJump = useCallback((location: LatexDiagnosticLocationPayload) => {
+    setSourceJump((current) => (current === location ? undefined : current));
+  }, []);
+
   return (
     <>
       <LatexCompilePanel
         projectId={projectId}
         mainFile={mainFile}
         updatingFiles={updatingFiles}
+        sourcePaths={sourcePaths}
+        onJumpToSource={jumpToSource}
       />
       <section className="latex-workspace" data-testid="latex-workspace">
         <aside className="latex-file-tree" aria-label="LaTeX 文件树">
@@ -121,7 +146,10 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
               className={`latex-file-item${selectedPath === file.path ? " active" : ""}`}
               key={file.path}
               aria-current={selectedPath === file.path ? "true" : undefined}
-              onClick={() => setSelectedPath(file.path)}
+              onClick={() => {
+                setSourceJump(undefined);
+                setSelectedPath(file.path);
+              }}
               type="button"
             >
               {isTextFile(file.path) ? (
@@ -158,6 +186,12 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
               key={selectedPath}
               projectId={projectId}
               path={selectedPath}
+              sourceJump={
+                sourceJump?.relativePath === selectedPath
+                  ? sourceJump
+                  : undefined
+              }
+              onJumpComplete={finishJump}
             />
           ) : (
             <div className="latex-editor-empty">

@@ -1,6 +1,7 @@
 // 仅供 latex-ipc-e2e 使用的假 Tectonic：不下载、不排版，按主文件里的标记模拟结果。
 // 只有 WORDHUB_MOCK=1 且设置 WORDHUB_TECTONIC_PATH 指向本脚本时，应用才会用它。
 //   %FAKE-FAIL            退出码 1
+//   %FAKE-DIAGNOSTICS <相对路径>  报告主文件警告和指定子文件错误后退出
 //   %FAKE-SLOW            挂起 30 秒（用于测试停止与取代）
 //   %FAKE-READ <绝对路径>  输出 Tectonic 读取项目外文件时的警告行
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -17,6 +18,12 @@ const outside = /%FAKE-READ (.+)/u.exec(source)?.[1]?.trim();
 if (outside) console.error(`warning: accessing absolute path \`${outside}\``);
 
 const finish = () => {
+  const diagnosticFile = /%FAKE-DIAGNOSTICS (.+)/u.exec(source)?.[1]?.trim();
+  if (diagnosticFile) {
+    console.error(`warning: ${path.basename(mainFile)}:2: Citation undefined`);
+    console.error(`error: ${diagnosticFile}:3: Undefined control sequence`);
+    process.exit(1);
+  }
   if (source.includes("%FAKE-FAIL")) {
     console.error("error: fake engine failure");
     process.exit(1);

@@ -1,5 +1,5 @@
 // M7.1 LaTeX 工作台的 Electron 端到端：编辑保存、外部修改冲突、主文件选择、
-// 引擎设置、项目编译信任和编译状态。
+// 引擎设置、项目编译信任、编译状态和诊断定位。
 // 使用 mock 模式、隔离的用户数据目录，引擎用 scripts/fixtures/fake-tectonic.mjs（不下载 21MB）。
 import assert from "node:assert/strict";
 import {
@@ -26,7 +26,8 @@ const external = path.join(temp, "external-paper");
 const fresh = path.join(temp, "fresh-paper");
 const secretFile = path.join(temp, "outside-secret.txt");
 const chapterPath = "chapters/introduction.tex";
-const chapterSource = "\\section{引言}\n";
+const chapterSource =
+  "\\section{引言}\n这里是正文。\n\\WordHubUndefinedProbe\n";
 const alternateMain = "manuscript.tex";
 
 const {
@@ -116,6 +117,27 @@ const waitForEditorContent = (page, content) =>
       );
     },
     { selector: editorSelector, content },
+  );
+const waitForEditorCursor = (page, line, column) =>
+  page.waitForFunction(
+    ({ selector, line, column }) => {
+      const content = document.querySelector(selector);
+      const selection = getSelection();
+      const target = content?.querySelectorAll(".cm-line")[line - 1];
+      if (
+        !target ||
+        document.activeElement !== content ||
+        !selection?.isCollapsed ||
+        !target.contains(selection.anchorNode)
+      ) {
+        return false;
+      }
+      const beforeCursor = document.createRange();
+      beforeCursor.setStart(target, 0);
+      beforeCursor.setEnd(selection.anchorNode, selection.anchorOffset);
+      return beforeCursor.toString().length + 1 === column;
+    },
+    { selector: editorSelector, line, column },
   );
 const exists = (file) =>
   stat(file).then(
@@ -269,13 +291,57 @@ try {
   await conflict.waitFor({ state: "detached" });
   pass("外部修改触发保存冲突并保留草稿，确认重载后显示最新磁盘版本");
 
-  // 4. 失败状态
-  await setMain("%FAKE-FAIL\n");
+  // 4. 失败诊断可以跨文件跳转，切换时保留各文件的草稿。
+  const diagnosticSource = article(`%FAKE-DIAGNOSTICS ${chapterPath}`);
+  await setMain(diagnosticSource);
+  await page.getByTestId("latex-reload").click();
+  await waitForEditorContent(page, diagnosticSource);
+  const mainDraft = article("主文件草稿");
+  await editor.fill(mainDraft);
   await compileButton.click();
   await page
     .locator('[data-testid="latex-compile-status"][data-status="failed"]')
     .waitFor();
-  pass("引擎失败时显示编译失败");
+  const diagnostics = page.getByTestId("latex-diagnostics");
+  const chapterDiagnostic = diagnostics
+    .getByTestId("latex-diagnostic-jump")
+    .and(page.locator(`[data-path="${chapterPath}"][data-line="3"]`));
+  const mainDiagnostic = diagnostics
+    .getByTestId("latex-diagnostic-jump")
+    .and(page.locator('[data-path="main.tex"][data-line="2"]'));
+  await chapterDiagnostic.getByText("Undefined control sequence").waitFor();
+  await chapterDiagnostic.click();
+  await waitForEditorContent(page, chapterSource);
+  await waitForEditorCursor(page, 3, 1);
+
+  const draftStatus = page.locator(
+    '[data-testid="latex-save-status"][data-status="dirty"]',
+  );
+  const chapterDraft = chapterSource.replace(
+    "这里是正文。",
+    "这里是章节草稿。",
+  );
+  await editor.fill(chapterDraft);
+  await draftStatus.waitFor();
+  await mainDiagnostic.click();
+  await waitForEditorContent(page, mainDraft);
+  await waitForEditorCursor(page, 2, 1);
+  await draftStatus.waitFor();
+  await chapterDiagnostic.click();
+  await waitForEditorContent(page, chapterDraft);
+  await waitForEditorCursor(page, 3, 1);
+  await draftStatus.waitFor();
+
+  await editor.press("ArrowRight");
+  await waitForEditorCursor(page, 3, 2);
+  await chapterDiagnostic.click();
+  await waitForEditorCursor(page, 3, 1);
+  assert.equal(await readFile(mainPath, "utf8"), diagnosticSource);
+  assert.equal(
+    await readFile(path.join(external, chapterPath), "utf8"),
+    chapterSource,
+  );
+  pass("编译诊断可跨文件和重复定位光标，保留两份未保存草稿及磁盘版本");
 
   // 5. 停止按钮
   await setMain("%FAKE-SLOW\n");
