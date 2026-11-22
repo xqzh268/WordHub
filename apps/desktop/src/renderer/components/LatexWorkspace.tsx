@@ -43,7 +43,14 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
       setError(undefined);
       try {
         const next = await load();
-        if (request.current === id) setFiles(next);
+        if (request.current !== id) return;
+        setFiles(next);
+        setSelectedPath(
+          (path) =>
+            path ??
+            next.files.find((file) => file.path === next.mainFile)?.path ??
+            next.files.find((file) => isTextFile(file.path))?.path,
+        );
       } catch (cause) {
         if (request.current === id) setError(cleanIpcError(cause));
       } finally {
@@ -72,22 +79,18 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
   const mainFile = files?.files.find(
     (file) => file.path === files.mainFile,
   )?.path;
-  const selected =
-    selectedPath ??
-    mainFile ??
-    files?.files.find((file) => isTextFile(file.path))?.path;
   const maySetMain =
-    selected &&
-    selected !== mainFile &&
-    selected.toLowerCase().endsWith(".tex") &&
-    files?.files.some((file) => file.path === selected);
+    selectedPath &&
+    selectedPath !== mainFile &&
+    selectedPath.toLowerCase().endsWith(".tex") &&
+    files?.files.some((file) => file.path === selectedPath);
 
   const setMain = () => {
-    if (!files || !selected || !maySetMain) return;
+    if (!files || !selectedPath || !maySetMain) return;
     void updateFiles(async () => {
       const next = await window.wordhub.invoke("latex.setMainFile", {
         projectId,
-        mainFile: selected,
+        mainFile: selectedPath,
       });
       return { ...files, mainFile: next.mainFile };
     });
@@ -115,9 +118,9 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
           </div>
           {files?.files.map((file) => (
             <button
-              className={`latex-file-item${selected === file.path ? " active" : ""}`}
+              className={`latex-file-item${selectedPath === file.path ? " active" : ""}`}
               key={file.path}
-              aria-current={selected === file.path ? "true" : undefined}
+              aria-current={selectedPath === file.path ? "true" : undefined}
               onClick={() => setSelectedPath(file.path)}
               type="button"
             >
@@ -136,7 +139,7 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
         </aside>
         <div className="latex-editor-panel">
           <div className="latex-editor-head">
-            <strong title={selected}>{selected ?? "选择文件"}</strong>
+            <strong title={selectedPath}>{selectedPath ?? "选择文件"}</strong>
             {maySetMain && (
               <button
                 className="btn"
@@ -150,15 +153,15 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
               </button>
             )}
           </div>
-          {selected && isTextFile(selected) ? (
+          {selectedPath && isTextFile(selectedPath) ? (
             <LatexSourceEditor
-              key={selected}
+              key={selectedPath}
               projectId={projectId}
-              path={selected}
+              path={selectedPath}
             />
           ) : (
             <div className="latex-editor-empty">
-              {selected ? "此处仅支持编辑源码文件。" : "选择一个源码文件。"}
+              {selectedPath ? "此处仅支持编辑源码文件。" : "选择一个源码文件。"}
             </div>
           )}
           {error && (

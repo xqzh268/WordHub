@@ -18,7 +18,7 @@ const latexLanguage = StreamLanguage.define(stex);
 
 const editorTheme = EditorView.theme({
   "&": {
-    backgroundColor: "var(--paper-2)",
+    backgroundColor: "var(--paper-sheet)",
     color: "var(--ink-1)",
     fontSize: "13px",
   },
