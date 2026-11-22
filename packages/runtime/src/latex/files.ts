@@ -122,6 +122,14 @@ async function listDirectory(
 export async function readLatexMainFile(folder: string): Promise<string> {
   const root = await projectRoot(folder);
   const config = path.join(root, LATEX_MAIN_FILE_CONFIG);
+  const configInfo = await lstat(config).catch(
+    (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    },
+  );
+  if (configInfo?.isSymbolicLink())
+    throw new Error("不允许通过符号链接读取 LaTeX 配置");
   const text = await readFile(config, "utf8").catch(
     (error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") return undefined;
