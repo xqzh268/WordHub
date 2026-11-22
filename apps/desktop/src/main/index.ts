@@ -138,6 +138,7 @@ const LATEX_COMMANDS: ReadonlySet<WorkspaceCommand> = new Set([
   "latex.trustStatus",
   "latex.setTrust",
   "latex.compile",
+  "latex.readPdf",
   "latex.abort",
 ]);
 
@@ -699,6 +700,12 @@ function registerIpc(): void {
       }
       if (LATEX_COMMANDS.has(command)) {
         const payload = (request.payload ?? {}) as Record<string, unknown>;
+        if (
+          command === "latex.readPdf" &&
+          (typeof payload.projectId !== "string" ||
+            payload.projectId !== projectId)
+        )
+          throw new Error("只能读取当前活动项目的 PDF 预览");
         // 项目 ID 以外的信息（文件夹、信任状态）全部由后台进程自己查，渲染端不能指定。
         return await worker.request({
           type: command,

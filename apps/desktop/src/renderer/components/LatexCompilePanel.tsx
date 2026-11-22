@@ -36,12 +36,14 @@ export function LatexCompilePanel({
   updatingFiles,
   sourcePaths,
   onJumpToSource,
+  onCompileComplete,
 }: {
   projectId: string;
   mainFile?: string;
   updatingFiles: boolean;
   sourcePaths: ReadonlySet<string>;
   onJumpToSource: (location: LatexDiagnosticLocationPayload) => void;
+  onCompileComplete: () => void;
 }) {
   const [trust, setTrust] = useState<LatexTrustPayload | null>(null);
   const [compiling, setCompiling] = useState<string>();
@@ -102,6 +104,7 @@ export function LatexCompilePanel({
       setError(cleanIpcError(cause));
     } finally {
       setCompiling(undefined);
+      onCompileComplete();
     }
   };
 

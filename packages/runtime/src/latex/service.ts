@@ -23,6 +23,7 @@ import {
   setLatexMainFile,
   writeLatexFile,
 } from "./files.js";
+import { createLatexPdfPreviewStore } from "./pdf-preview.js";
 import { findOutsidePaths } from "./sanitize.js";
 import { LatexTrustStore, isFreshFolder } from "./trust.js";
 
@@ -57,6 +58,7 @@ const tail = (text: string, limit: number): string =>
 export function createLatexService(deps: LatexServiceDeps) {
   const engineRoot = path.join(deps.storageRoot, "engines");
   const trust = new LatexTrustStore(deps.storageRoot);
+  const pdfPreviews = createLatexPdfPreviewStore(deps.storageRoot);
   const compile = deps.compile ?? compileLatex;
   const install = deps.install ?? installEngine;
   const statusOf = deps.engineStatus ?? getEngineStatus;
@@ -106,9 +108,6 @@ export function createLatexService(deps: LatexServiceDeps) {
     const outsidePaths = findOutsidePaths(combined, projectRoot);
     return {
       status: result.status,
-      ...(result.pdfPath ? { pdfPath: result.pdfPath } : {}),
-      ...(result.logPath ? { logPath: result.logPath } : {}),
-      ...(result.synctexPath ? { synctexPath: result.synctexPath } : {}),
       ...(result.missingTool ? { missingTool: result.missingTool } : {}),
       exitCode: result.exitCode,
       durationMs: result.durationMs,
@@ -179,6 +178,9 @@ export function createLatexService(deps: LatexServiceDeps) {
     async files(projectId: string) {
       return listLatexFiles(deps.projectFolder(projectId));
     },
+    async readPdf(projectId: string) {
+      return pdfPreviews.read(projectId, deps.projectFolder(projectId));
+    },
     async readFile(projectId: string, relativePath: string) {
       return readLatexFile(deps.projectFolder(projectId), relativePath);
     },
@@ -236,15 +238,22 @@ export function createLatexService(deps: LatexServiceDeps) {
     ): Promise<LatexCompileResultPayload> {
       const folder = deps.projectFolder(request.projectId);
       const state = await trust.status(request.projectId, folder);
-      if (!state.trusted)
+      if (!state.trusted) {
+        await pdfPreviews.markStale(request.projectId, folder, "untrusted");
         return emptyResult(
           "untrusted",
           "此项目尚未被信任。LaTeX 编译可读写项目外的文件，请确认来源可靠后再信任。",
         );
+      }
       let tectonicPath = request.tectonicOverride;
       if (!tectonicPath) {
         const engine = await statusOf(engineRoot);
-        if (engine.state !== "ready" || !engine.executablePath)
+        if (engine.state !== "ready" || !engine.executablePath) {
+          await pdfPreviews.markStale(
+            request.projectId,
+            folder,
+            "missing-tool",
+          );
           return emptyResult(
             "missing-tool",
             engine.state === "corrupt"
@@ -252,6 +261,7 @@ export function createLatexService(deps: LatexServiceDeps) {
               : "尚未安装 LaTeX 引擎，请在设置中安装。",
             { missingTool: "tectonic" },
           );
+        }
         tectonicPath = engine.executablePath;
       }
       const projectRoot = await realpath(folder);
@@ -292,7 +302,31 @@ export function createLatexService(deps: LatexServiceDeps) {
           signal: controller.signal,
           ...(spawnProcess ? { spawnProcess } : {}),
         });
-        return await toCompilePayload(result, projectRoot);
+        const payload = await toCompilePayload(result, projectRoot);
+        if (
+          result.status === "succeeded" &&
+          result.pdfPath &&
+          (await pdfPreviews.recordSuccess(
+            request.projectId,
+            folder,
+            request.mainFile,
+            result.pdfPath,
+          ))
+        )
+          return payload;
+        await pdfPreviews.markStale(
+          request.projectId,
+          folder,
+          result.status === "succeeded" ? "failed" : result.status,
+        );
+        return payload;
+      } catch (error) {
+        await pdfPreviews.markStale(
+          request.projectId,
+          folder,
+          controller.signal.aborted ? "aborted" : "failed",
+        );
+        throw error;
       } finally {
         release();
         if (inflight.get(request.projectId) === entry)

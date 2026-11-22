@@ -3,6 +3,7 @@
 // 使用 mock 模式、隔离的用户数据目录，引擎用 scripts/fixtures/fake-tectonic.mjs（不下载 21MB）。
 import assert from "node:assert/strict";
 import {
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -25,6 +26,20 @@ const storageRoot = path.join(temp, "appdata");
 const external = path.join(temp, "external-paper");
 const fresh = path.join(temp, "fresh-paper");
 const secretFile = path.join(temp, "outside-secret.txt");
+const freshSourcePath = path.join(fresh, "main.tex");
+const localTectonic = path.join(
+  root,
+  "artifacts",
+  "tectonic-spike",
+  "engine",
+  "tectonic.exe",
+);
+const localTectonicCache = path.join(
+  root,
+  "artifacts",
+  "tectonic-spike",
+  "cache-gbt2025-cold",
+);
 const chapterPath = "chapters/introduction.tex";
 const chapterSource =
   "\\section{引言}\n这里是正文。\n\\WordHubUndefinedProbe\n";
@@ -102,6 +117,79 @@ const compileViaIpc = (page, projectId, mainFile = "main.tex") =>
     projectId,
     mainFile,
   });
+const readPdfViaIpc = (page, projectId) =>
+  page.evaluate(
+    (id) => window.wordhub.invoke("latex.readPdf", { projectId: id }),
+    projectId,
+  );
+async function renderedPageColor(page, expected) {
+  const preview = page.getByTestId("latex-pdf-preview");
+  const status = page.getByTestId("latex-pdf-status");
+  const canvases = preview.locator("canvas");
+  await page.waitForFunction(
+    ({ expected }) => {
+      const canvases = document.querySelectorAll(
+        '[data-testid="latex-pdf-preview"] canvas',
+      );
+      if (canvases.length !== 1) return false;
+      const canvas = canvases[0];
+      if (!canvas.width || !canvas.height) return false;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return false;
+      const pixel = context.getImageData(
+        Math.floor(canvas.width / 2),
+        Math.floor(canvas.height / 2),
+        1,
+        1,
+      ).data;
+      return expected.every(
+        (value, channel) => Math.abs(pixel[channel] - value) < 20,
+      );
+    },
+    { expected },
+  );
+  return { preview, status };
+}
+async function renderedInkPages(page, expectedCount) {
+  const preview = page.getByTestId("latex-pdf-preview");
+  const canvases = preview.locator("canvas");
+  await page.waitForFunction((expectedCount) => {
+    const items = document.querySelectorAll(
+      '[data-testid="latex-pdf-preview"] canvas',
+    );
+    return (
+      items.length === expectedCount &&
+      [...items].every((canvas) => {
+        if (!canvas.width || !canvas.height) return false;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) return false;
+        const { data } = context.getImageData(
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
+        let nonWhite = 0;
+        for (let index = 0; index < data.length; index += 4 * 16) {
+          if (
+            data[index] < 235 ||
+            data[index + 1] < 235 ||
+            data[index + 2] < 235
+          )
+            nonWhite += 1;
+        }
+        return nonWhite > 10;
+      })
+    );
+  }, expectedCount);
+  return {
+    preview,
+    canvases: await canvases.count(),
+    dimensions: await canvases.evaluateAll((items) =>
+      items.map((canvas) => ({ width: canvas.width, height: canvas.height })),
+    ),
+  };
+}
 const fileItem = (page, file) =>
   page.locator(".latex-file-item").filter({
     has: page.getByText(file, { exact: true }),
@@ -237,6 +325,17 @@ try {
   assert.match(await status.innerText(), /编译成功/u);
   const pdf = path.join(external, ".wordhub", "build", "latex", "main.pdf");
   assert.match(await readFile(pdf, "utf8"), /^%PDF/u);
+  await waitForEditorContent(page, initialSource);
+  const editor = page.locator(editorSelector);
+  const saveButton = page.getByTestId("latex-save");
+  let rendered = await renderedPageColor(page, [255, 0, 0]);
+  assert.equal(await rendered.status.getAttribute("data-status"), "ready");
+  const firstPreview = await readPdfViaIpc(page, externalId);
+  assert.equal(firstPreview.status, "ready");
+  assert.equal(firstPreview.mainFile, "main.tex");
+  assert.equal(firstPreview.stale, false);
+  assert.ok(firstPreview.data instanceof Uint8Array);
+  pass("有效 PDF 已由 PDF.js 渲染为红色画布，IPC 返回当前项目预览");
   const trustFile = JSON.parse(
     await readFile(path.join(storageRoot, "latex-trust.json"), "utf8"),
   );
@@ -251,13 +350,50 @@ try {
     "点击信任后编译成功，PDF 输出在项目 .wordhub/build/latex，信任状态存于应用数据目录",
   );
 
+  // 每次成功编译会刷新画布；失败编译显示上一份成功预览并标记过期。
+  const twoPageSource = article("%FAKE-PDF-TWO-PAGES");
+  await editor.fill(twoPageSource);
+  await saveButton.click();
+  await page
+    .locator('[data-testid="latex-save-status"][data-status="saved"]')
+    .waitFor();
+  await compileButton.click();
+  await page
+    .locator('[data-testid="latex-compile-status"][data-status="succeeded"]')
+    .waitFor();
+  rendered = await renderedPageColor(page, [0, 0, 255]);
+  assert.equal(await rendered.status.getAttribute("data-status"), "ready");
+  await page.getByRole("button", { name: "下一页" }).click();
+  rendered = await renderedPageColor(page, [0, 255, 0]);
+  await page.getByText("2 / 2", { exact: true }).waitFor();
+  const refreshedPreview = await readPdfViaIpc(page, externalId);
+  assert.equal(refreshedPreview.status, "ready");
+  assert.notEqual(refreshedPreview.revision, firstPreview.revision);
+  assert.equal(refreshedPreview.stale, false);
+  pass("成功重编后画布更新为蓝、绿两页，预览修订号已变化");
+
+  const failedSource = article("%FAKE-FAIL");
+  await editor.fill(failedSource);
+  await saveButton.click();
+  await page
+    .locator('[data-testid="latex-save-status"][data-status="saved"]')
+    .waitFor();
+  await compileButton.click();
+  await page
+    .locator('[data-testid="latex-compile-status"][data-status="failed"]')
+    .waitFor();
+  rendered = await renderedPageColor(page, [0, 0, 255]);
+  assert.equal(await rendered.status.getAttribute("data-status"), "stale");
+  const stalePreview = await readPdfViaIpc(page, externalId);
+  assert.equal(stalePreview.status, "ready");
+  assert.equal(stalePreview.stale, true);
+  assert.equal(stalePreview.revision, refreshedPreview.revision);
+  pass("失败重编标记预览过期，画布继续显示上次成功的蓝、绿两页");
+
   // 在 CodeMirror 中编辑并保存，再重新打开源文件读回。
-  await waitForEditorContent(page, initialSource);
-  const editor = page.locator(editorSelector);
   assert.equal(await editor.getAttribute("contenteditable"), "true");
   const savedSource = article("作者写入的新内容");
   await editor.fill(savedSource);
-  const saveButton = page.getByTestId("latex-save");
   await saveButton.click();
   await page
     .locator('[data-testid="latex-save-status"][data-status="saved"]')
@@ -428,7 +564,7 @@ try {
   const freshTree = page.getByRole("complementary", { name: "LaTeX 文件树" });
   await freshTree.getByText("项目中还没有可打开的 LaTeX 文件。").waitFor();
   const freshSource = article("New project");
-  await writeFile(path.join(fresh, "main.tex"), freshSource);
+  await writeFile(freshSourcePath, freshSource);
   await freshTree.getByRole("button", { name: "刷新" }).click();
   await waitForEditorContent(page, freshSource);
   await page.waitForFunction(
@@ -443,18 +579,105 @@ try {
   assert.equal(freshTrust.reason, "created");
   pass("在 WordHub 内新建（空文件夹）的学术项目默认信任，不显示横幅");
 
+  await page.getByTestId("latex-compile").click();
+  await page
+    .locator('[data-testid="latex-compile-status"][data-status="succeeded"]')
+    .waitFor();
+  rendered = await renderedPageColor(page, [255, 0, 0]);
+  assert.equal(await rendered.status.getAttribute("data-status"), "ready");
+  const freshPreview = await readPdfViaIpc(page, freshId);
+  assert.equal(freshPreview.status, "ready");
+  assert.equal(freshPreview.mainFile, "main.tex");
+  assert.equal(freshPreview.stale, false);
+  await assert.rejects(readPdfViaIpc(page, externalId), /只能读取当前.*项目/u);
+  pass("另一学术项目编译后只显示自己的红色 PDF，跨项目读取被拒绝");
+
+  await stubFolderDialog(external);
+  await page.getByTestId("project-card").click();
+  await page.getByTestId("academic-workspace").waitFor();
+  await page.waitForFunction(
+    (id) =>
+      window.wordhub
+        .invoke("workspace.getSnapshot", undefined)
+        .then((snapshot) => snapshot.projectId === id),
+    externalId,
+  );
+  rendered = await renderedPageColor(page, [255, 0, 0]);
+  assert.equal(await rendered.status.getAttribute("data-status"), "stale");
+  const restoredPreview = await readPdfViaIpc(page, externalId);
+  assert.equal(restoredPreview.status, "ready");
+  assert.equal(restoredPreview.stale, true);
+  assert.equal(restoredPreview.mainFile, "manuscript.tex");
+  await assert.rejects(readPdfViaIpc(page, freshId), /只能读取当前.*项目/u);
+  pass("切回原项目恢复其过期预览，另一项目 ID 不能交叉读取");
+
+  await stubFolderDialog(fresh);
+  await page.getByTestId("project-card").click();
+  await page.getByTestId("academic-workspace").waitFor();
+  await page.waitForFunction(
+    (id) =>
+      window.wordhub
+        .invoke("workspace.getSnapshot", undefined)
+        .then((snapshot) => snapshot.projectId === id),
+    freshId,
+  );
+
   // 10. 非测试模式下假引擎路径不生效
   await page.evaluate(
     (id) =>
       window.wordhub.invoke("latex.setTrust", { projectId: id, trusted: true }),
     freshId,
   );
-  page = await restart({ mock: false });
-  const real = await compileViaIpc(page, freshId);
-  assert.equal(real.status, "missing-tool");
-  assert.equal(real.missingTool, "tectonic");
-  assert.match(real.message ?? "", /尚未安装/u);
-  pass("未开启 WORDHUB_MOCK 时忽略 WORDHUB_TECTONIC_PATH，提示尚未安装引擎");
+
+  if ((await exists(localTectonic)) && (await exists(localTectonicCache))) {
+    const realEngineDir = path.join(
+      storageRoot,
+      "engines",
+      "tectonic",
+      "0.17.0",
+    );
+    const realCacheDir = path.join(storageRoot, "engines", "tectonic-cache");
+    const realExecutable = path.join(realEngineDir, "tectonic.exe");
+    await mkdir(realEngineDir, { recursive: true });
+    await cp(localTectonic, realExecutable);
+    await cp(localTectonicCache, realCacheDir, {
+      recursive: true,
+      force: true,
+    });
+    await writeFile(
+      path.join(realEngineDir, "installed.json"),
+      JSON.stringify({
+        version: "0.17.0",
+        archiveSha256: "local-acceptance-fixture",
+        executable: "tectonic.exe",
+        executableBytes: (await stat(realExecutable)).size,
+        installedAt: new Date().toISOString(),
+      }),
+    );
+    page = await restart({ mock: false });
+    await page.getByTestId("latex-compile").click();
+    await page
+      .locator('[data-testid="latex-compile-status"][data-status="succeeded"]')
+      .waitFor();
+    const realRendered = await renderedInkPages(page, 1);
+    assert.ok(realRendered.dimensions[0].width > 0);
+    assert.ok(realRendered.dimensions[0].height > 0);
+    assert.equal(
+      await page.getByTestId("latex-pdf-status").getAttribute("data-status"),
+      "ready",
+    );
+    const realPreview = await readPdfViaIpc(page, freshId);
+    assert.equal(realPreview.status, "ready");
+    assert.equal(realPreview.stale, false);
+    pass("本机 Tectonic 0.17.0 使用缓存编译并由 Electron 内 PDF.js 实际渲染");
+  } else {
+    page = await restart({ mock: false });
+    const real = await compileViaIpc(page, freshId);
+    assert.equal(real.status, "missing-tool");
+    assert.equal(real.missingTool, "tectonic");
+    assert.match(real.message ?? "", /尚未安装/u);
+    pass("未开启 WORDHUB_MOCK 时忽略假引擎路径，提示尚未安装 Tectonic");
+  }
 } finally {
   await closeApp(app);
   await rm(temp, {

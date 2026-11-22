@@ -328,6 +328,7 @@ export type RuntimeRequest =
   | { type: "latex.cancelInstall"; requestId: string }
   | { type: "latex.clearCache"; requestId: string }
   | { type: "latex.files"; projectId: string; requestId: string }
+  | { type: "latex.readPdf"; projectId: string; requestId: string }
   | {
       type: "latex.readFile";
       projectId: string;

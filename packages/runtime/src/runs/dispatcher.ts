@@ -778,6 +778,10 @@ export function createRequestHandler(deps: DispatcherDeps) {
         sendResponse(request.requestId, await latex.files(request.projectId));
         return;
       }
+      if (request.type === "latex.readPdf") {
+        sendResponse(request.requestId, await latex.readPdf(request.projectId));
+        return;
+      }
       if (request.type === "latex.readFile") {
         sendResponse(
           request.requestId,

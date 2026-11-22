@@ -6,6 +6,7 @@ import { FileCode2, FileImage, Pin } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanIpcError } from "../lib/errors";
 import { LatexCompilePanel } from "./LatexCompilePanel";
+import { LatexPdfPreview } from "./LatexPdfPreview";
 import { LatexSourceEditor } from "./LatexSourceEditor";
 
 const textExtensions = new Set([
@@ -38,6 +39,7 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string>();
   const [updatingFiles, setUpdatingFiles] = useState(false);
   const request = useRef<symbol | null>(null);
+  const pdfPreviewRef = useRef<(() => Promise<void>) | null>(null);
   const sourcePaths = useMemo(
     () =>
       new Set(
@@ -127,84 +129,94 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
         updatingFiles={updatingFiles}
         sourcePaths={sourcePaths}
         onJumpToSource={jumpToSource}
+        onCompileComplete={() => void pdfPreviewRef.current?.()}
       />
-      <section className="latex-workspace" data-testid="latex-workspace">
-        <aside className="latex-file-tree" aria-label="LaTeX 文件树">
-          <div className="latex-file-tree-head">
-            <strong>项目文件</strong>
-            <button
-              className="btn btn-small"
-              disabled={updatingFiles}
-              onClick={() => void refresh()}
-              type="button"
-            >
-              刷新
-            </button>
-          </div>
-          {files?.files.map((file) => (
-            <button
-              className={`latex-file-item${selectedPath === file.path ? " active" : ""}`}
-              key={file.path}
-              aria-current={selectedPath === file.path ? "true" : undefined}
-              onClick={() => {
-                setSourceJump(undefined);
-                setSelectedPath(file.path);
-              }}
-              type="button"
-            >
-              {isTextFile(file.path) ? (
-                <FileCode2 size={15} />
-              ) : (
-                <FileImage size={15} />
-              )}
-              <span>{file.path}</span>
-              {files.mainFile === file.path && <small>主文件</small>}
-            </button>
-          ))}
-          {files && !files.files.length && (
-            <p className="section-note">项目中还没有可打开的 LaTeX 文件。</p>
-          )}
-        </aside>
-        <div className="latex-editor-panel">
-          <div className="latex-editor-head">
-            <strong title={selectedPath}>{selectedPath ?? "选择文件"}</strong>
-            {maySetMain && (
+      <div className="latex-editor-preview-layout">
+        <section className="latex-workspace" data-testid="latex-workspace">
+          <aside className="latex-file-tree" aria-label="LaTeX 文件树">
+            <div className="latex-file-tree-head">
+              <strong>项目文件</strong>
               <button
-                className="btn"
-                type="button"
-                data-testid="latex-set-main"
+                className="btn btn-small"
                 disabled={updatingFiles}
-                onClick={setMain}
+                onClick={() => void refresh()}
+                type="button"
               >
-                <Pin size={14} aria-hidden="true" />
-                设为主文件
+                刷新
               </button>
+            </div>
+            {files?.files.map((file) => (
+              <button
+                className={`latex-file-item${selectedPath === file.path ? " active" : ""}`}
+                key={file.path}
+                aria-current={selectedPath === file.path ? "true" : undefined}
+                onClick={() => {
+                  setSourceJump(undefined);
+                  setSelectedPath(file.path);
+                }}
+                type="button"
+              >
+                {isTextFile(file.path) ? (
+                  <FileCode2 size={15} />
+                ) : (
+                  <FileImage size={15} />
+                )}
+                <span>{file.path}</span>
+                {files.mainFile === file.path && <small>主文件</small>}
+              </button>
+            ))}
+            {files && !files.files.length && (
+              <p className="section-note">项目中还没有可打开的 LaTeX 文件。</p>
+            )}
+          </aside>
+          <div className="latex-editor-panel">
+            <div className="latex-editor-head">
+              <strong title={selectedPath}>{selectedPath ?? "选择文件"}</strong>
+              {maySetMain && (
+                <button
+                  className="btn"
+                  type="button"
+                  data-testid="latex-set-main"
+                  disabled={updatingFiles}
+                  onClick={setMain}
+                >
+                  <Pin size={14} aria-hidden="true" />
+                  设为主文件
+                </button>
+              )}
+            </div>
+            {selectedPath && isTextFile(selectedPath) ? (
+              <LatexSourceEditor
+                key={selectedPath}
+                projectId={projectId}
+                path={selectedPath}
+                sourceJump={
+                  sourceJump?.relativePath === selectedPath
+                    ? sourceJump
+                    : undefined
+                }
+                onJumpComplete={finishJump}
+              />
+            ) : (
+              <div className="latex-editor-empty">
+                {selectedPath
+                  ? "此处仅支持编辑源码文件。"
+                  : "选择一个源码文件。"}
+              </div>
+            )}
+            {error && (
+              <p className="project-error" role="alert">
+                {error}
+              </p>
             )}
           </div>
-          {selectedPath && isTextFile(selectedPath) ? (
-            <LatexSourceEditor
-              key={selectedPath}
-              projectId={projectId}
-              path={selectedPath}
-              sourceJump={
-                sourceJump?.relativePath === selectedPath
-                  ? sourceJump
-                  : undefined
-              }
-              onJumpComplete={finishJump}
-            />
-          ) : (
-            <div className="latex-editor-empty">
-              {selectedPath ? "此处仅支持编辑源码文件。" : "选择一个源码文件。"}
-            </div>
-          )}
-          {error && (
-            <p className="project-error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-      </section>
+        </section>
+        <LatexPdfPreview
+          projectId={projectId}
+          mainFile={mainFile}
+          refreshRef={pdfPreviewRef}
+        />
+      </div>
     </>
   );
 }

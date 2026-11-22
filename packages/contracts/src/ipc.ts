@@ -86,6 +86,7 @@ export type WorkspaceCommand =
   | "latex.trustStatus"
   | "latex.setTrust"
   | "latex.compile"
+  | "latex.readPdf"
   | "latex.abort"
   | "app.setTheme";
 
@@ -310,6 +311,19 @@ export interface LatexCompileResultPayload {
   outsidePaths: string[];
 }
 
+export type LatexPdfPreviewPayload =
+  | { status: "empty" }
+  | { status: "unavailable"; message: string }
+  | {
+      status: "ready";
+      mainFile: string;
+      revision: string;
+      compiledAt: string;
+      stale: boolean;
+      lastFailure?: LatexCompileStatusPayload;
+      data: Uint8Array;
+    };
+
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
@@ -463,6 +477,7 @@ export interface CommandPayloads {
   "latex.trustStatus": { projectId: string };
   "latex.setTrust": { projectId: string; trusted: boolean };
   "latex.compile": { projectId: string; mainFile: string };
+  "latex.readPdf": { projectId: string };
   "latex.abort": { projectId: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
@@ -625,6 +640,7 @@ export interface CommandResults {
   "latex.trustStatus": LatexTrustPayload;
   "latex.setTrust": LatexTrustPayload;
   "latex.compile": LatexCompileResultPayload;
+  "latex.readPdf": LatexPdfPreviewPayload;
   "latex.abort": { aborted: boolean };
   "app.setTheme": { applied: boolean };
 }
