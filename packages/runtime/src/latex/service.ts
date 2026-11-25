@@ -19,12 +19,19 @@ import {
 } from "./engine.js";
 import {
   listLatexFiles,
+  isLatexSourceFile,
+  normalizeLatexPath,
   readLatexFile,
   setLatexMainFile,
   writeLatexFile,
 } from "./files.js";
 import { createLatexPdfPreviewStore } from "./pdf-preview.js";
 import { findOutsidePaths } from "./sanitize.js";
+import {
+  mapPdfToSource,
+  mapSourceToPdf,
+  resolveSyncTeXPath,
+} from "./synctex.js";
 import { LatexTrustStore, isFreshFolder } from "./trust.js";
 
 /** 返回给界面的日志尾部上限（字符）。 */
@@ -180,6 +187,35 @@ export function createLatexService(deps: LatexServiceDeps) {
     },
     async readPdf(projectId: string) {
       return pdfPreviews.read(projectId, deps.projectFolder(projectId));
+    },
+    /** 将项目内源码行定位到最近的 PDF 锚点。 */
+    async syncSourceToPdf(request: CommandPayloads["latex.syncSourceToPdf"]) {
+      const folder = deps.projectFolder(request.projectId);
+      const synctexPath = await resolveSyncTeXPath(folder, request.mainFile);
+      const relativePath = normalizeLatexPath(request.relativePath);
+      if (!isLatexSourceFile(relativePath))
+        throw new Error("SyncTeX 源码路径无效");
+      if (!Number.isInteger(request.line) || request.line <= 0)
+        throw new Error("SyncTeX 源码行号无效");
+      return mapSourceToPdf(folder, synctexPath, {
+        relativePath,
+        line: request.line,
+        column: request.column,
+      });
+    },
+    /** 将 PDF 页面的坐标定位到项目内源码行。 */
+    async syncPdfToSource(request: CommandPayloads["latex.syncPdfToSource"]) {
+      const folder = deps.projectFolder(request.projectId);
+      const synctexPath = await resolveSyncTeXPath(folder, request.mainFile);
+      if (!Number.isInteger(request.page) || request.page <= 0)
+        throw new Error("SyncTeX PDF 页码无效");
+      if (!Number.isFinite(request.x) || !Number.isFinite(request.y))
+        throw new Error("SyncTeX PDF 坐标无效");
+      return mapPdfToSource(folder, synctexPath, {
+        page: request.page,
+        x: request.x,
+        y: request.y,
+      });
     },
     async readFile(projectId: string, relativePath: string) {
       return readLatexFile(deps.projectFolder(projectId), relativePath);

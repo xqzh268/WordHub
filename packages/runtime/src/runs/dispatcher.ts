@@ -782,6 +782,32 @@ export function createRequestHandler(deps: DispatcherDeps) {
         sendResponse(request.requestId, await latex.readPdf(request.projectId));
         return;
       }
+      if (request.type === "latex.syncSourceToPdf") {
+        sendResponse(
+          request.requestId,
+          await latex.syncSourceToPdf({
+            projectId: request.projectId,
+            mainFile: request.mainFile,
+            relativePath: request.relativePath,
+            line: request.line,
+            column: request.column,
+          }),
+        );
+        return;
+      }
+      if (request.type === "latex.syncPdfToSource") {
+        sendResponse(
+          request.requestId,
+          await latex.syncPdfToSource({
+            projectId: request.projectId,
+            mainFile: request.mainFile,
+            page: request.page,
+            x: request.x,
+            y: request.y,
+          }),
+        );
+        return;
+      }
       if (request.type === "latex.readFile") {
         sendResponse(
           request.requestId,

@@ -40,6 +40,7 @@ const editorTheme = EditorView.theme({
 type SourceProps = {
   projectId: string;
   path: string;
+  onJumpToPdf: (location: LatexDiagnosticLocationPayload) => void;
   sourceJump?: LatexDiagnosticLocationPayload;
   onJumpComplete: (location: LatexDiagnosticLocationPayload) => void;
 };
@@ -51,6 +52,7 @@ function SourceCodeMirror({
   sourceKey,
   readOnly,
   sourceJump,
+  onJumpToPdf,
   onJumpComplete,
 }: SourceProps & {
   initialText: string;
@@ -90,6 +92,21 @@ function SourceCodeMirror({
             if (update.docChanged)
               editSource(sourceKey, update.state.doc.toString());
           }),
+          EditorView.domEventHandlers({
+            click: (event, editor) => {
+              if (readOnly) return false;
+              const position = editor.posAtCoords({
+                x: event.clientX,
+                y: event.clientY,
+              });
+              if (position === null) return false;
+              onJumpToPdf({
+                relativePath: path,
+                line: editor.state.doc.lineAt(position).number,
+              });
+              return false;
+            },
+          }),
         ],
       }),
     });
@@ -98,7 +115,7 @@ function SourceCodeMirror({
       view.current = null;
       editor.destroy();
     };
-  }, [path, projectId, readOnlyMode, sourceKey]);
+  }, [onJumpToPdf, path, projectId, readOnly, readOnlyMode, sourceKey]);
 
   useLayoutEffect(() => {
     view.current?.dispatch({
@@ -128,6 +145,7 @@ function SourceCodeMirror({
 export function LatexSourceEditor({
   projectId,
   path,
+  onJumpToPdf,
   sourceJump,
   onJumpComplete,
 }: SourceProps) {
@@ -167,6 +185,15 @@ export function LatexSourceEditor({
   return (
     <>
       <div className="latex-editor-actions">
+        <button
+          className="btn"
+          type="button"
+          data-testid="sync-source-button"
+          disabled={!document || loading || saving || confirmReload}
+          onClick={() => onJumpToPdf({ relativePath: path, line: 1 })}
+        >
+          跳到 PDF
+        </button>
         {document && (
           <>
             <span
@@ -248,6 +275,7 @@ export function LatexSourceEditor({
           projectId={projectId}
           sourceKey={sourceKey}
           readOnly={loading || confirmReload}
+          onJumpToPdf={onJumpToPdf}
           sourceJump={sourceJump}
           onJumpComplete={onJumpComplete}
         />

@@ -330,6 +330,24 @@ export type RuntimeRequest =
   | { type: "latex.files"; projectId: string; requestId: string }
   | { type: "latex.readPdf"; projectId: string; requestId: string }
   | {
+      type: "latex.syncSourceToPdf";
+      projectId: string;
+      mainFile: string;
+      relativePath: string;
+      line: number;
+      column?: number;
+      requestId: string;
+    }
+  | {
+      type: "latex.syncPdfToSource";
+      projectId: string;
+      mainFile: string;
+      page: number;
+      x: number;
+      y: number;
+      requestId: string;
+    }
+  | {
       type: "latex.readFile";
       projectId: string;
       path: string;

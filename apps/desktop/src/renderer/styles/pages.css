@@ -90,7 +90,9 @@ button.latex-diagnostic .latex-diagnostic-location { color: var(--accent-ink); t
 .latex-pdf-status { margin: 0; padding: 8px 12px; color: var(--ink-3); background: var(--bg-canvas); font-size: 11.5px; line-height: 1.55; overflow-wrap: anywhere; }
 .latex-pdf-status.is-alert { color: var(--danger); background: var(--danger-soft); }
 .latex-pdf-page-host { display: flex; min-height: 0; flex: 1; justify-content: center; padding: 12px; overflow: auto; background: var(--bg-active); }
+.latex-pdf-page { position: relative; flex: none; }
 .latex-pdf-canvas { flex: none; max-width: none; height: auto; background: white; box-shadow: 0 1px 6px rgb(0 0 0 / 16%); }
+.latex-pdf-sync-target { position: absolute; width: 10px; height: 10px; border: 2px solid var(--accent); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
 .latex-editor-preview-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr); align-items: stretch; gap: 16px; }
 .latex-workspace { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 520px; margin-top: 20px; overflow: hidden; text-align: left; border-radius: var(--r-lg); background: var(--bg-raised); box-shadow: 0 0 0 1px var(--line), var(--shadow-raised); }
 .latex-file-tree { min-width: 0; padding: 14px 10px; border-right: 1px solid var(--line); background: var(--bg-canvas); }

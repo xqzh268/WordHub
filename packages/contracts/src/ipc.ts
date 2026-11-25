@@ -87,6 +87,8 @@ export type WorkspaceCommand =
   | "latex.setTrust"
   | "latex.compile"
   | "latex.readPdf"
+  | "latex.syncSourceToPdf"
+  | "latex.syncPdfToSource"
   | "latex.abort"
   | "app.setTheme";
 
@@ -324,6 +326,23 @@ export type LatexPdfPreviewPayload =
       data: Uint8Array;
     };
 
+export interface LatexSyncSourceToPdfPayload {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+}
+
+export interface LatexSyncPdfToSourcePayload {
+  relativePath: string;
+  line: number;
+  column: number;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+}
+
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
@@ -478,6 +497,20 @@ export interface CommandPayloads {
   "latex.setTrust": { projectId: string; trusted: boolean };
   "latex.compile": { projectId: string; mainFile: string };
   "latex.readPdf": { projectId: string };
+  "latex.syncSourceToPdf": {
+    projectId: string;
+    mainFile: string;
+    relativePath: string;
+    line: number;
+    column?: number;
+  };
+  "latex.syncPdfToSource": {
+    projectId: string;
+    mainFile: string;
+    page: number;
+    x: number;
+    y: number;
+  };
   "latex.abort": { projectId: string };
   "app.setTheme": { preference: ThemePreference; resolved: ResolvedTheme };
 }
@@ -641,6 +674,8 @@ export interface CommandResults {
   "latex.setTrust": LatexTrustPayload;
   "latex.compile": LatexCompileResultPayload;
   "latex.readPdf": LatexPdfPreviewPayload;
+  "latex.syncSourceToPdf": LatexSyncSourceToPdfPayload | null;
+  "latex.syncPdfToSource": LatexSyncPdfToSourcePayload | null;
   "latex.abort": { aborted: boolean };
   "app.setTheme": { applied: boolean };
 }

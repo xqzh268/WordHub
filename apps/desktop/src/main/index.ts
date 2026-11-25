@@ -139,6 +139,8 @@ const LATEX_COMMANDS: ReadonlySet<WorkspaceCommand> = new Set([
   "latex.setTrust",
   "latex.compile",
   "latex.readPdf",
+  "latex.syncSourceToPdf",
+  "latex.syncPdfToSource",
   "latex.abort",
 ]);
 
@@ -701,7 +703,11 @@ function registerIpc(): void {
       if (LATEX_COMMANDS.has(command)) {
         const payload = (request.payload ?? {}) as Record<string, unknown>;
         if (
-          command === "latex.readPdf" &&
+          [
+            "latex.readPdf",
+            "latex.syncSourceToPdf",
+            "latex.syncPdfToSource",
+          ].includes(command) &&
           (typeof payload.projectId !== "string" ||
             payload.projectId !== projectId)
         )
@@ -727,6 +733,26 @@ function registerIpc(): void {
             : {}),
           ...(command === "latex.readFile"
             ? { path: String(payload.path ?? "") }
+            : {}),
+          ...(["latex.syncSourceToPdf", "latex.syncPdfToSource"].includes(
+            command,
+          )
+            ? {
+                mainFile: String(payload.mainFile ?? ""),
+                ...(command === "latex.syncSourceToPdf"
+                  ? {
+                      relativePath: String(payload.relativePath ?? ""),
+                      line: Number(payload.line),
+                      ...(payload.column === undefined
+                        ? {}
+                        : { column: Number(payload.column) }),
+                    }
+                  : {
+                      page: Number(payload.page),
+                      x: Number(payload.x),
+                      y: Number(payload.y),
+                    }),
+              }
             : {}),
           ...(command === "latex.writeFile"
             ? {

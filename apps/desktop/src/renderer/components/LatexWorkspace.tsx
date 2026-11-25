@@ -36,6 +36,8 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
   const [selectedPath, setSelectedPath] = useState<string>();
   const [sourceJump, setSourceJump] =
     useState<LatexDiagnosticLocationPayload>();
+  const [pdfSourceJump, setPdfSourceJump] =
+    useState<LatexDiagnosticLocationPayload>();
   const [error, setError] = useState<string>();
   const [updatingFiles, setUpdatingFiles] = useState(false);
   const request = useRef<symbol | null>(null);
@@ -121,6 +123,19 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
     setSourceJump((current) => (current === location ? undefined : current));
   }, []);
 
+  const jumpToPdf = useCallback((location: LatexDiagnosticLocationPayload) => {
+    setPdfSourceJump({ ...location });
+  }, []);
+
+  const finishPdfJump = useCallback(
+    (location: LatexDiagnosticLocationPayload) => {
+      setPdfSourceJump((current) =>
+        current === location ? undefined : current,
+      );
+    },
+    [],
+  );
+
   return (
     <>
       <LatexCompilePanel
@@ -190,6 +205,7 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
                 key={selectedPath}
                 projectId={projectId}
                 path={selectedPath}
+                onJumpToPdf={jumpToPdf}
                 sourceJump={
                   sourceJump?.relativePath === selectedPath
                     ? sourceJump
@@ -214,6 +230,9 @@ export function LatexWorkspace({ projectId }: { projectId: string }) {
         <LatexPdfPreview
           projectId={projectId}
           mainFile={mainFile}
+          sourceJump={pdfSourceJump}
+          onJumpComplete={finishPdfJump}
+          onJumpToSource={jumpToSource}
           refreshRef={pdfPreviewRef}
         />
       </div>

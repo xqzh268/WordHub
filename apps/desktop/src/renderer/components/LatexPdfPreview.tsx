@@ -1,4 +1,9 @@
-import type { LatexPdfPreviewPayload } from "@wordhub/contracts";
+import type {
+  LatexDiagnosticLocationPayload,
+  LatexPdfPreviewPayload,
+  LatexSyncPdfToSourcePayload,
+  LatexSyncSourceToPdfPayload,
+} from "@wordhub/contracts";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist/build/pdf.mjs";
 import type {
   PDFDocumentProxy,
@@ -12,7 +17,13 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { cleanIpcError } from "../lib/errors";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -20,10 +31,16 @@ GlobalWorkerOptions.workerSrc = workerUrl;
 export function LatexPdfPreview({
   projectId,
   mainFile,
+  sourceJump,
+  onJumpComplete,
+  onJumpToSource,
   refreshRef,
 }: {
   projectId: string;
   mainFile?: string;
+  sourceJump?: LatexDiagnosticLocationPayload;
+  onJumpComplete: (location: LatexDiagnosticLocationPayload) => void;
+  onJumpToSource: (location: LatexDiagnosticLocationPayload) => void;
   refreshRef: { current: (() => Promise<void>) | null };
 }) {
   const [artifact, setArtifact] = useState<LatexPdfPreviewPayload | null>(null);
@@ -33,13 +50,22 @@ export function LatexPdfPreview({
   const [pageNumber, setPageNumber] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [availableWidth, setAvailableWidth] = useState(0);
+  const [sourceTarget, setSourceTarget] =
+    useState<LatexSyncSourceToPdfPayload>();
+  const [renderedViewport, setRenderedViewport] = useState<{
+    width: number;
+    height: number;
+  }>();
   const [document, setDocument] = useState<PDFDocumentProxy>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageHostRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef(0);
+  const syncRequestRef = useRef(0);
+  const pageGeometryRef = useRef<{ width: number; height: number }>(undefined);
 
   const refresh = useCallback(async () => {
     const requestId = ++requestRef.current;
+    syncRequestRef.current += 1;
     setLoading(true);
     setError(undefined);
     try {
@@ -47,6 +73,7 @@ export function LatexPdfPreview({
       if (requestRef.current !== requestId) return;
       setArtifact(next);
       setPageNumber(1);
+      setSourceTarget(undefined);
     } catch (cause) {
       if (requestRef.current === requestId) setError(cleanIpcError(cause));
     } finally {
@@ -106,6 +133,37 @@ export function LatexPdfPreview({
   }, [artifact]);
 
   useEffect(() => {
+    if (!sourceJump || artifact?.status !== "ready" || !artifact.mainFile)
+      return;
+    const requestId = ++syncRequestRef.current;
+    setError(undefined);
+    void window.wordhub
+      .invoke("latex.syncSourceToPdf", {
+        projectId,
+        mainFile: artifact.mainFile,
+        relativePath: sourceJump.relativePath,
+        line: sourceJump.line,
+      })
+      .then((target) => {
+        if (syncRequestRef.current !== requestId) return;
+        if (target) {
+          setSourceTarget(target);
+          setPageNumber(target.page);
+        }
+        onJumpComplete(sourceJump);
+      })
+      .catch((cause: unknown) => {
+        if (syncRequestRef.current === requestId) {
+          setError(cleanIpcError(cause));
+          onJumpComplete(sourceJump);
+        }
+      });
+    return () => {
+      if (syncRequestRef.current === requestId) syncRequestRef.current += 1;
+    };
+  }, [artifact, onJumpComplete, projectId, sourceJump]);
+
+  useEffect(() => {
     if (!document || availableWidth === 0) return;
     let disposed = false;
     let renderTask: RenderTask | undefined;
@@ -119,6 +177,12 @@ export function LatexPdfPreview({
           availableWidth / page.getViewport({ scale: 1 }).width,
         );
         const viewport = page.getViewport({ scale: fit * zoom });
+        const geometry = page.getViewport({ scale: 1 });
+        pageGeometryRef.current = {
+          width: geometry.width,
+          height: geometry.height,
+        };
+        setRenderedViewport({ width: viewport.width, height: viewport.height });
         const outputScale = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = Math.floor(viewport.width * outputScale);
         canvas.height = Math.floor(viewport.height * outputScale);
@@ -145,6 +209,42 @@ export function LatexPdfPreview({
       renderTask?.cancel();
     };
   }, [availableWidth, document, pageNumber, zoom]);
+
+  const handlePdfClick = useCallback(
+    (event: MouseEvent<HTMLCanvasElement>) => {
+      const canvas = event.currentTarget;
+      const geometry = pageGeometryRef.current;
+      if (!geometry || artifact?.status !== "ready" || !artifact.mainFile)
+        return;
+      const bounds = canvas.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      const x = ((event.clientX - bounds.left) / bounds.width) * geometry.width;
+      const y =
+        ((event.clientY - bounds.top) / bounds.height) * geometry.height;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const requestId = ++syncRequestRef.current;
+      void window.wordhub
+        .invoke("latex.syncPdfToSource", {
+          projectId,
+          mainFile: artifact.mainFile,
+          page: pageNumber,
+          x,
+          y,
+        })
+        .then((location: LatexSyncPdfToSourcePayload | null) => {
+          if (syncRequestRef.current !== requestId || !location) return;
+          onJumpToSource({
+            relativePath: location.relativePath,
+            line: location.line,
+          });
+        })
+        .catch((cause: unknown) => {
+          if (syncRequestRef.current === requestId)
+            setError(cleanIpcError(cause));
+        });
+    },
+    [artifact, onJumpToSource, pageNumber, projectId],
+  );
 
   const status = error
     ? "error"
@@ -253,14 +353,41 @@ export function LatexPdfPreview({
       >
         {statusText}
       </p>
-      <div className="latex-pdf-page-host" ref={pageHostRef}>
-        {artifact?.status === "ready" && (
-          <canvas
-            className="latex-pdf-canvas"
-            ref={canvasRef}
-            data-testid="latex-pdf-canvas"
-            aria-label={`第 ${pageNumber} 页`}
-          />
+      <div
+        className="latex-pdf-page-host"
+        ref={pageHostRef}
+        data-testid="sync-pdf-surface"
+      >
+        {artifact?.status === "ready" && renderedViewport && (
+          <div
+            className="latex-pdf-page"
+            style={{
+              width: renderedViewport.width,
+              height: renderedViewport.height,
+            }}
+          >
+            <canvas
+              className="latex-pdf-canvas"
+              ref={canvasRef}
+              data-testid="latex-pdf-canvas"
+              aria-label={`第 ${pageNumber} 页`}
+              onClick={handlePdfClick}
+            />
+            {sourceTarget?.page === pageNumber && pageGeometryRef.current && (
+              <span
+                className="latex-pdf-sync-target"
+                aria-hidden="true"
+                style={{
+                  left:
+                    (sourceTarget.x / pageGeometryRef.current.width) *
+                    renderedViewport.width,
+                  top:
+                    (sourceTarget.y / pageGeometryRef.current.height) *
+                    renderedViewport.height,
+                }}
+              />
+            )}
+          </div>
         )}
       </div>
     </section>
