@@ -1,4 +1,5 @@
 import { gzipSync } from "node:zlib";
+import { realpathSync } from "node:fs";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +18,9 @@ import { createLatexService } from "./service.js";
 let base: string;
 let project: string;
 let synctexPath: string;
+
+const canonicalPath = (value: string): string =>
+  path.normalize(realpathSync.native(value));
 
 const content = [
   "SyncTeX Version:1",
@@ -86,9 +90,8 @@ describe("SyncTeX 读取与解析", () => {
   });
 
   it("主文件路径固定到项目内编译输出", async () => {
-    await expect(resolveSyncTeXPath(project, "main.tex")).resolves.toBe(
-      synctexPath,
-    );
+    const resolved = await resolveSyncTeXPath(project, "main.tex");
+    expect(canonicalPath(resolved)).toBe(canonicalPath(synctexPath));
     await expect(
       resolveSyncTeXPath(project, "../project/main.tex"),
     ).rejects.toThrow();
