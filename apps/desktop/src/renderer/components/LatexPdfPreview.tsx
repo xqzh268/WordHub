@@ -358,13 +358,17 @@ export function LatexPdfPreview({
         ref={pageHostRef}
         data-testid="sync-pdf-surface"
       >
-        {artifact?.status === "ready" && renderedViewport && (
+        {artifact?.status === "ready" && (
           <div
             className="latex-pdf-page"
-            style={{
-              width: renderedViewport.width,
-              height: renderedViewport.height,
-            }}
+            style={
+              renderedViewport
+                ? {
+                    width: renderedViewport.width,
+                    height: renderedViewport.height,
+                  }
+                : undefined
+            }
           >
             <canvas
               className="latex-pdf-canvas"
@@ -373,20 +377,22 @@ export function LatexPdfPreview({
               aria-label={`第 ${pageNumber} 页`}
               onClick={handlePdfClick}
             />
-            {sourceTarget?.page === pageNumber && pageGeometryRef.current && (
-              <span
-                className="latex-pdf-sync-target"
-                aria-hidden="true"
-                style={{
-                  left:
-                    (sourceTarget.x / pageGeometryRef.current.width) *
-                    renderedViewport.width,
-                  top:
-                    (sourceTarget.y / pageGeometryRef.current.height) *
-                    renderedViewport.height,
-                }}
-              />
-            )}
+            {sourceTarget?.page === pageNumber &&
+              pageGeometryRef.current &&
+              renderedViewport && (
+                <span
+                  className="latex-pdf-sync-target"
+                  aria-hidden="true"
+                  style={{
+                    left:
+                      (sourceTarget.x / pageGeometryRef.current.width) *
+                      renderedViewport.width,
+                    top:
+                      (sourceTarget.y / pageGeometryRef.current.height) *
+                      renderedViewport.height,
+                  }}
+                />
+              )}
           </div>
         )}
       </div>
